@@ -288,8 +288,6 @@ static inline int FindFirstBitNonZero (const uint32_t mask)
 
 #include "platform.h"
 
-#include <vulkan/vulkan_core.h>
-
 #include "console.h"
 #include "wad.h"
 #include "vid.h"
@@ -311,7 +309,6 @@ static inline int FindFirstBitNonZero (const uint32_t mask)
 #include "menu.h"
 #include "cdaudio.h"
 #include "glquake.h"
-#include "../Shaders/shaders.h"
 
 #include "tasks.h"
 #include "atomics.h"
