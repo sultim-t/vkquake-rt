@@ -5,8 +5,6 @@ VisualStudioVersion = 17.0.32014.148
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "vkQuake", "vkquake.vcxproj", "{AE77266F-0A23-4F08-A491-369DE664B273}"
 EndProject
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "bintoc", "bintoc.vcxproj", "{91D0ED02-D4DB-4CD4-A232-9F0ACC573048}"
-EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|x64 = Debug|x64
@@ -17,10 +15,6 @@ Global
 		{AE77266F-0A23-4F08-A491-369DE664B273}.Debug|x64.Build.0 = Debug|x64
 		{AE77266F-0A23-4F08-A491-369DE664B273}.Release|x64.ActiveCfg = Release|x64
 		{AE77266F-0A23-4F08-A491-369DE664B273}.Release|x64.Build.0 = Release|x64
-		{91D0ED02-D4DB-4CD4-A232-9F0ACC573048}.Debug|x64.ActiveCfg = Debug|x64
-		{91D0ED02-D4DB-4CD4-A232-9F0ACC573048}.Debug|x64.Build.0 = Debug|x64
-		{91D0ED02-D4DB-4CD4-A232-9F0ACC573048}.Release|x64.ActiveCfg = Release|x64
-		{91D0ED02-D4DB-4CD4-A232-9F0ACC573048}.Release|x64.Build.0 = Release|x64
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
