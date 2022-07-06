@@ -1,4 +1,4 @@
-# 🌋 vkQuake [![Windows CI](https://github.com/Novum/vkQuake/actions/workflows/build-windows.yml/badge.svg)](https://github.com/Novum/vkQuake/actions/workflows/build-windows.yml) [![Linux CI](https://github.com/Novum/vkQuake/actions/workflows/build-linux.yml/badge.svg)](https://github.com/Novum/vkQuake/actions/workflows/build-linux.yml) [![macOS CI](https://github.com/Novum/vkQuake/actions/workflows/build-mac.yml/badge.svg)](https://github.com/Novum/vkQuake/actions/workflows/build-mac.yml)
+# 🌋 vkQuake [![Windows CI](https://github.com/sultim-t/vkquake-rt/actions/workflows/build-windows.yml/badge.svg)](https://github.com/sultim-t/vkquake-rt/actions/workflows/build-windows.yml) [![Linux CI](https://github.com/sultim-t/vkquake-rt/actions/workflows/build-linux.yml/badge.svg)](https://github.com/sultim-t/vkquake-rt/actions/workflows/build-linux.yml) [![macOS CI](https://github.com/sultim-t/vkquake-rt/actions/workflows/build-mac.yml/badge.svg)](https://github.com/sultim-t/vkquake-rt/actions/workflows/build-mac.yml)
 vkQuake is a port of id Software's [Quake](https://en.wikipedia.org/wiki/Quake_(video_game)) using Vulkan instead of OpenGL for rendering. It is based on the popular [QuakeSpasm](http://quakespasm.sourceforge.net/) and [QuakeSpasm-Spiked](https://triptohell.info/moodles/qss/) ports and runs all mods compatible with QuakeSpasm like [Arcane Dimensions](http://www.moddb.com/mods/arcane-dimensions). 
 
 Improvements over QuakeSpasm include:
@@ -46,7 +46,7 @@ vkQuake shows basic usage of the API. For example it demonstrates render passes 
 
 ## Windows
 
-Clone the vkQuake repo from `https://github.com/Novum/vkQuake.git`
+Clone the vkQuake repo from `https://github.com/sultim-t/vkquake-rt.git`
 
 Prerequisites:
 
@@ -78,12 +78,12 @@ Arch Linux:
 pacman -S git meson flac glibc libgl libmad libvorbis libx11 sdl2 vulkan-validation-layers
 ~~~
 
-> 📝 **Note**: For vkquake > v0.50, you will need at least v1.0.12.0 of libvulkan-dev (See [#55](https://github.com/Novum/vkQuake/issues/55)).
+> 📝 **Note**: For vkquake > v0.50, you will need at least v1.0.12.0 of libvulkan-dev (See [#55](https://github.com/sultim-t/vkquake-rt/issues/55)).
 
 Then clone the vkQuake repo:
 
 ~~~
-git clone https://github.com/Novum/vkQuake.git
+git clone https://github.com/sultim-t/vkquake-rt.git
 ~~~
 
 Now go to the Quake directory and compile the executable:
@@ -113,7 +113,7 @@ brew install molten-vk vulkan-headers sdl2 libvorbis flac mad meson
 Then clone the vkQuake repo:
 
 ~~~
-git clone https://github.com/Novum/vkQuake.git
+git clone https://github.com/sultim-t/vkquake-rt.git
 ~~~
 
 Now go to the Quake directory and compile the executable:
