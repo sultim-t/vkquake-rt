@@ -969,6 +969,8 @@ static void R_DrawParticlesFaces (cb_context_t *cbx, gltexture_t *texture)
 
     RgResult r = rgUploadRasterizedGeometry (vulkan_globals.instance, &info, NULL, NULL);
 	RG_CHECK (r);
+
+	Mem_Free (vertices);
 }
 
 /*

@@ -454,7 +454,7 @@ void Draw_Init (void)
 Draw_FillCharacterQuad
 ================
 */
-static void Draw_FillCharacterQuad (int x, int y, char num, basicvertex_t *output, int rotation)
+static void Draw_FillCharacterQuad (int x, int y, char num, RgRasterizedGeometryVertexStruct *output, int rotation)
 {
 	int   row, col;
 	float frow, fcol, size;
@@ -466,8 +466,7 @@ static void Draw_FillCharacterQuad (int x, int y, char num, basicvertex_t *outpu
 	fcol = col * 0.0625;
 	size = 0.0625;
 
-	basicvertex_t corner_verts[4];
-	memset (&corner_verts, 255, sizeof (corner_verts));
+	RgRasterizedGeometryVertexStruct corner_verts[4];
 
 	float texcoords[4][2] = {
 		{x, y},
@@ -479,26 +478,30 @@ static void Draw_FillCharacterQuad (int x, int y, char num, basicvertex_t *outpu
 	corner_verts[0].position[0] = texcoords[(rotation + 0) % 4][0];
 	corner_verts[0].position[1] = texcoords[(rotation + 0) % 4][1];
 	corner_verts[0].position[2] = 0.0f;
-	corner_verts[0].texcoord[0] = fcol;
-	corner_verts[0].texcoord[1] = frow;
+	corner_verts[0].texCoord[0] = fcol;
+	corner_verts[0].texCoord[1] = frow;
+	corner_verts[0].packedColor = RT_PackColorToUint32 (255, 255, 255, 255);
 
 	corner_verts[1].position[0] = texcoords[(rotation + 1) % 4][0];
 	corner_verts[1].position[1] = texcoords[(rotation + 1) % 4][1];
 	corner_verts[1].position[2] = 0.0f;
-	corner_verts[1].texcoord[0] = fcol + size;
-	corner_verts[1].texcoord[1] = frow;
+	corner_verts[1].texCoord[0] = fcol + size;
+	corner_verts[1].texCoord[1] = frow;
+	corner_verts[1].packedColor = RT_PackColorToUint32 (255, 255, 255, 255);
 
 	corner_verts[2].position[0] = texcoords[(rotation + 2) % 4][0];
 	corner_verts[2].position[1] = texcoords[(rotation + 2) % 4][1];
 	corner_verts[2].position[2] = 0.0f;
-	corner_verts[2].texcoord[0] = fcol + size;
-	corner_verts[2].texcoord[1] = frow + size;
+	corner_verts[2].texCoord[0] = fcol + size;
+	corner_verts[2].texCoord[1] = frow + size;
+	corner_verts[2].packedColor = RT_PackColorToUint32 (255, 255, 255, 255);
 
 	corner_verts[3].position[0] = texcoords[(rotation + 3) % 4][0];
 	corner_verts[3].position[1] = texcoords[(rotation + 3) % 4][1];
 	corner_verts[3].position[2] = 0.0f;
-	corner_verts[3].texcoord[0] = fcol;
-	corner_verts[3].texcoord[1] = frow + size;
+	corner_verts[3].texCoord[0] = fcol;
+	corner_verts[3].texCoord[1] = frow + size;
+	corner_verts[3].packedColor = RT_PackColorToUint32 (255, 255, 255, 255);
 
 	output[0] = corner_verts[0];
 	output[1] = corner_verts[1];
@@ -524,17 +527,25 @@ void Draw_Character (cb_context_t *cbx, int x, int y, int num)
 	if (num == 32)
 		return; // don't waste verts on spaces
 
-	VkBuffer       buffer;
-	VkDeviceSize   buffer_offset;
-	basicvertex_t *vertices = (basicvertex_t *)R_VertexAllocate (6 * sizeof (basicvertex_t), &buffer, &buffer_offset);
-
+	RgRasterizedGeometryVertexStruct vertices[6];
 	Draw_FillCharacterQuad (x, y, (char)num, vertices, rotation);
 
-	vulkan_globals.vk_cmd_bind_vertex_buffers (cbx->cb, 0, 1, &buffer, &buffer_offset);
-	R_BindPipeline (cbx, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.basic_alphatest_pipeline[cbx->render_pass_index]);
-	vulkan_globals.vk_cmd_bind_descriptor_sets (
-		cbx->cb, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.basic_pipeline_layout.handle, 0, 1, &char_texture->descriptor_set, 0, NULL);
-	vulkan_globals.vk_cmd_draw (cbx->cb, 6, 1, 0, 0);
+	RgRasterizedGeometryUploadInfo info = {
+		.renderType = RG_RASTERIZED_GEOMETRY_RENDER_TYPE_SWAPCHAIN,
+		.vertexCount = countof (vertices),
+		.pStructs = vertices,
+		.indexCount = 0,
+		.pIndexData = NULL,
+		.transform = RT_TRANSFORM_IDENTITY,
+		.color = RT_COLOR_WHITE,
+		.material = char_texture ? char_texture->rtmaterial : RG_NO_MATERIAL,
+		.pipelineState = RG_RASTERIZED_GEOMETRY_STATE_ALPHA_TEST,
+		.blendFuncSrc = 0,
+		.blendFuncDst = 0,
+	};
+
+	RgResult r = rgUploadRasterizedGeometry (vulkan_globals.instance, &info, cbx->cur_viewprojection, &cbx->cur_viewport);
+	RG_CHECK (r);
 }
 
 /*
@@ -554,10 +565,8 @@ void Draw_String (cb_context_t *cbx, int x, int y, const char *str)
 	for (tmp = str; *tmp != 0; ++tmp)
 		if (*tmp != 32)
 			num_verts += 6;
-
-	VkBuffer       buffer;
-	VkDeviceSize   buffer_offset;
-	basicvertex_t *vertices = (basicvertex_t *)R_VertexAllocate (num_verts * sizeof (basicvertex_t), &buffer, &buffer_offset);
+	
+	RgRasterizedGeometryVertexStruct *vertices = Mem_Alloc (num_verts * sizeof (RgRasterizedGeometryVertexStruct));
 
 	for (i = 0; *str != 0; ++str)
 	{
@@ -569,11 +578,24 @@ void Draw_String (cb_context_t *cbx, int x, int y, const char *str)
 		x += 8;
 	}
 
-	vulkan_globals.vk_cmd_bind_vertex_buffers (cbx->cb, 0, 1, &buffer, &buffer_offset);
-	R_BindPipeline (cbx, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.basic_alphatest_pipeline[cbx->render_pass_index]);
-	vulkan_globals.vk_cmd_bind_descriptor_sets (
-		cbx->cb, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.basic_pipeline_layout.handle, 0, 1, &char_texture->descriptor_set, 0, NULL);
-	vulkan_globals.vk_cmd_draw (cbx->cb, num_verts, 1, 0, 0);
+	RgRasterizedGeometryUploadInfo info = {
+		.renderType = RG_RASTERIZED_GEOMETRY_RENDER_TYPE_SWAPCHAIN,
+		.vertexCount = num_verts,
+		.pStructs = vertices,
+		.indexCount = 0,
+		.pIndexData = NULL,
+		.transform = RT_TRANSFORM_IDENTITY,
+		.color = RT_COLOR_WHITE,
+		.material = char_texture ? char_texture->rtmaterial : RG_NO_MATERIAL,
+		.pipelineState = RG_RASTERIZED_GEOMETRY_STATE_ALPHA_TEST,
+		.blendFuncSrc = 0,
+		.blendFuncDst = 0,
+	};
+
+	RgResult r = rgUploadRasterizedGeometry (vulkan_globals.instance, &info, cbx->cur_viewprojection, &cbx->cur_viewport);
+	RG_CHECK (r);
+
+	Mem_Free (vertices);
 }
 
 /*
@@ -584,61 +606,69 @@ Draw_Pic -- johnfitz -- modified
 void Draw_Pic (cb_context_t *cbx, int x, int y, qpic_t *pic, float alpha, qboolean alpha_blend)
 {
 	glpic_t gl;
-	int     i;
+
+	uint8_t ialpha = CLAMP (0, alpha * 255, 255);
 
 	if (scrap_dirty)
 		Scrap_Upload ();
 	memcpy (&gl, pic->data, sizeof (glpic_t));
 
-	VkBuffer       buffer;
-	VkDeviceSize   buffer_offset;
-	basicvertex_t *vertices = (basicvertex_t *)R_VertexAllocate (6 * sizeof (basicvertex_t), &buffer, &buffer_offset);
+	RgRasterizedGeometryVertexStruct vertices[6];
+	{
+		RgRasterizedGeometryVertexStruct corner_verts[4];
 
-	basicvertex_t corner_verts[4];
-	memset (&corner_verts, 255, sizeof (corner_verts));
+		corner_verts[0].position[0] = x;
+		corner_verts[0].position[1] = y;
+		corner_verts[0].position[2] = 0.0f;
+		corner_verts[0].texCoord[0] = gl.sl;
+		corner_verts[0].texCoord[1] = gl.tl;
+		corner_verts[0].packedColor = RT_PackColorToUint32 (255, 255, 255, ialpha);
 
-	corner_verts[0].position[0] = x;
-	corner_verts[0].position[1] = y;
-	corner_verts[0].position[2] = 0.0f;
-	corner_verts[0].texcoord[0] = gl.sl;
-	corner_verts[0].texcoord[1] = gl.tl;
+		corner_verts[1].position[0] = x + pic->width;
+		corner_verts[1].position[1] = y;
+		corner_verts[1].position[2] = 0.0f;
+		corner_verts[1].texCoord[0] = gl.sh;
+		corner_verts[1].texCoord[1] = gl.tl;
+		corner_verts[1].packedColor = RT_PackColorToUint32 (255, 255, 255, ialpha);
 
-	corner_verts[1].position[0] = x + pic->width;
-	corner_verts[1].position[1] = y;
-	corner_verts[1].position[2] = 0.0f;
-	corner_verts[1].texcoord[0] = gl.sh;
-	corner_verts[1].texcoord[1] = gl.tl;
+		corner_verts[2].position[0] = x + pic->width;
+		corner_verts[2].position[1] = y + pic->height;
+		corner_verts[2].position[2] = 0.0f;
+		corner_verts[2].texCoord[0] = gl.sh;
+		corner_verts[2].texCoord[1] = gl.th;
+		corner_verts[2].packedColor = RT_PackColorToUint32 (255, 255, 255, ialpha);
 
-	corner_verts[2].position[0] = x + pic->width;
-	corner_verts[2].position[1] = y + pic->height;
-	corner_verts[2].position[2] = 0.0f;
-	corner_verts[2].texcoord[0] = gl.sh;
-	corner_verts[2].texcoord[1] = gl.th;
+		corner_verts[3].position[0] = x;
+		corner_verts[3].position[1] = y + pic->height;
+		corner_verts[3].position[2] = 0.0f;
+		corner_verts[3].texCoord[0] = gl.sl;
+		corner_verts[3].texCoord[1] = gl.th;
+		corner_verts[3].packedColor = RT_PackColorToUint32 (255, 255, 255, ialpha);
 
-	corner_verts[3].position[0] = x;
-	corner_verts[3].position[1] = y + pic->height;
-	corner_verts[3].position[2] = 0.0f;
-	corner_verts[3].texcoord[0] = gl.sl;
-	corner_verts[3].texcoord[1] = gl.th;
+		vertices[0] = corner_verts[0];
+		vertices[1] = corner_verts[1];
+		vertices[2] = corner_verts[2];
+		vertices[3] = corner_verts[2];
+		vertices[4] = corner_verts[3];
+		vertices[5] = corner_verts[0];
+	}
 
-	for (i = 0; i < 4; ++i)
-		corner_verts[i].color[3] = alpha * 255.0f;
+	RgRasterizedGeometryUploadInfo info = {
+		.renderType = RG_RASTERIZED_GEOMETRY_RENDER_TYPE_SWAPCHAIN,
+		.vertexCount = countof (vertices),
+		.pStructs = vertices,
+		.indexCount = 0,
+		.pIndexData = NULL,
+		.transform = RT_TRANSFORM_IDENTITY,
+		.color = RT_COLOR_WHITE,
+		.material = gl.gltexture ? gl.gltexture->rtmaterial : RG_NO_MATERIAL,
+		.pipelineState = alpha_blend ? RG_RASTERIZED_GEOMETRY_STATE_BLEND_ENABLE : RG_RASTERIZED_GEOMETRY_STATE_ALPHA_TEST,
+		.blendFuncSrc = alpha_blend ? RG_BLEND_FACTOR_SRC_ALPHA : 0,
+		.blendFuncDst = alpha_blend ? RG_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA : 0,
+	};
 
-	vertices[0] = corner_verts[0];
-	vertices[1] = corner_verts[1];
-	vertices[2] = corner_verts[2];
-	vertices[3] = corner_verts[2];
-	vertices[4] = corner_verts[3];
-	vertices[5] = corner_verts[0];
-
-	vkCmdBindVertexBuffers (cbx->cb, 0, 1, &buffer, &buffer_offset);
-	if (alpha_blend)
-		R_BindPipeline (cbx, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.basic_blend_pipeline[cbx->render_pass_index]);
-	else
-		R_BindPipeline (cbx, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.basic_alphatest_pipeline[cbx->render_pass_index]);
-	vkCmdBindDescriptorSets (
-		cbx->cb, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.basic_pipeline_layout.handle, 0, 1, &gl.gltexture->descriptor_set, 0, NULL);
-	vkCmdDraw (cbx->cb, 6, 1, 0, 0);
+	RgResult r = rgUploadRasterizedGeometry (vulkan_globals.instance, &info, cbx->cur_viewprojection, &cbx->cur_viewport);
+	RG_CHECK (r);
 }
 
 void Draw_SubPic (cb_context_t *cbx, float x, float y, float w, float h, qpic_t *pic, float s1, float t1, float s2, float t2, float *rgb, float alpha)
@@ -658,60 +688,67 @@ void Draw_SubPic (cb_context_t *cbx, float x, float y, float w, float h, qpic_t 
 	if (!gl.gltexture)
 		return;
 
-	VkBuffer       buffer;
-	VkDeviceSize   buffer_offset;
-	basicvertex_t *vertices = (basicvertex_t *)R_VertexAllocate (6 * sizeof (basicvertex_t), &buffer, &buffer_offset);
-
-	basicvertex_t corner_verts[4];
-	memset (&corner_verts, 255, sizeof (corner_verts));
-
-	corner_verts[0].position[0] = x;
-	corner_verts[0].position[1] = y;
-	corner_verts[0].position[2] = 0.0f;
-	corner_verts[0].texcoord[0] = gl.sl * (1 - s1) + s1 * gl.sh;
-	corner_verts[0].texcoord[1] = gl.tl * (1 - t1) + t1 * gl.th;
-
-	corner_verts[1].position[0] = x + w;
-	corner_verts[1].position[1] = y;
-	corner_verts[1].position[2] = 0.0f;
-	corner_verts[1].texcoord[0] = gl.sl * (1 - s2) + s2 * gl.sh;
-	corner_verts[1].texcoord[1] = gl.tl * (1 - t1) + t1 * gl.th;
-
-	corner_verts[2].position[0] = x + w;
-	corner_verts[2].position[1] = y + h;
-	corner_verts[2].position[2] = 0.0f;
-	corner_verts[2].texcoord[0] = gl.sl * (1 - s2) + s2 * gl.sh;
-	corner_verts[2].texcoord[1] = gl.tl * (1 - t2) + t2 * gl.th;
-
-	corner_verts[3].position[0] = x;
-	corner_verts[3].position[1] = y + h;
-	corner_verts[3].position[2] = 0.0f;
-	corner_verts[3].texcoord[0] = gl.sl * (1 - s1) + s1 * gl.sh;
-	corner_verts[3].texcoord[1] = gl.tl * (1 - t2) + t2 * gl.th;
-
-	for (i = 0; i < 4; ++i)
+	RgRasterizedGeometryVertexStruct vertices[6];
 	{
-		corner_verts[i].color[0] = rgb[0] * 255.0f;
-		corner_verts[i].color[1] = rgb[1] * 255.0f;
-		corner_verts[i].color[2] = rgb[2] * 255.0f;
-		corner_verts[i].color[3] = alpha * 255.0f;
+		RgRasterizedGeometryVertexStruct corner_verts[4];
+
+		corner_verts[0].position[0] = x;
+		corner_verts[0].position[1] = y;
+		corner_verts[0].position[2] = 0.0f;
+		corner_verts[0].texCoord[0] = gl.sl * (1 - s1) + s1 * gl.sh;
+		corner_verts[0].texCoord[1] = gl.tl * (1 - t1) + t1 * gl.th;
+
+		corner_verts[1].position[0] = x + w;
+		corner_verts[1].position[1] = y;
+		corner_verts[1].position[2] = 0.0f;
+		corner_verts[1].texCoord[0] = gl.sl * (1 - s2) + s2 * gl.sh;
+		corner_verts[1].texCoord[1] = gl.tl * (1 - t1) + t1 * gl.th;
+
+		corner_verts[2].position[0] = x + w;
+		corner_verts[2].position[1] = y + h;
+		corner_verts[2].position[2] = 0.0f;
+		corner_verts[2].texCoord[0] = gl.sl * (1 - s2) + s2 * gl.sh;
+		corner_verts[2].texCoord[1] = gl.tl * (1 - t2) + t2 * gl.th;
+
+		corner_verts[3].position[0] = x;
+		corner_verts[3].position[1] = y + h;
+		corner_verts[3].position[2] = 0.0f;
+		corner_verts[3].texCoord[0] = gl.sl * (1 - s1) + s1 * gl.sh;
+		corner_verts[3].texCoord[1] = gl.tl * (1 - t2) + t2 * gl.th;
+
+		for (i = 0; i < 4; ++i)
+		{
+			corner_verts[i].packedColor = RT_PackColorToUint32 (
+				CLAMP (0, rgb[0] * 255.0f, 255), 
+				CLAMP (0, rgb[1] * 255.0f, 255), 
+				CLAMP (0, rgb[2] * 255.0f, 255), 
+				CLAMP (0, alpha * 255.0f, 255));
+		}
+
+	    vertices[0] = corner_verts[0];
+	    vertices[1] = corner_verts[1];
+	    vertices[2] = corner_verts[2];
+	    vertices[3] = corner_verts[2];
+	    vertices[4] = corner_verts[3];
+	    vertices[5] = corner_verts[0];
 	}
 
-	vertices[0] = corner_verts[0];
-	vertices[1] = corner_verts[1];
-	vertices[2] = corner_verts[2];
-	vertices[3] = corner_verts[2];
-	vertices[4] = corner_verts[3];
-	vertices[5] = corner_verts[0];
+	RgRasterizedGeometryUploadInfo info = {
+		.renderType = RG_RASTERIZED_GEOMETRY_RENDER_TYPE_SWAPCHAIN,
+		.vertexCount = countof (vertices),
+		.pStructs = vertices,
+		.indexCount = 0,
+		.pIndexData = NULL,
+		.transform = RT_TRANSFORM_IDENTITY,
+		.color = RT_COLOR_WHITE,
+		.material = gl.gltexture ? gl.gltexture->rtmaterial : RG_NO_MATERIAL,
+		.pipelineState = alpha_blend ? RG_RASTERIZED_GEOMETRY_STATE_BLEND_ENABLE : RG_RASTERIZED_GEOMETRY_STATE_ALPHA_TEST,
+		.blendFuncSrc = alpha_blend ? RG_BLEND_FACTOR_SRC_ALPHA : 0,
+		.blendFuncDst = alpha_blend ? RG_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA : 0,
+	};
 
-	vkCmdBindVertexBuffers (cbx->cb, 0, 1, &buffer, &buffer_offset);
-	if (alpha_blend)
-		R_BindPipeline (cbx, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.basic_blend_pipeline[cbx->render_pass_index]);
-	else
-		R_BindPipeline (cbx, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.basic_alphatest_pipeline[cbx->render_pass_index]);
-	vkCmdBindDescriptorSets (
-		cbx->cb, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.basic_pipeline_layout.handle, 0, 1, &gl.gltexture->descriptor_set, 0, NULL);
-	vkCmdDraw (cbx->cb, 6, 1, 0, 0);
+	RgResult r = rgUploadRasterizedGeometry (vulkan_globals.instance, &info, cbx->cur_viewprojection, &cbx->cur_viewport);
+	RG_CHECK (r);
 }
 
 /*
@@ -775,49 +812,63 @@ void Draw_TileClear (cb_context_t *cbx, int x, int y, int w, int h)
 	glpic_t gl;
 	memcpy (&gl, draw_backtile->data, sizeof (glpic_t));
 
-	VkBuffer       buffer;
-	VkDeviceSize   buffer_offset;
-	basicvertex_t *vertices = (basicvertex_t *)R_VertexAllocate (6 * sizeof (basicvertex_t), &buffer, &buffer_offset);
 
-	basicvertex_t corner_verts[4];
-	memset (&corner_verts, 255, sizeof (corner_verts));
+	RgRasterizedGeometryVertexStruct vertices[6];
+	{
+		RgRasterizedGeometryVertexStruct corner_verts[4];
 
-	corner_verts[0].position[0] = x;
-	corner_verts[0].position[1] = y;
-	corner_verts[0].position[2] = 0.0f;
-	corner_verts[0].texcoord[0] = x / 64.0;
-	corner_verts[0].texcoord[1] = y / 64.0;
+		corner_verts[0].position[0] = x;
+		corner_verts[0].position[1] = y;
+		corner_verts[0].position[2] = 0.0f;
+		corner_verts[0].texCoord[0] = x / 64.0;
+		corner_verts[0].texCoord[1] = y / 64.0;
+		corner_verts[0].packedColor = RT_PackColorToUint32 (255, 255, 255, 255);
 
-	corner_verts[1].position[0] = x + w;
-	corner_verts[1].position[1] = y;
-	corner_verts[1].position[2] = 0.0f;
-	corner_verts[1].texcoord[0] = (x + w) / 64.0;
-	corner_verts[1].texcoord[1] = y / 64.0;
+		corner_verts[1].position[0] = x + w;
+		corner_verts[1].position[1] = y;
+		corner_verts[1].position[2] = 0.0f;
+		corner_verts[1].texCoord[0] = (x + w) / 64.0;
+		corner_verts[1].texCoord[1] = y / 64.0;
+		corner_verts[1].packedColor = RT_PackColorToUint32 (255, 255, 255, 255);
 
-	corner_verts[2].position[0] = x + w;
-	corner_verts[2].position[1] = y + h;
-	corner_verts[2].position[2] = 0.0f;
-	corner_verts[2].texcoord[0] = (x + w) / 64.0;
-	corner_verts[2].texcoord[1] = (y + h) / 64.0;
+		corner_verts[2].position[0] = x + w;
+		corner_verts[2].position[1] = y + h;
+		corner_verts[2].position[2] = 0.0f;
+		corner_verts[2].texCoord[0] = (x + w) / 64.0;
+		corner_verts[2].texCoord[1] = (y + h) / 64.0;
+		corner_verts[2].packedColor = RT_PackColorToUint32 (255, 255, 255, 255);
 
-	corner_verts[3].position[0] = x;
-	corner_verts[3].position[1] = y + h;
-	corner_verts[3].position[2] = 0.0f;
-	corner_verts[3].texcoord[0] = x / 64.0;
-	corner_verts[3].texcoord[1] = (y + h) / 64.0;
+		corner_verts[3].position[0] = x;
+		corner_verts[3].position[1] = y + h;
+		corner_verts[3].position[2] = 0.0f;
+		corner_verts[3].texCoord[0] = x / 64.0;
+		corner_verts[3].texCoord[1] = (y + h) / 64.0;
+		corner_verts[3].packedColor = RT_PackColorToUint32 (255, 255, 255, 255);
 
-	vertices[0] = corner_verts[0];
-	vertices[1] = corner_verts[1];
-	vertices[2] = corner_verts[2];
-	vertices[3] = corner_verts[2];
-	vertices[4] = corner_verts[3];
-	vertices[5] = corner_verts[0];
+		vertices[0] = corner_verts[0];
+		vertices[1] = corner_verts[1];
+		vertices[2] = corner_verts[2];
+		vertices[3] = corner_verts[2];
+		vertices[4] = corner_verts[3];
+		vertices[5] = corner_verts[0];
+	}
+	
+	RgRasterizedGeometryUploadInfo info = {
+		.renderType = RG_RASTERIZED_GEOMETRY_RENDER_TYPE_SWAPCHAIN,
+		.vertexCount = countof (vertices),
+		.pStructs = vertices,
+		.indexCount = 0,
+		.pIndexData = NULL,
+		.transform = RT_TRANSFORM_IDENTITY,
+		.color = RT_COLOR_WHITE,
+		.material = gl.gltexture ? gl.gltexture->rtmaterial : RG_NO_MATERIAL,
+		.pipelineState = RG_RASTERIZED_GEOMETRY_STATE_BLEND_ENABLE,
+		.blendFuncSrc = RG_BLEND_FACTOR_SRC_ALPHA,
+		.blendFuncDst = RG_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA,
+	};
 
-	R_BindPipeline (cbx, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.basic_blend_pipeline[cbx->render_pass_index]);
-	vkCmdBindDescriptorSets (
-		cbx->cb, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.basic_pipeline_layout.handle, 0, 1, &gl.gltexture->descriptor_set, 0, NULL);
-	vkCmdBindVertexBuffers (cbx->cb, 0, 1, &buffer, &buffer_offset);
-	vkCmdDraw (cbx->cb, 6, 1, 0, 0);
+	RgResult r = rgUploadRasterizedGeometry (vulkan_globals.instance, &info, cbx->cur_viewprojection, &cbx->cur_viewport);
+	RG_CHECK (r);
 }
 
 /*
@@ -832,43 +883,55 @@ void Draw_Fill (cb_context_t *cbx, int x, int y, int w, int h, int c, float alph
 	int   i;
 	byte *pal = (byte *)d_8to24table; // johnfitz -- use d_8to24table instead of host_basepal
 
-	VkBuffer       buffer;
-	VkDeviceSize   buffer_offset;
-	basicvertex_t *vertices = (basicvertex_t *)R_VertexAllocate (6 * sizeof (basicvertex_t), &buffer, &buffer_offset);
-
-	basicvertex_t corner_verts[4];
-	memset (&corner_verts, 0, sizeof (corner_verts));
-
-	corner_verts[0].position[0] = x;
-	corner_verts[0].position[1] = y;
-
-	corner_verts[1].position[0] = x + w;
-	corner_verts[1].position[1] = y;
-
-	corner_verts[2].position[0] = x + w;
-	corner_verts[2].position[1] = y + h;
-
-	corner_verts[3].position[0] = x;
-	corner_verts[3].position[1] = y + h;
-
-	for (i = 0; i < 4; ++i)
+	RgRasterizedGeometryVertexStruct vertices[6];
 	{
-		corner_verts[i].color[0] = pal[c * 4];
-		corner_verts[i].color[1] = pal[c * 4 + 1];
-		corner_verts[i].color[2] = pal[c * 4 + 2];
-		corner_verts[i].color[3] = alpha * 255;
+		RgRasterizedGeometryVertexStruct corner_verts[4] = {0};
+
+		corner_verts[0].position[0] = x;
+		corner_verts[0].position[1] = y;
+
+		corner_verts[1].position[0] = x + w;
+		corner_verts[1].position[1] = y;
+
+		corner_verts[2].position[0] = x + w;
+		corner_verts[2].position[1] = y + h;
+
+		corner_verts[3].position[0] = x;
+		corner_verts[3].position[1] = y + h;
+
+		for (i = 0; i < 4; ++i)
+		{
+			corner_verts[i].packedColor = RT_PackColorToUint32 (
+				pal[c * 4], 
+				pal[c * 4 + 1], 
+				pal[c * 4 + 2], 
+				CLAMP (0, alpha * 255, 255));
+		}
+
+		vertices[0] = corner_verts[0];
+		vertices[1] = corner_verts[1];
+		vertices[2] = corner_verts[2];
+		vertices[3] = corner_verts[2];
+		vertices[4] = corner_verts[3];
+		vertices[5] = corner_verts[0];
 	}
 
-	vertices[0] = corner_verts[0];
-	vertices[1] = corner_verts[1];
-	vertices[2] = corner_verts[2];
-	vertices[3] = corner_verts[2];
-	vertices[4] = corner_verts[3];
-	vertices[5] = corner_verts[0];
+	RgRasterizedGeometryUploadInfo info = {
+		.renderType = RG_RASTERIZED_GEOMETRY_RENDER_TYPE_SWAPCHAIN,
+		.vertexCount = countof (vertices),
+		.pStructs = vertices,
+		.indexCount = 0,
+		.pIndexData = NULL,
+		.transform = RT_TRANSFORM_IDENTITY,
+		.color = RT_COLOR_WHITE,
+		.material = RG_NO_MATERIAL,
+		.pipelineState = RG_RASTERIZED_GEOMETRY_STATE_BLEND_ENABLE,
+		.blendFuncSrc = RG_BLEND_FACTOR_SRC_ALPHA,
+		.blendFuncDst = RG_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA,
+	};
 
-	vkCmdBindVertexBuffers (cbx->cb, 0, 1, &buffer, &buffer_offset);
-	R_BindPipeline (cbx, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.basic_notex_blend_pipeline[cbx->render_pass_index]);
-	vkCmdDraw (cbx->cb, 6, 1, 0, 0);
+	RgResult r = rgUploadRasterizedGeometry (vulkan_globals.instance, &info, cbx->cur_viewprojection, &cbx->cur_viewport);
+	RG_CHECK (r);
 }
 
 /*
@@ -882,38 +945,53 @@ void Draw_FadeScreen (cb_context_t *cbx)
 
 	GL_SetCanvas (cbx, CANVAS_DEFAULT);
 
-	VkBuffer       buffer;
-	VkDeviceSize   buffer_offset;
-	basicvertex_t *vertices = (basicvertex_t *)R_VertexAllocate (6 * sizeof (basicvertex_t), &buffer, &buffer_offset);
+	RgRasterizedGeometryVertexStruct vertices[6];
+	{
+		RgRasterizedGeometryVertexStruct corner_verts[4] = {0};
 
-	basicvertex_t corner_verts[4];
-	memset (&corner_verts, 0, sizeof (corner_verts));
+		corner_verts[0].position[0] = 0.0f;
+		corner_verts[0].position[1] = 0.0f;
 
-	corner_verts[0].position[0] = 0.0f;
-	corner_verts[0].position[1] = 0.0f;
+		corner_verts[1].position[0] = glwidth;
+		corner_verts[1].position[1] = 0.0f;
 
-	corner_verts[1].position[0] = glwidth;
-	corner_verts[1].position[1] = 0.0f;
+		corner_verts[2].position[0] = glwidth;
+		corner_verts[2].position[1] = glheight;
 
-	corner_verts[2].position[0] = glwidth;
-	corner_verts[2].position[1] = glheight;
+		corner_verts[3].position[0] = 0.0f;
+		corner_verts[3].position[1] = glheight;
 
-	corner_verts[3].position[0] = 0.0f;
-	corner_verts[3].position[1] = glheight;
+		for (i = 0; i < 4; ++i)
+		{
+			corner_verts[i].packedColor = RT_PackColorToUint32 (
+				255, 255, 255,
+				128);
+		}
 
-	for (i = 0; i < 4; ++i)
-		corner_verts[i].color[3] = 128;
+		vertices[0] = corner_verts[0];
+		vertices[1] = corner_verts[1];
+		vertices[2] = corner_verts[2];
+		vertices[3] = corner_verts[2];
+		vertices[4] = corner_verts[3];
+		vertices[5] = corner_verts[0];
+	}
 
-	vertices[0] = corner_verts[0];
-	vertices[1] = corner_verts[1];
-	vertices[2] = corner_verts[2];
-	vertices[3] = corner_verts[2];
-	vertices[4] = corner_verts[3];
-	vertices[5] = corner_verts[0];
+	RgRasterizedGeometryUploadInfo info = {
+		.renderType = RG_RASTERIZED_GEOMETRY_RENDER_TYPE_SWAPCHAIN,
+		.vertexCount = countof (vertices),
+		.pStructs = vertices,
+		.indexCount = 0,
+		.pIndexData = NULL,
+		.transform = RT_TRANSFORM_IDENTITY,
+		.color = RT_COLOR_WHITE,
+		.material = RG_NO_MATERIAL,
+		.pipelineState = RG_RASTERIZED_GEOMETRY_STATE_BLEND_ENABLE,
+		.blendFuncSrc = RG_BLEND_FACTOR_SRC_ALPHA,
+		.blendFuncDst = RG_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA,
+	};
 
-	vkCmdBindVertexBuffers (cbx->cb, 0, 1, &buffer, &buffer_offset);
-	R_BindPipeline (cbx, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.basic_notex_blend_pipeline[cbx->render_pass_index]);
-	vkCmdDraw (cbx->cb, 6, 1, 0, 0);
+	RgResult r = rgUploadRasterizedGeometry (vulkan_globals.instance, &info, cbx->cur_viewprojection, &cbx->cur_viewport);
+	RG_CHECK (r);
 }
 
 /*
@@ -945,7 +1023,7 @@ static void GL_OrthoMatrix (cb_context_t *cbx, float left, float right, float bo
 	matrix[3 * 4 + 2] = tz;
 	matrix[3 * 4 + 3] = 1.0f;
 
-	R_PushConstants (cbx, VK_SHADER_STAGE_ALL_GRAPHICS, 0, 16 * sizeof (float), matrix);
+    memcpy (cbx->cur_viewprojection, matrix, 16 * sizeof (float));
 }
 
 /*
@@ -955,15 +1033,15 @@ GL_Viewport
 */
 void GL_Viewport (cb_context_t *cbx, float x, float y, float width, float height, float min_depth, float max_depth)
 {
-	VkViewport viewport;
+	RgViewport viewport;
 	viewport.x = x;
-	viewport.y = vid.height - (y + height);
+	viewport.y = (float)vid.height - (y + height);
 	viewport.width = width;
 	viewport.height = height;
 	viewport.minDepth = min_depth;
 	viewport.maxDepth = max_depth;
 
-	vkCmdSetViewport (cbx->cb, 0, 1, &viewport);
+	cbx->cur_viewport = viewport;
 }
 
 /*

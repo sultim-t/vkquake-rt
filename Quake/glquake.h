@@ -156,7 +156,9 @@ typedef enum
 
 typedef struct cb_context_s
 {
-	canvastype        current_canvas;
+	canvastype current_canvas;
+	float      cur_viewprojection[16];
+	RgViewport cur_viewport;
 } cb_context_t;
 
 typedef struct vulkan_pipeline_s
