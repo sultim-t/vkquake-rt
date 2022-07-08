@@ -38,10 +38,6 @@ cvar_t r_parallelmark = {"r_parallelmark", "1", CVAR_NONE};
 
 byte *SV_FatPVS (vec3_t org, qmodel_t *worldmodel);
 
-extern VkBuffer bmodel_vertex_buffer;
-static int      world_texstart[NUM_WORLD_CBX];
-static int      world_texend[NUM_WORLD_CBX];
-
 /*
 ===============
 mark_surfaces_state_t

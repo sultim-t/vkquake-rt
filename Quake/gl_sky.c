@@ -609,11 +609,11 @@ void Sky_ProcessPoly (cb_context_t *cbx, glpoly_t *p, float color[3])
 	float *poly_vert;
 
 	// draw it
-	DrawGLPoly (cbx, p, color, 1.0f);
+	DrawGLPoly (cbx, p, color, 1.0f, fanindices, upload RT poly as sky);
 	Atomic_IncrementUInt32 (&rs_brushpasses);
 
 	// update sky bounds
-	if (!r_fastsky.value)
+	if (!CVAR_TO_BOOL(r_fastsky))
 	{
 		for (i = 0; i < p->numverts; i++)
 		{
@@ -749,7 +749,7 @@ void Sky_ProcessEntities (cb_context_t *cbx, float color[3])
 Sky_EmitSkyBoxVertex
 ==============
 */
-void Sky_EmitSkyBoxVertex (basicvertex_t *vertex, float s, float t, int axis)
+void Sky_EmitSkyBoxVertex (RgRasterizedGeometryVertexStruct *vertex, float s, float t, int axis)
 {
 	vec3_t v, b;
 	int    j, k;
@@ -785,13 +785,10 @@ void Sky_EmitSkyBoxVertex (basicvertex_t *vertex, float s, float t, int axis)
 	vertex->position[1] = v[1];
 	vertex->position[2] = v[2];
 
-	vertex->texcoord[0] = s;
-	vertex->texcoord[1] = t;
+	vertex->texCoord[0] = s;
+	vertex->texCoord[1] = t;
 
-	vertex->color[0] = 255;
-	vertex->color[1] = 255;
-	vertex->color[2] = 255;
-	vertex->color[3] = 255;
+	vertex->packedColor = RT_PackColorToUint32 (255, 255, 255, 255);
 }
 
 /*
@@ -810,13 +807,9 @@ void Sky_DrawSkyBox (cb_context_t *cbx)
 		if (skymins[0][i] >= skymaxs[0][i] || skymins[1][i] >= skymaxs[1][i])
 			continue;
 
-		vkCmdBindDescriptorSets (
-			cbx->cb, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.basic_pipeline_layout.handle, 0, 1, &skybox_textures[skytexorder[i]]->descriptor_set, 0,
-			NULL);
+		gltexture_t *texture = skybox_textures[skytexorder[i]];
 
-		VkBuffer       buffer;
-		VkDeviceSize   buffer_offset;
-		basicvertex_t *vertices = (basicvertex_t *)R_VertexAllocate (4 * sizeof (basicvertex_t), &buffer, &buffer_offset);
+		RgRasterizedGeometryVertexStruct vertices[4];
 
 #if 1 // FIXME: this is to avoid tjunctions until i can do it the right way
 		skymins[0][i] = -1;
@@ -829,9 +822,22 @@ void Sky_DrawSkyBox (cb_context_t *cbx)
 		Sky_EmitSkyBoxVertex (vertices + 2, skymaxs[0][i], skymaxs[1][i], i);
 		Sky_EmitSkyBoxVertex (vertices + 3, skymaxs[0][i], skymins[1][i], i);
 
-		vkCmdBindVertexBuffers (cbx->cb, 0, 1, &buffer, &buffer_offset);
-		R_BindPipeline (cbx, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.sky_box_pipeline);
-		vkCmdDrawIndexed (cbx->cb, 6, 1, 0, 0, 0);
+		RgRasterizedGeometryUploadInfo info = {
+			.renderType = RG_RASTERIZED_GEOMETRY_RENDER_TYPE_SKY,
+			.vertexCount = countof (vertices),
+			.pStructs = vertices,
+			.indexCount = 6,
+			.pIndexData = fanindices,
+			.transform = RT_TRANSFORM_IDENTITY,
+			.color = RT_COLOR_WHITE,
+			.material = texture ? texture->rtmaterial : RG_NO_MATERIAL,
+			.pipelineState = 0,
+			.blendFuncSrc = 0,
+			.blendFuncDst = 0,
+		};
+
+		RgResult r = rgUploadRasterizedGeometry (vulkan_globals.instance, &info, NULL, NULL);
+		RG_CHECK (r);
 
 		Atomic_IncrementUInt32 (&rs_skypolys);
 		Atomic_IncrementUInt32 (&rs_skypasses);
@@ -903,27 +909,43 @@ void Sky_DrawFaceQuad (cb_context_t *cbx, glpoly_t *p, float alpha)
 	float *v;
 	int    i;
 
-	VkBuffer          vertex_buffer;
-	VkDeviceSize      vertex_buffer_offset;
-	skylayervertex_t *vertices = (skylayervertex_t *)R_VertexAllocate (4 * sizeof (skylayervertex_t), &vertex_buffer, &vertex_buffer_offset);
+	uint8_t alpha8 = CLAMP (0, 255.0f * alpha, 255);
 
-	for (i = 0, v = p->verts[0]; i < 4; i++, v += VERTEXSIZE)
+	RgRasterizedGeometryVertexStruct vertices[4];
+
+	for (int alphalayer = 0; alphalayer <= 1; alphalayer++)
 	{
-		vertices[i].position[0] = v[0];
-		vertices[i].position[1] = v[1];
-		vertices[i].position[2] = v[2];
+		for (i = 0, v = p->verts[0]; i < 4; i++, v += VERTEXSIZE)
+		{
+			vertices[i].position[0] = v[0];
+			vertices[i].position[1] = v[1];
+			vertices[i].position[2] = v[2];
 
-		Sky_GetTexCoord (v, 8, &vertices[i].texcoord1[0], &vertices[i].texcoord1[1]);
-		Sky_GetTexCoord (v, 16, &vertices[i].texcoord2[0], &vertices[i].texcoord2[1]);
+			Sky_GetTexCoord (v, alphalayer ? 16 : 8, &vertices[i].texCoord[0], &vertices[i].texCoord[1]);
 
-		vertices[i].color[0] = 255;
-		vertices[i].color[1] = 255;
-		vertices[i].color[2] = 255;
-		vertices[i].color[3] = alpha * 255.0f;
+			vertices[i].packedColor = RT_PackColorToUint32 (255, 255, 255, alpha8);
+		}
+
+		gltexture_t *texture = alphalayer ? alphaskytexture : solidskytexture;
+
+		RgRasterizedGeometryUploadInfo info = {
+			.renderType = RG_RASTERIZED_GEOMETRY_RENDER_TYPE_SKY,
+			.vertexCount = countof (vertices),
+			.pStructs = vertices,
+			.indexCount = 6,
+			.pIndexData = fanindices,
+			.transform = RT_TRANSFORM_IDENTITY,
+			.color = RT_COLOR_WHITE,
+			.material = texture ? texture->rtmaterial : RG_NO_MATERIAL,
+			.pipelineState = alphalayer ? RG_RASTERIZED_GEOMETRY_STATE_BLEND_ENABLE : 0,
+			.blendFuncSrc = alphalayer ? RG_BLEND_FACTOR_SRC_ALPHA : 0,
+			.blendFuncDst = alphalayer ? RG_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA : 0,
+		};
+
+		RgResult r = rgUploadRasterizedGeometry (vulkan_globals.instance, &info, NULL, NULL);
+		RG_CHECK (r);
+
 	}
-
-	vkCmdBindVertexBuffers (cbx->cb, 0, 1, &vertex_buffer, &vertex_buffer_offset);
-	vkCmdDrawIndexed (cbx->cb, 6, 1, 0, 0, 0);
 
 	Atomic_IncrementUInt32 (&rs_skypolys);
 	Atomic_IncrementUInt32 (&rs_skypasses);
@@ -996,11 +1018,6 @@ void Sky_DrawSkyLayers (cb_context_t *cbx)
 	if (!solidskytexture || !alphaskytexture)
 		return;
 
-	R_BindPipeline (cbx, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.sky_layer_pipeline);
-
-	VkDescriptorSet descriptor_sets[2] = {solidskytexture->descriptor_set, alphaskytexture->descriptor_set};
-	vkCmdBindDescriptorSets (cbx->cb, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.sky_layer_pipeline.layout.handle, 0, 2, descriptor_sets, 0, NULL);
-
 	for (i = 0; i < 6; i++)
 		if (skymins[0][i] < skymaxs[0][i] && skymins[1][i] < skymaxs[1][i])
 			Sky_DrawFace (cbx, i, r_skyalpha.value);
@@ -1022,8 +1039,11 @@ void Sky_DrawSky (cb_context_t *cbx)
 
 	R_BeginDebugUtilsLabel (cbx, "Sky");
 
-	const qboolean slow_sky = !r_fastsky.value && !(Fog_GetDensity () > 0 && skyfog >= 1);
-
+#if 0
+	const qboolean slow_sky = CVAR_TO_BOOL (r_fastsky) && !(Fog_GetDensity () > 0 && skyfog >= 1);
+#else
+	const qboolean slow_sky = CVAR_TO_BOOL (r_fastsky);
+#endif
 	//
 	// reset sky bounds
 	//
@@ -1032,14 +1052,6 @@ void Sky_DrawSky (cb_context_t *cbx)
 		skymins[0][i] = skymins[1][i] = FLT_MAX;
 		skymaxs[0][i] = skymaxs[1][i] = -FLT_MAX;
 	}
-
-	// With slow sky we first write stencil for the part of the screen that is covered by sky geometry and passes the depth test
-	// Sky_DrawSkyBox/Sky_DrawSkyLayers then only fill the parts that had stencil written
-	if (slow_sky)
-		R_BindPipeline (cbx, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.sky_stencil_pipeline);
-	else
-		R_BindPipeline (cbx, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.sky_color_pipeline);
-	vkCmdBindIndexBuffer (cbx->cb, vulkan_globals.fan_index_buffer, 0, VK_INDEX_TYPE_UINT16);
 
 	//
 	// process world and bmodels: draw flat-shaded sky surfs, and update skybounds
@@ -1060,11 +1072,12 @@ void Sky_DrawSky (cb_context_t *cbx)
 	//
 	if (slow_sky)
 	{
+#if 0
 		float fog_density = (Fog_GetDensity () > 0) ? skyfog : 0.0f;
 		float fog_color[4];
 		Fog_GetColor (fog_color);
 		float fog_values[4] = {CLAMP (0.0f, fog_color[0], 1.0f), CLAMP (0.0f, fog_color[1], 1.0f), CLAMP (0.0f, fog_color[2], 1.0f), fog_density};
-		R_PushConstants (cbx, VK_SHADER_STAGE_ALL_GRAPHICS, 16 * sizeof (float), 4 * sizeof (float), fog_values);
+#endif
 
 		if (skybox_name[0])
 			Sky_DrawSkyBox (cbx);

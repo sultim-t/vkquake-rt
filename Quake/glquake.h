@@ -130,48 +130,6 @@ extern int r_trace_line_cache_counter;
 #define InvalidateTraceLineCache()
 #endif
 
-typedef struct vulkan_pipeline_layout_s
-{
-	VkPipelineLayout    handle;
-	VkPushConstantRange push_constant_range;
-} vulkan_pipeline_layout_t;
-
-typedef struct vulkan_pipeline_s
-{
-	VkPipeline               handle;
-	vulkan_pipeline_layout_t layout;
-} vulkan_pipeline_t;
-
-typedef struct vulkan_desc_set_layout_s
-{
-	VkDescriptorSetLayout handle;
-	int                   num_combined_image_samplers;
-	int                   num_ubos;
-	int                   num_ubos_dynamic;
-	int                   num_storage_buffers;
-	int                   num_input_attachments;
-	int                   num_storage_images;
-} vulkan_desc_set_layout_t;
-
-typedef enum
-{
-	VULKAN_MEMORY_TYPE_DEVICE,
-	VULKAN_MEMORY_TYPE_HOST,
-} vulkan_memory_type_t;
-
-typedef struct vulkan_memory_s
-{
-	VkDeviceMemory       handle;
-	size_t               size;
-	vulkan_memory_type_t type;
-} vulkan_memory_t;
-
-#define WORLD_PIPELINE_COUNT        8
-#define FTE_PARTICLE_PIPELINE_COUNT 16
-#define MAX_BATCH_SIZE              65536
-#define NUM_WORLD_CBX               6
-#define NUM_ENTITIES_CBX            6
-
 typedef enum
 {
 	CBX_UPDATE_LIGHTMAPS,
@@ -198,68 +156,33 @@ typedef enum
 
 typedef struct cb_context_s
 {
-	VkCommandBuffer   cb;
 	canvastype        current_canvas;
-	VkRenderPass      render_pass;
-	int               render_pass_index;
-	int               subpass;
-	vulkan_pipeline_t current_pipeline;
-	uint32_t          vbo_indices[MAX_BATCH_SIZE];
-	unsigned int      num_vbo_indices;
 } cb_context_t;
+
+typedef struct vulkan_pipeline_s
+{
+	int i;
+} vulkan_pipeline_t;
 
 typedef struct
 {
-	VkDevice                         device;
-	qboolean                         device_idle;
+	// RT
+	RgInstance instance;
+
+	// Vulkan
 	qboolean                         validation;
 	qboolean                         debug_utils;
-	VkQueue                          queue;
 	cb_context_t                     primary_cb_context;
 	cb_context_t                     secondary_cb_contexts[CBX_NUM];
-	VkClearValue                     color_clear_value;
-	VkFormat                         swap_chain_format;
-	qboolean                         want_full_screen_exclusive;
-	qboolean                         swap_chain_full_screen_exclusive;
-	qboolean                         swap_chain_full_screen_acquired;
-	VkPhysicalDeviceProperties       device_properties;
-	VkPhysicalDeviceMemoryProperties memory_properties;
-	uint32_t                         gfx_queue_family_index;
-	VkFormat                         color_format;
-	VkFormat                         depth_format;
-	VkSampleCountFlagBits            sample_count;
 	qboolean                         supersampling;
 	qboolean                         non_solid_fill;
 	qboolean                         screen_effects_sops;
-
-	// Instance extensions
-	qboolean get_surface_capabilities_2;
-	qboolean get_physical_device_properties_2;
-	qboolean vulkan_1_1_available;
-
-	// Device extensions
-	qboolean dedicated_allocation;
-	qboolean full_screen_exclusive;
-
-	// Buffers
-	VkImage color_buffers[NUM_COLOR_BUFFERS];
-
-	// Index buffers
-	VkBuffer fan_index_buffer;
-
-	// Staging buffers
-	int staging_buffer_size;
-
-	// Render passes
-	VkRenderPass warp_render_pass;
 
 	// Pipelines
 	vulkan_pipeline_t        basic_alphatest_pipeline[2];
 	vulkan_pipeline_t        basic_blend_pipeline[2];
 	vulkan_pipeline_t        basic_notex_blend_pipeline[2];
-	vulkan_pipeline_layout_t basic_pipeline_layout;
-	vulkan_pipeline_t        world_pipelines[WORLD_PIPELINE_COUNT];
-	vulkan_pipeline_layout_t world_pipeline_layout;
+	vulkan_pipeline_t        world_pipelines;
 	vulkan_pipeline_t        raster_tex_warp_pipeline;
 	vulkan_pipeline_t        particle_pipeline;
 	vulkan_pipeline_t        sprite_pipeline;
@@ -283,52 +206,26 @@ typedef struct
 	vulkan_pipeline_t        alias_showtris_depth_test_pipeline;
 	vulkan_pipeline_t        update_lightmap_pipeline;
 #ifdef PSET_SCRIPT
-	vulkan_pipeline_t fte_particle_pipelines[FTE_PARTICLE_PIPELINE_COUNT];
+	vulkan_pipeline_t fte_particle_pipelines;
 #endif
-
-	// Descriptors
-	VkDescriptorPool         descriptor_pool;
-	vulkan_desc_set_layout_t ubo_set_layout;
-	vulkan_desc_set_layout_t single_texture_set_layout;
-	vulkan_desc_set_layout_t input_attachment_set_layout;
-	VkDescriptorSet          screen_effects_desc_set;
-	vulkan_desc_set_layout_t screen_effects_set_layout;
-	vulkan_desc_set_layout_t single_texture_cs_write_set_layout;
-	vulkan_desc_set_layout_t lightmap_compute_set_layout;
-
-	// Samplers
-	VkSampler point_sampler;
-	VkSampler linear_sampler;
-	VkSampler point_aniso_sampler;
-	VkSampler linear_aniso_sampler;
-	VkSampler point_sampler_lod_bias;
-	VkSampler linear_sampler_lod_bias;
-	VkSampler point_aniso_sampler_lod_bias;
-	VkSampler linear_aniso_sampler_lod_bias;
 
 	// Matrices
 	float projection_matrix[16];
 	float view_matrix[16];
 	float view_projection_matrix[16];
 
-	// Dispatch table
-	PFN_vkCmdBindPipeline       vk_cmd_bind_pipeline;
-	PFN_vkCmdPushConstants      vk_cmd_push_constants;
-	PFN_vkCmdBindDescriptorSets vk_cmd_bind_descriptor_sets;
-	PFN_vkCmdBindIndexBuffer    vk_cmd_bind_index_buffer;
-	PFN_vkCmdBindVertexBuffers  vk_cmd_bind_vertex_buffers;
-	PFN_vkCmdDraw               vk_cmd_draw;
-	PFN_vkCmdDrawIndexed        vk_cmd_draw_indexed;
-	PFN_vkCmdPipelineBarrier    vk_cmd_pipeline_barrier;
-	PFN_vkCmdCopyBufferToImage  vk_cmd_copy_buffer_to_image;
-
-#ifdef _DEBUG
-	PFN_vkCmdBeginDebugUtilsLabelEXT vk_cmd_begin_debug_utils_label;
-	PFN_vkCmdEndDebugUtilsLabelEXT   vk_cmd_end_debug_utils_label;
-#endif
 } vulkanglobals_t;
 
 extern vulkanglobals_t vulkan_globals;
+
+#define RG_CHECK(rgresult)                                   \
+	do                                                       \
+	{                                                        \
+		if ((rgresult) != RG_SUCCESS)                        \
+		{                                                    \
+			Sys_Error (rgGetResultDescription ((rgresult))); \
+		}                                                    \
+	} while (0)
 
 //====================================================
 
@@ -369,7 +266,6 @@ extern cvar_t r_telealpha;
 extern cvar_t r_slimealpha;
 extern cvar_t r_dynamic;
 extern cvar_t r_novis;
-extern cvar_t r_scale;
 
 extern cvar_t gl_polyblend;
 extern cvar_t gl_nocolors;
@@ -441,10 +337,8 @@ struct lightmap_s
 	gltexture_t    *texture;
 	gltexture_t    *surface_indices_texture;
 	gltexture_t    *lightstyle_textures[MAXLIGHTMAPS];
-	VkDescriptorSet descriptor_set;
 	atomic_uint32_t modified;
 	glRect_t        rectchange;
-	VkBuffer        workgroup_bounds_buffer;
 
 	// the lightmap texture data needs to be kept in
 	// main memory so texsubimage can update properly
@@ -491,7 +385,6 @@ void R_ClearParticles (void);
 
 void R_TranslatePlayerSkin (int playernum);
 void R_TranslateNewPlayerSkin (int playernum); // johnfitz -- this handles cases when the actual texture changes
-void R_UpdateWarpTextures (cb_context_t **cbx_ptr);
 
 void R_DrawWorld (cb_context_t *cbx, int index);
 void R_DrawAliasModel (cb_context_t *cbx, entity_t *e);
@@ -538,83 +431,27 @@ void R_DrawWorld_Water (cb_context_t *cbx);
 
 float GL_WaterAlphaForSurface (msurface_t *fa);
 
-int GL_MemoryTypeFromProperties (uint32_t type_bits, VkFlags requirements_mask, VkFlags preferred_mask);
-
-void R_CreateDescriptorPool ();
-void R_CreateDescriptorSetLayouts ();
-void R_InitSamplers ();
-void R_CreatePipelineLayouts ();
-void R_CreatePipelines ();
-void R_DestroyPipelines ();
-
-#define MAX_PUSH_CONSTANT_SIZE 128 // Vulkan guaranteed minimum maxPushConstantsSize
-
-static inline void R_BindPipeline (cb_context_t *cbx, VkPipelineBindPoint bind_point, vulkan_pipeline_t pipeline)
-{
-	static byte zeroes[MAX_PUSH_CONSTANT_SIZE];
-	assert (pipeline.handle != VK_NULL_HANDLE);
-	assert (pipeline.layout.handle != VK_NULL_HANDLE);
-	assert (cbx->current_pipeline.layout.push_constant_range.size <= MAX_PUSH_CONSTANT_SIZE);
-	if (cbx->current_pipeline.handle != pipeline.handle)
-	{
-		vulkan_globals.vk_cmd_bind_pipeline (cbx->cb, bind_point, pipeline.handle);
-		if ((pipeline.layout.push_constant_range.size > 0) &&
-		    ((cbx->current_pipeline.layout.push_constant_range.stageFlags != pipeline.layout.push_constant_range.stageFlags) ||
-		     (cbx->current_pipeline.layout.push_constant_range.size != pipeline.layout.push_constant_range.size)))
-			vulkan_globals.vk_cmd_push_constants (
-				cbx->cb, pipeline.layout.handle, pipeline.layout.push_constant_range.stageFlags, 0, pipeline.layout.push_constant_range.size, zeroes);
-		cbx->current_pipeline = pipeline;
-	}
-}
-
-static inline void R_PushConstants (cb_context_t *cbx, VkShaderStageFlags stage_flags, int offset, int size, const void *data)
-{
-	vulkan_globals.vk_cmd_push_constants (cbx->cb, cbx->current_pipeline.layout.handle, stage_flags, offset, size, data);
-}
-
 static inline void R_BeginDebugUtilsLabel (cb_context_t *cbx, const char *name)
 {
 #ifdef _DEBUG
-	VkDebugUtilsLabelEXT label;
-	memset (&label, 0, sizeof (label));
-	label.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_LABEL_EXT;
-	label.pLabelName = name;
-	if (vulkan_globals.vk_cmd_begin_debug_utils_label)
-		vulkan_globals.vk_cmd_begin_debug_utils_label (cbx->cb, &label);
 #endif
 }
 
 static inline void R_EndDebugUtilsLabel (cb_context_t *cbx)
 {
 #ifdef _DEBUG
-	if (vulkan_globals.vk_cmd_end_debug_utils_label)
-		vulkan_globals.vk_cmd_end_debug_utils_label (cbx->cb);
 #endif
 }
 
-void R_AllocateVulkanMemory (vulkan_memory_t *, VkMemoryAllocateInfo *, vulkan_memory_type_t);
-void R_FreeVulkanMemory (vulkan_memory_t *);
-
-VkDescriptorSet R_AllocateDescriptorSet (vulkan_desc_set_layout_t *layout);
-void            R_FreeDescriptorSet (VkDescriptorSet desc_set, vulkan_desc_set_layout_t *layout);
-
-void  R_InitStagingBuffers ();
-void  R_SubmitStagingBuffers ();
-byte *R_StagingAllocate (int size, int alignment, VkCommandBuffer *cb_context, VkBuffer *buffer, int *buffer_offset);
-void  R_StagingBeginCopy ();
-void  R_StagingEndCopy ();
-
-void  R_InitGPUBuffers ();
-void  R_SwapDynamicBuffers ();
-void  R_FlushDynamicBuffers ();
-void  R_CollectDynamicBufferGarbage ();
-void  R_CollectMeshBufferGarbage ();
-byte *R_VertexAllocate (int size, VkBuffer *buffer, VkDeviceSize *buffer_offset);
-byte *R_IndexAllocate (int size, VkBuffer *buffer, VkDeviceSize *buffer_offset);
-byte *R_UniformAllocate (int size, VkBuffer *buffer, uint32_t *buffer_offset, VkDescriptorSet *descriptor_set);
-
-void R_AllocateLightmapComputeBuffers ();
-
-void GL_SetObjectName (uint64_t object, VkObjectType object_type, const char *name);
+static inline uint32_t RT_PackColorToUint32(uint8_t r, uint8_t g, uint8_t b, uint8_t a)
+{
+	return
+		((uint32_t)a << 24) |
+		((uint32_t)b << 16) |
+		((uint32_t)g << 8)  |
+		((uint32_t)r);
+}
+#define RT_TRANSFORM_IDENTITY { 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0 }
+#define RT_COLOR_WHITE { 1, 1, 1, 1 }
 
 #endif /* GLQUAKE_H */

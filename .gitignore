@@ -9,6 +9,7 @@ Quake/vkquake
 Quake/*.exe
 Quake/*.res
 Windows/VisualStudio/Id1
+Windows/VisualStudio/ovrd
 Shaders/Compiled/Debug/*spv
 Shaders/Compiled/Release/*spv
 Shaders/*.exe

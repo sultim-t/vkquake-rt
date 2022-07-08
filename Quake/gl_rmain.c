@@ -106,8 +106,6 @@ float map_fallbackalpha;
 
 qboolean r_drawworld_cheatsafe, r_fullbright_cheatsafe, r_lightmap_cheatsafe; // johnfitz
 
-cvar_t r_scale = {"r_scale", "1", CVAR_ARCHIVE};
-
 cvar_t r_gpulightmapupdate = {"r_gpulightmapupdate", "1", CVAR_NONE};
 
 cvar_t r_tasks = {"r_tasks", "1", CVAR_NONE};
@@ -252,21 +250,34 @@ void R_SetFrustum (float fovx, float fovy)
 	}
 }
 
+#define NEARCLIP 4
+float GL_GetCameraNear (float radfovx, float radfovy)
+{
+	const float w = 1.0f / tanf (radfovx * 0.5f);
+	const float h = 1.0f / tanf (radfovy * 0.5f);
+
+    // reduce near clip distance at high FOV's to avoid seeing through walls
+    const float d = 12.f * q_min (w, h);
+    return CLAMP (0.5f, d, NEARCLIP);
+}
+
+float GL_GetCameraFar (void)
+{
+	return gl_farclip.value;
+}
+
 /*
 =============
 GL_FrustumMatrix
 =============
 */
-#define NEARCLIP 4
-static void GL_FrustumMatrix (float matrix[16], float fovx, float fovy)
+static void GL_FrustumMatrix (float matrix[16], float radfovx, float radfovy)
 {
-	const float w = 1.0f / tanf (fovx * 0.5f);
-	const float h = 1.0f / tanf (fovy * 0.5f);
+	const float w = 1.0f / tanf (radfovx * 0.5f);
+	const float h = 1.0f / tanf (radfovy * 0.5f);
 
-	// reduce near clip distance at high FOV's to avoid seeing through walls
-	const float d = 12.f * q_min (w, h);
-	const float n = CLAMP (0.5f, d, NEARCLIP);
-	const float f = gl_farclip.value;
+	const float n = GL_GetCameraNear (radfovx, radfovy);
+	const float f = GL_GetCameraFar ();
 
 	memset (matrix, 0, 16 * sizeof (float));
 

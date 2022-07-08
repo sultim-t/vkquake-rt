@@ -54,68 +54,7 @@ int stripverts[128];
 int striptris[128];
 int stripcount;
 
-// Heap
-#define INDEX_HEAP_SIZE_MB  2
-#define VERTEX_HEAP_SIZE_MB 16
 
-static glheap_t **vertex_buffer_heaps;
-static glheap_t **index_buffer_heaps;
-static int        num_vertex_buffer_heaps;
-static int        num_index_buffer_heaps;
-
-typedef struct
-{
-	VkBuffer      buffer;
-	glheap_t     *heap;
-	glheapnode_t *heap_node;
-	glheap_t   ***heaps;
-	int          *num_heaps;
-} buffer_garbage_t;
-
-static int              current_garbage_index;
-static int              num_garbage_buffers[2];
-static buffer_garbage_t buffer_garbage[MAX_MODELS * 2][2];
-
-/*
-================
-AddBufferGarbage
-================
-*/
-static void AddBufferGarbage (VkBuffer buffer, glheap_t *heap, glheapnode_t *heap_node, glheap_t ***heaps, int *num_heaps)
-{
-	int               garbage_index;
-	buffer_garbage_t *garbage;
-
-	garbage_index = num_garbage_buffers[current_garbage_index]++;
-	garbage = &buffer_garbage[garbage_index][current_garbage_index];
-	garbage->buffer = buffer;
-	garbage->heap = heap;
-	garbage->heap_node = heap_node;
-	garbage->heaps = heaps;
-	garbage->num_heaps = num_heaps;
-}
-
-/*
-================
-R_CollectMeshBufferGarbage
-================
-*/
-void R_CollectMeshBufferGarbage ()
-{
-	int               num;
-	int               i;
-	buffer_garbage_t *garbage;
-
-	current_garbage_index = (current_garbage_index + 1) % 2;
-	num = num_garbage_buffers[current_garbage_index];
-	for (i = 0; i < num; ++i)
-	{
-		garbage = &buffer_garbage[i][current_garbage_index];
-		vkDestroyBuffer (vulkan_globals.device, garbage->buffer, NULL);
-		GL_FreeFromHeaps (*garbage->num_heaps, *garbage->heaps, garbage->heap, garbage->heap_node, &num_vulkan_mesh_allocations);
-	}
-	num_garbage_buffers[current_garbage_index] = 0;
-}
 
 /*
 ================
@@ -506,31 +445,6 @@ GLMesh_DeleteVertexBuffer
 */
 static void GLMesh_DeleteVertexBuffer (qmodel_t *m)
 {
-	if (m->vertex_buffer == VK_NULL_HANDLE)
-		return;
-
-	if (in_update_screen)
-	{
-		AddBufferGarbage (m->vertex_buffer, m->vertex_heap, m->vertex_heap_node, &vertex_buffer_heaps, &num_vertex_buffer_heaps);
-		AddBufferGarbage (m->index_buffer, m->index_heap, m->index_heap_node, &index_buffer_heaps, &num_index_buffer_heaps);
-	}
-	else
-	{
-		GL_WaitForDeviceIdle ();
-
-		vkDestroyBuffer (vulkan_globals.device, m->vertex_buffer, NULL);
-		GL_FreeFromHeaps (num_vertex_buffer_heaps, vertex_buffer_heaps, m->vertex_heap, m->vertex_heap_node, &num_vulkan_mesh_allocations);
-
-		vkDestroyBuffer (vulkan_globals.device, m->index_buffer, NULL);
-		GL_FreeFromHeaps (num_index_buffer_heaps, index_buffer_heaps, m->index_heap, m->index_heap_node, &num_vulkan_mesh_allocations);
-	}
-
-	m->vertex_buffer = VK_NULL_HANDLE;
-	m->vertex_heap = NULL;
-	m->vertex_heap_node = NULL;
-	m->index_buffer = VK_NULL_HANDLE;
-	m->index_heap = NULL;
-	m->index_heap_node = NULL;
 }
 
 /*
@@ -552,7 +466,6 @@ static void GLMesh_LoadVertexBuffer (qmodel_t *m, const aliashdr_t *hdr)
 	const trivertx_t  *trivertexes;
 	byte              *vbodata;
 	int                f;
-	VkResult           err;
 
 	GLMesh_DeleteVertexBuffer (m);
 
@@ -561,12 +474,10 @@ static void GLMesh_LoadVertexBuffer (qmodel_t *m, const aliashdr_t *hdr)
 	// ericw -- RMQEngine stored these vbo*ofs values in aliashdr_t, but we must not
 	// mutate Mod_Extradata since it might be reloaded from disk, so I moved them to qmodel_t
 	// (test case: roman1.bsp from arwop, 64mb heap)
-	m->vboindexofs = 0;
 
-	m->vboxyzofs = 0;
 	totalvbosize += (hdr->numposes * hdr->numverts_vbo * sizeof (meshxyz_t)); // ericw -- what RMQEngine called nummeshframes is called numposes in QuakeSpasm
 
-	m->vbostofs = totalvbosize;
+	const int vbostofs = totalvbosize;
 	totalvbosize += (hdr->numverts_vbo * sizeof (meshst_t));
 
 	if (isDedicated)
@@ -584,55 +495,7 @@ static void GLMesh_LoadVertexBuffer (qmodel_t *m, const aliashdr_t *hdr)
 
 	{
 		const int totalindexsize = hdr->numindexes * sizeof (unsigned short);
-
-		// Allocate index buffer & upload to GPU
-		VkBufferCreateInfo buffer_create_info;
-		memset (&buffer_create_info, 0, sizeof (buffer_create_info));
-		buffer_create_info.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
-		buffer_create_info.size = totalindexsize;
-		buffer_create_info.usage = VK_BUFFER_USAGE_INDEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT;
-		err = vkCreateBuffer (vulkan_globals.device, &buffer_create_info, NULL, &m->index_buffer);
-		if (err != VK_SUCCESS)
-			Sys_Error ("vkCreateBuffer failed");
-
-		GL_SetObjectName ((uint64_t)m->index_buffer, VK_OBJECT_TYPE_BUFFER, m->name);
-
-		VkMemoryRequirements memory_requirements;
-		vkGetBufferMemoryRequirements (vulkan_globals.device, m->index_buffer, &memory_requirements);
-
-		uint32_t     memory_type_index = GL_MemoryTypeFromProperties (memory_requirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, 0);
-		VkDeviceSize heap_size = INDEX_HEAP_SIZE_MB * (VkDeviceSize)1024 * (VkDeviceSize)1024;
-		VkDeviceSize aligned_offset = GL_AllocateFromHeaps (
-			&num_index_buffer_heaps, &index_buffer_heaps, heap_size, memory_type_index, VULKAN_MEMORY_TYPE_DEVICE, memory_requirements.size,
-			memory_requirements.alignment, &m->index_heap, &m->index_heap_node, &num_vulkan_mesh_allocations, "Index Buffers");
-		err = vkBindBufferMemory (vulkan_globals.device, m->index_buffer, m->index_heap->memory.handle, aligned_offset);
-		if (err != VK_SUCCESS)
-			Sys_Error ("vkBindBufferMemory failed");
-
-		remaining_size = totalindexsize;
-		copy_offset = 0;
-
-		while (remaining_size > 0)
-		{
-			const int       size_to_copy = q_min (remaining_size, vulkan_globals.staging_buffer_size);
-			VkBuffer        staging_buffer;
-			VkCommandBuffer command_buffer;
-			int             staging_offset;
-			unsigned char  *staging_memory = R_StagingAllocate (size_to_copy, 1, &command_buffer, &staging_buffer, &staging_offset);
-
-			VkBufferCopy region;
-			region.srcOffset = staging_offset;
-			region.dstOffset = copy_offset;
-			region.size = size_to_copy;
-			vkCmdCopyBuffer (command_buffer, staging_buffer, m->index_buffer, 1, &region);
-
-			R_StagingBeginCopy ();
-			memcpy (staging_memory, (byte *)indexes + copy_offset, size_to_copy);
-			R_StagingEndCopy ();
-
-			copy_offset += size_to_copy;
-			remaining_size -= size_to_copy;
-		}
+		indexes;
 	}
 
 	// create the vertex buffer (empty)
@@ -670,7 +533,7 @@ static void GLMesh_LoadVertexBuffer (qmodel_t *m, const aliashdr_t *hdr)
 	{
 		meshst_t *st;
 
-		st = (meshst_t *)(vbodata + m->vbostofs);
+		st = (meshst_t *)(vbodata + vbostofs);
 		for (f = 0; f < hdr->numverts_vbo; f++)
 		{
 			st[f].st[0] = ((float)desc[f].st[0] + 0.5f) / (float)hdr->skinwidth;
@@ -678,56 +541,8 @@ static void GLMesh_LoadVertexBuffer (qmodel_t *m, const aliashdr_t *hdr)
 		}
 	}
 
-	// Allocate vertex buffer & upload to GPU
-	{
-		VkBufferCreateInfo buffer_create_info;
-		memset (&buffer_create_info, 0, sizeof (buffer_create_info));
-		buffer_create_info.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
-		buffer_create_info.size = totalvbosize;
-		buffer_create_info.usage = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT;
-		err = vkCreateBuffer (vulkan_globals.device, &buffer_create_info, NULL, &m->vertex_buffer);
-		if (err != VK_SUCCESS)
-			Sys_Error ("vkCreateBuffer failed");
-
-		GL_SetObjectName ((uint64_t)m->vertex_buffer, VK_OBJECT_TYPE_BUFFER, m->name);
-
-		VkMemoryRequirements memory_requirements;
-		vkGetBufferMemoryRequirements (vulkan_globals.device, m->vertex_buffer, &memory_requirements);
-
-		uint32_t     memory_type_index = GL_MemoryTypeFromProperties (memory_requirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, 0);
-		VkDeviceSize heap_size = VERTEX_HEAP_SIZE_MB * (VkDeviceSize)1024 * (VkDeviceSize)1024;
-		VkDeviceSize aligned_offset = GL_AllocateFromHeaps (
-			&num_vertex_buffer_heaps, &vertex_buffer_heaps, heap_size, memory_type_index, VULKAN_MEMORY_TYPE_DEVICE, memory_requirements.size,
-			memory_requirements.alignment, &m->vertex_heap, &m->vertex_heap_node, &num_vulkan_mesh_allocations, "Vertex Buffers");
-		err = vkBindBufferMemory (vulkan_globals.device, m->vertex_buffer, m->vertex_heap->memory.handle, aligned_offset);
-		if (err != VK_SUCCESS)
-			Sys_Error ("vkBindBufferMemory failed");
-
-		remaining_size = totalvbosize;
-		copy_offset = 0;
-
-		while (remaining_size > 0)
-		{
-			const int       size_to_copy = q_min (remaining_size, vulkan_globals.staging_buffer_size);
-			VkBuffer        staging_buffer;
-			VkCommandBuffer command_buffer;
-			int             staging_offset;
-			unsigned char  *staging_memory = R_StagingAllocate (size_to_copy, 1, &command_buffer, &staging_buffer, &staging_offset);
-
-			VkBufferCopy region;
-			region.srcOffset = staging_offset;
-			region.dstOffset = copy_offset;
-			region.size = size_to_copy;
-			vkCmdCopyBuffer (command_buffer, staging_buffer, m->vertex_buffer, 1, &region);
-
-			R_StagingBeginCopy ();
-			memcpy (staging_memory, (byte *)vbodata + copy_offset, size_to_copy);
-			R_StagingEndCopy ();
-
-			copy_offset += size_to_copy;
-			remaining_size -= size_to_copy;
-		}
-	}
+	vbodata;
+	totalvbosize;
 
 	Mem_Free (vbodata);
 }

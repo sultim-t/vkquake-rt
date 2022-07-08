@@ -57,10 +57,10 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 #ifdef QSS_DATE
 // combined version string like "2020-10-20-beta1"
-#define ENGINE_NAME_AND_VER "vkQuake " QS_STRINGIFY (QSS_DATE) VKQUAKE_VER_SUFFIX
+#define ENGINE_NAME_AND_VER "QuakeRT " QS_STRINGIFY (QSS_DATE) VKQUAKE_VER_SUFFIX
 #else
 #define ENGINE_NAME_AND_VER \
-	"vkQuake"               \
+	"QuakeRT"               \
 	" " VKQUAKE_VER_STRING
 #endif
 
@@ -68,8 +68,10 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 #define GAMENAME "id1" // directory to look in by default
 
-#define PSET_SCRIPT            // enable the scriptable particle system (poorly ported from FTE)
-#define PSET_SCRIPT_EFFECTINFO // scripted particle system can load dp's effects
+#define RT_OVERRIDEN_FOLDER "ovrd/"
+
+// #define PSET_SCRIPT            // enable the scriptable particle system (poorly ported from FTE)
+// #define PSET_SCRIPT_EFFECTINFO // scripted particle system can load dp's effects
 
 #define LERP_BANDAID // HACK: send think interval over FTE protocol (loopback only, no demos)
 
@@ -288,6 +290,13 @@ static inline int FindFirstBitNonZero (const uint32_t mask)
 
 #include "platform.h"
 
+#ifdef _WIN32
+    #define RG_USE_SURFACE_WIN32
+#else
+    #define RG_USE_SURFACE_XLIB
+#endif
+#include <RTGL1/RTGL1.h>
+
 #include "console.h"
 #include "wad.h"
 #include "vid.h"
@@ -389,5 +398,13 @@ extern int num_vulkan_combined_image_samplers;
 extern int num_vulkan_ubos_dynamic;
 extern int num_vulkan_input_attachments;
 extern int num_vulkan_storage_images;
+
+
+// Helpers
+#define CVAR_TO_BOOL(x)   (((x).value > 0.5f) ? true : false)
+#define CVAR_TO_FLOAT(x)  ((x).value)
+#define CVAR_TO_UINT32(x) (((x).value > 0.5f) ? ((uint32_t)(x).value) : 0u)
+#define CVAR_TO_INT32(x)  ((int)(x).value)
+
 
 #endif /* QUAKEDEFS_H */

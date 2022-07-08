@@ -44,12 +44,13 @@ int r_numparticles;
 gltexture_t *particletexture, *particletexture1, *particletexture2, *particletexture3, *particletexture4; // johnfitz
 float        texturescalefactor; // johnfitz -- compensate for apparent size of different particle textures
 
-cvar_t r_particles = {"r_particles", "1", CVAR_ARCHIVE};         // johnfitz
-cvar_t r_quadparticles = {"r_quadparticles", "1", CVAR_ARCHIVE}; // johnfitz
+cvar_t r_particles = {"r_particles", "2", CVAR_ARCHIVE};         // johnfitz
+// cvar_t r_quadparticles = {"r_quadparticles", "1", CVAR_ARCHIVE}; // johnfitz
+
+#define QUAD_PARTICLES 0
+static uint32_t *quadindices = NULL;
 
 extern cvar_t r_showtris;
-
-static VkBuffer particle_index_buffer;
 
 /*
 ===============
@@ -158,71 +159,19 @@ R_InitParticleIndexBuffer
 */
 void R_InitParticleIndexBuffer (void)
 {
-	uint32_t particle_index_buffer_size = r_numparticles * sizeof (uint16_t) * 6; // 6 indices per particle quad
+#if QUAD_PARTICLES
+	quadindices = Mem_Alloc (r_numparticles * sizeof (uint32_t) * 6); // 6 indices per particle quad
 
-	VkResult err;
-
-	VkBufferCreateInfo buffer_create_info;
-	memset (&buffer_create_info, 0, sizeof (buffer_create_info));
-	buffer_create_info.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
-	buffer_create_info.size = particle_index_buffer_size;
-	buffer_create_info.usage = VK_BUFFER_USAGE_INDEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT;
-
-	err = vkCreateBuffer (vulkan_globals.device, &buffer_create_info, NULL, &particle_index_buffer);
-	if (err != VK_SUCCESS)
-		Sys_Error ("vkCreateBuffer failed");
-
-	GL_SetObjectName ((uint64_t)particle_index_buffer, VK_OBJECT_TYPE_BUFFER, "Particle index buffer");
-
-	VkMemoryRequirements memory_requirements;
-	vkGetBufferMemoryRequirements (vulkan_globals.device, particle_index_buffer, &memory_requirements);
-
-	const int align_mod = memory_requirements.size % memory_requirements.alignment;
-	const int aligned_size = ((memory_requirements.size % memory_requirements.alignment) == 0)
-	                             ? memory_requirements.size
-	                             : (memory_requirements.size + memory_requirements.alignment - align_mod);
-
-	VkMemoryAllocateInfo memory_allocate_info;
-	memset (&memory_allocate_info, 0, sizeof (memory_allocate_info));
-	memory_allocate_info.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
-	memory_allocate_info.allocationSize = aligned_size;
-	memory_allocate_info.memoryTypeIndex = GL_MemoryTypeFromProperties (memory_requirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, 0);
-
-	num_vulkan_dynbuf_allocations += 1;
-	VkDeviceMemory particle_index_buffer_memory;
-	total_device_vulkan_allocation_size += memory_requirements.size;
-	err = vkAllocateMemory (vulkan_globals.device, &memory_allocate_info, NULL, &particle_index_buffer_memory);
-	if (err != VK_SUCCESS)
-		Sys_Error ("vkAllocateMemory failed");
-
-	GL_SetObjectName ((uint64_t)particle_index_buffer_memory, VK_OBJECT_TYPE_DEVICE_MEMORY, "Particle index buffer");
-
-	err = vkBindBufferMemory (vulkan_globals.device, particle_index_buffer, particle_index_buffer_memory, 0);
-	if (err != VK_SUCCESS)
-		Sys_Error ("vkBindBufferMemory failed");
-
-	VkBuffer        staging_buffer;
-	VkCommandBuffer cb_context;
-	int             staging_offset;
-	uint16_t       *staging_indices = (uint16_t *)R_StagingAllocate (particle_index_buffer_size, 1, &cb_context, &staging_buffer, &staging_offset);
-
-	VkBufferCopy region;
-	region.srcOffset = staging_offset;
-	region.dstOffset = 0;
-	region.size = particle_index_buffer_size;
-	vkCmdCopyBuffer (cb_context, staging_buffer, particle_index_buffer, 1, &region);
-
-	R_StagingBeginCopy ();
 	for (int i = 0; i < r_numparticles; ++i)
 	{
-		staging_indices[i * 6 + 0] = i * 4 + 0;
-		staging_indices[i * 6 + 1] = i * 4 + 1;
-		staging_indices[i * 6 + 2] = i * 4 + 2;
-		staging_indices[i * 6 + 3] = i * 4 + 0;
-		staging_indices[i * 6 + 4] = i * 4 + 2;
-		staging_indices[i * 6 + 5] = i * 4 + 3;
+		quadindices[i * 6 + 0] = i * 4 + 0;
+		quadindices[i * 6 + 1] = i * 4 + 1;
+		quadindices[i * 6 + 2] = i * 4 + 2;
+		quadindices[i * 6 + 3] = i * 4 + 0;
+		quadindices[i * 6 + 4] = i * 4 + 2;
+		quadindices[i * 6 + 5] = i * 4 + 3;
 	}
-	R_StagingEndCopy ();
+#endif
 }
 
 /*
@@ -251,7 +200,7 @@ void R_InitParticles (void)
 
 	Cvar_RegisterVariable (&r_particles); // johnfitz
 	Cvar_SetCallback (&r_particles, R_SetParticleTexture_f);
-	Cvar_RegisterVariable (&r_quadparticles); // johnfitz
+	// Cvar_RegisterVariable (&r_quadparticles); // johnfitz
 
 	R_InitParticleTextures (); // johnfitz
 	R_InitParticleIndexBuffer ();
@@ -908,7 +857,7 @@ void CL_RunParticles (void)
 R_DrawParticlesFaces
 ===============
 */
-static void R_DrawParticlesFaces (cb_context_t *cbx)
+static void R_DrawParticlesFaces (cb_context_t *cbx, gltexture_t *texture)
 {
 	particle_t   *p;
 	float         scale, texcoord_scale;
@@ -921,7 +870,7 @@ static void R_DrawParticlesFaces (cb_context_t *cbx)
 	if (!active_particles)
 		return;
 
-	if (r_quadparticles.value)
+	if (QUAD_PARTICLES)
 	{
 		VectorScale (vup, 0.75, up);
 		VectorScale (vright, 0.75, right);
@@ -941,13 +890,13 @@ static void R_DrawParticlesFaces (cb_context_t *cbx)
 	for (p = active_particles; p; p = p->next)
 		num_particles += 1;
 
-	VkBuffer       vertex_buffer;
-	VkDeviceSize   vertex_buffer_offset;
-	basicvertex_t *vertices;
-	if (r_quadparticles.value)
-		vertices = (basicvertex_t *)R_VertexAllocate (num_particles * 4 * sizeof (basicvertex_t), &vertex_buffer, &vertex_buffer_offset);
+
+	RgRasterizedGeometryVertexStruct *vertices;
+	if (QUAD_PARTICLES)
+		vertices = Mem_Alloc (num_particles * 4 * sizeof (RgRasterizedGeometryVertexStruct));
 	else
-		vertices = (basicvertex_t *)R_VertexAllocate (num_particles * 3 * sizeof (basicvertex_t), &vertex_buffer, &vertex_buffer_offset);
+		vertices = Mem_Alloc (num_particles * 3 * sizeof (RgRasterizedGeometryVertexStruct));
+
 
 	int current_vertex = 0;
 	for (p = active_particles; p; p = p->next)
@@ -966,38 +915,29 @@ static void R_DrawParticlesFaces (cb_context_t *cbx)
 		vertices[current_vertex].position[0] = p->org[0];
 		vertices[current_vertex].position[1] = p->org[1];
 		vertices[current_vertex].position[2] = p->org[2];
-		vertices[current_vertex].texcoord[0] = 0.0f;
-		vertices[current_vertex].texcoord[1] = 0.0f;
-		vertices[current_vertex].color[0] = c[0];
-		vertices[current_vertex].color[1] = c[1];
-		vertices[current_vertex].color[2] = c[2];
-		vertices[current_vertex].color[3] = 255;
+		vertices[current_vertex].texCoord[0] = 0.0f;
+		vertices[current_vertex].texCoord[1] = 0.0f;
+		vertices[current_vertex].packedColor = RT_PackColorToUint32 (c[0], c[1], c[2], 255);
 		current_vertex++;
 
 		VectorMA (p->org, scale, up, p_up);
 		vertices[current_vertex].position[0] = p_up[0];
 		vertices[current_vertex].position[1] = p_up[1];
 		vertices[current_vertex].position[2] = p_up[2];
-		vertices[current_vertex].texcoord[0] = texcoord_scale;
-		vertices[current_vertex].texcoord[1] = 0.0f;
-		vertices[current_vertex].color[0] = c[0];
-		vertices[current_vertex].color[1] = c[1];
-		vertices[current_vertex].color[2] = c[2];
-		vertices[current_vertex].color[3] = 255;
+		vertices[current_vertex].texCoord[0] = texcoord_scale;
+		vertices[current_vertex].texCoord[1] = 0.0f;
+		vertices[current_vertex].packedColor = RT_PackColorToUint32 (c[0], c[1], c[2], 255);
 		current_vertex++;
 
-		if (r_quadparticles.value)
+		if (QUAD_PARTICLES)
 		{
 			VectorMA (p->org, scale, up_right, p_up_right);
 			vertices[current_vertex].position[0] = p_up_right[0];
 			vertices[current_vertex].position[1] = p_up_right[1];
 			vertices[current_vertex].position[2] = p_up_right[2];
-			vertices[current_vertex].texcoord[0] = texcoord_scale;
-			vertices[current_vertex].texcoord[1] = texcoord_scale;
-			vertices[current_vertex].color[0] = c[0];
-			vertices[current_vertex].color[1] = c[1];
-			vertices[current_vertex].color[2] = c[2];
-			vertices[current_vertex].color[3] = 255;
+			vertices[current_vertex].texCoord[0] = texcoord_scale;
+			vertices[current_vertex].texCoord[1] = texcoord_scale;
+			vertices[current_vertex].packedColor = RT_PackColorToUint32 (c[0], c[1], c[2], 255);
 			current_vertex++;
 		}
 
@@ -1005,25 +945,30 @@ static void R_DrawParticlesFaces (cb_context_t *cbx)
 		vertices[current_vertex].position[0] = p_right[0];
 		vertices[current_vertex].position[1] = p_right[1];
 		vertices[current_vertex].position[2] = p_right[2];
-		vertices[current_vertex].texcoord[0] = 0.0f;
-		vertices[current_vertex].texcoord[1] = texcoord_scale;
-		vertices[current_vertex].color[0] = c[0];
-		vertices[current_vertex].color[1] = c[1];
-		vertices[current_vertex].color[2] = c[2];
-		vertices[current_vertex].color[3] = 255;
+		vertices[current_vertex].texCoord[0] = 0.0f;
+		vertices[current_vertex].texCoord[1] = texcoord_scale;
+		vertices[current_vertex].packedColor = RT_PackColorToUint32 (c[0], c[1], c[2], 255);
 		current_vertex++;
 
 		Atomic_IncrementUInt32 (&rs_particles);
 	}
 
-	vulkan_globals.vk_cmd_bind_vertex_buffers (cbx->cb, 0, 1, &vertex_buffer, &vertex_buffer_offset);
-	if (r_quadparticles.value)
-	{
-		vulkan_globals.vk_cmd_bind_index_buffer (cbx->cb, particle_index_buffer, 0, VK_INDEX_TYPE_UINT16);
-		vulkan_globals.vk_cmd_draw_indexed (cbx->cb, num_particles * 6, 1, 0, 0, 0);
-	}
-	else
-		vulkan_globals.vk_cmd_draw (cbx->cb, num_particles * 3, 1, 0, 0);
+	RgRasterizedGeometryUploadInfo info = {
+		.renderType = RG_RASTERIZED_GEOMETRY_RENDER_TYPE_DEFAULT,
+		.vertexCount = current_vertex,
+		.pStructs = vertices,
+		.indexCount = QUAD_PARTICLES ? num_particles * 6 : 0,
+		.pIndexData = QUAD_PARTICLES ? quadindices : NULL,
+		.transform = RT_TRANSFORM_IDENTITY,
+		.color = RT_COLOR_WHITE,
+		.material = texture ? texture->rtmaterial : RG_NO_MATERIAL,
+		.pipelineState = RG_RASTERIZED_GEOMETRY_STATE_BLEND_ENABLE | RG_RASTERIZED_GEOMETRY_STATE_DEPTH_TEST,
+		.blendFuncSrc = RG_BLEND_FACTOR_SRC_ALPHA,
+		.blendFuncDst = RG_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA,
+	};
+
+    RgResult r = rgUploadRasterizedGeometry (vulkan_globals.instance, &info, NULL, NULL);
+	RG_CHECK (r);
 }
 
 /*
@@ -1034,11 +979,8 @@ R_DrawParticles -- johnfitz -- moved all non-drawing code to CL_RunParticles
 void R_DrawParticles (cb_context_t *cbx)
 {
 	R_BeginDebugUtilsLabel (cbx, "Particles");
-	R_BindPipeline (cbx, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.particle_pipeline);
-	vulkan_globals.vk_cmd_bind_descriptor_sets (
-		cbx->cb, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.basic_pipeline_layout.handle, 0, 1, &particletexture->descriptor_set, 0, NULL);
 
-	R_DrawParticlesFaces (cbx);
+	R_DrawParticlesFaces (cbx, particletexture);
 	R_EndDebugUtilsLabel (cbx);
 }
 
@@ -1049,10 +991,5 @@ R_DrawParticles_ShowTris -- johnfitz
 */
 void R_DrawParticles_ShowTris (cb_context_t *cbx)
 {
-	if (r_showtris.value == 1)
-		R_BindPipeline (cbx, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.showtris_pipeline);
-	else
-		R_BindPipeline (cbx, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.showtris_depth_test_pipeline);
-
-	R_DrawParticlesFaces (cbx);
+	R_DrawParticles (cbx);
 }
