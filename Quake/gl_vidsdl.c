@@ -765,7 +765,7 @@ typedef struct end_rendering_parms_s
 	double  time;
 	float   vid_width;
 	float   vid_height;
-	uint8_t v_blend[4];
+	float	v_blend[4];
 } end_rendering_parms_t;
 
 #define DEG2RAD(a) ((a)*M_PI_DIV_180)
@@ -862,6 +862,14 @@ static void GL_EndRenderingTask (end_rendering_parms_t *parms)
 		.intensity = CVAR_TO_FLOAT (rt_ef_chraber),
 	};
 
+	RgPostEffectColorTint tint_effect = {
+		.isActive = parms->v_blend[3] > 0,
+		.transitionDurationIn = 0.0f,
+		.transitionDurationOut = 0.7f,
+		.intensity = parms->v_blend[3],
+		.color = {parms->v_blend[0], parms->v_blend[1], parms->v_blend[2]},
+	};
+
 	RgDrawFrameDebugParams debug_params = {
 		.drawFlags = CVAR_TO_UINT32 (rt_debugflags),
 	};
@@ -892,6 +900,7 @@ static void GL_EndRenderingTask (end_rendering_parms_t *parms)
 		.postEffectParams =
 			{
 				.pChromaticAberration = &chromatic_aberration_effect,
+				.pColorTint = &tint_effect,
 				.pCRT = &crt_effect,
 			},
 		.pDebugParams = &debug_params,
@@ -914,10 +923,10 @@ task_handle_t GL_EndRendering (qboolean use_tasks, qboolean swapchain)
 		.time = cl.time,
 		.vid_width = (float)vid.width,
 		.vid_height = (float)vid.height,
-		.v_blend[0] = v_blend[0],
-		.v_blend[1] = v_blend[1],
-		.v_blend[2] = v_blend[2],
-		.v_blend[3] = v_blend[3],
+		.v_blend[0] = (float)v_blend[0] / 255.0f,
+		.v_blend[1] = (float)v_blend[1] / 255.0f,
+		.v_blend[2] = (float)v_blend[2] / 255.0f,
+		.v_blend[3] = (float)v_blend[3] / 255.0f,
 	};
 	task_handle_t end_rendering_task = INVALID_TASK_HANDLE;
 	if (use_tasks)
