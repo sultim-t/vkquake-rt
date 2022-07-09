@@ -23,6 +23,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 */
 // gl_sky.c
 
+#include "gl_heap.h"
 #include "quakedef.h"
 
 #define MAX_CLIP_VERTS 64
@@ -826,8 +827,8 @@ void Sky_DrawSkyBox (cb_context_t *cbx)
 			.renderType = RG_RASTERIZED_GEOMETRY_RENDER_TYPE_SKY,
 			.vertexCount = countof (vertices),
 			.pStructs = vertices,
-			.indexCount = 6,
-			.pIndexData = fanindices,
+			.indexCount = RT_GetFanIndexCount (countof (vertices)),
+			.pIndexData = RT_GetFanIndices (countof (vertices)),
 			.transform = RT_TRANSFORM_IDENTITY,
 			.color = RT_COLOR_WHITE,
 			.material = texture ? texture->rtmaterial : RG_NO_MATERIAL,
@@ -932,8 +933,8 @@ void Sky_DrawFaceQuad (cb_context_t *cbx, glpoly_t *p, float alpha)
 			.renderType = RG_RASTERIZED_GEOMETRY_RENDER_TYPE_SKY,
 			.vertexCount = countof (vertices),
 			.pStructs = vertices,
-			.indexCount = 6,
-			.pIndexData = fanindices,
+			.indexCount = RT_GetFanIndexCount(countof(vertices)),
+			.pIndexData = RT_GetFanIndices (countof (vertices)),
 			.transform = RT_TRANSFORM_IDENTITY,
 			.color = RT_COLOR_WHITE,
 			.material = texture ? texture->rtmaterial : RG_NO_MATERIAL,

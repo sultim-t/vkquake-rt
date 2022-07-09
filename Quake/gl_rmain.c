@@ -457,7 +457,7 @@ void R_DrawEntitiesOnList (cb_context_t *cbx, qboolean alphapass, int chain, int
 			R_DrawBrushModel (cbx, currententity, chain);
 			break;
 		case mod_sprite:
-			R_DrawSpriteModel (cbx, currententity);
+			R_DrawSpriteModel (cbx, currententity, i);
 			break;
 		}
 	}

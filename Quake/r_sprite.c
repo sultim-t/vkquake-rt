@@ -23,8 +23,10 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 // r_sprite.c -- sprite model rendering
 
 #include "quakedef.h"
+#include "gl_heap.h"
 
-extern cvar_t r_showtris;
+extern cvar_t rt_model_metal;
+extern cvar_t rt_model_rough;
 
 /*
 ================
@@ -82,7 +84,7 @@ static mspriteframe_t *R_GetSpriteFrame (entity_t *currentent)
 R_CreateSpriteVertices
 ================
 */
-static void R_CreateSpriteVertices (entity_t *e, mspriteframe_t *frame, basicvertex_t *vertices)
+static void R_CreateSpriteVertices (entity_t *e, mspriteframe_t *frame, RgRasterizedGeometryVertexStruct *vertices)
 {
 	vec3_t     point, v_forward, v_right, v_up;
 	msprite_t *psprite;
@@ -146,32 +148,36 @@ static void R_CreateSpriteVertices (entity_t *e, mspriteframe_t *frame, basicver
 	vertices[0].position[0] = point[0];
 	vertices[0].position[1] = point[1];
 	vertices[0].position[2] = point[2];
-	vertices[0].texcoord[0] = 0.0f;
-	vertices[0].texcoord[1] = frame->tmax;
+	vertices[0].texCoord[0] = 0.0f;
+	vertices[0].texCoord[1] = frame->tmax;
+	vertices[0].packedColor = RT_PackColorToUint32(255, 255, 255, 255);
 
 	VectorMA (e->origin, frame->up, s_up, point);
 	VectorMA (point, frame->left, s_right, point);
 	vertices[1].position[0] = point[0];
 	vertices[1].position[1] = point[1];
 	vertices[1].position[2] = point[2];
-	vertices[1].texcoord[0] = 0.0f;
-	vertices[1].texcoord[1] = 0.0f;
+	vertices[1].texCoord[0] = 0.0f;
+	vertices[1].texCoord[1] = 0.0f;
+	vertices[1].packedColor = RT_PackColorToUint32 (255, 255, 255, 255);
 
 	VectorMA (e->origin, frame->up, s_up, point);
 	VectorMA (point, frame->right, s_right, point);
 	vertices[2].position[0] = point[0];
 	vertices[2].position[1] = point[1];
 	vertices[2].position[2] = point[2];
-	vertices[2].texcoord[0] = frame->smax;
-	vertices[2].texcoord[1] = 0.0f;
+	vertices[2].texCoord[0] = frame->smax;
+	vertices[2].texCoord[1] = 0.0f;
+	vertices[2].packedColor = RT_PackColorToUint32 (255, 255, 255, 255);
 
 	VectorMA (e->origin, frame->down, s_up, point);
 	VectorMA (point, frame->right, s_right, point);
 	vertices[3].position[0] = point[0];
 	vertices[3].position[1] = point[1];
 	vertices[3].position[2] = point[2];
-	vertices[3].texcoord[0] = frame->smax;
-	vertices[3].texcoord[1] = frame->tmax;
+	vertices[3].texCoord[0] = frame->smax;
+	vertices[3].texCoord[1] = frame->tmax;
+	vertices[3].packedColor = RT_PackColorToUint32 (255, 255, 255, 255);
 }
 
 /*
@@ -179,30 +185,67 @@ static void R_CreateSpriteVertices (entity_t *e, mspriteframe_t *frame, basicver
 R_DrawSpriteModel -- johnfitz -- rewritten: now supports all orientations
 =================
 */
-void R_DrawSpriteModel (cb_context_t *cbx, entity_t *e)
+void R_DrawSpriteModel (cb_context_t *cbx, entity_t *e, int entityid)
 {
-	VkBuffer        buffer;
-	VkDeviceSize    buffer_offset;
-	basicvertex_t  *vertices = (basicvertex_t *)R_VertexAllocate (4 * sizeof (basicvertex_t), &buffer, &buffer_offset);
-	msprite_t      *psprite;
+	msprite_t      *psprite = (msprite_t *)e->model->extradata;
 	mspriteframe_t *frame = R_GetSpriteFrame (e);
 
+	RgRasterizedGeometryVertexStruct vertices[4];
 	R_CreateSpriteVertices (e, frame, vertices);
 
-	vkCmdBindVertexBuffers (cbx->cb, 0, 1, &buffer, &buffer_offset);
-	vkCmdBindIndexBuffer (cbx->cb, vulkan_globals.fan_index_buffer, 0, VK_INDEX_TYPE_UINT16);
+	qboolean is_rasterized = true;
+	qboolean is_decal = psprite->type == SPR_ORIENTED;
 
-	R_BindPipeline (cbx, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.sprite_pipeline);
+	if (is_rasterized)
+	{
+		RgRasterizedGeometryUploadInfo info = {
+			.renderType = RG_RASTERIZED_GEOMETRY_RENDER_TYPE_DEFAULT,
+			.vertexCount = countof (vertices),
+			.pStructs = vertices,
+			.indexCount = RT_GetFanIndexCount (countof (vertices)),
+			.pIndexData = RT_GetFanIndices (countof (vertices)),
+			.transform = RT_TRANSFORM_IDENTITY,
+			.color = RT_COLOR_WHITE,
+			.material = frame->gltexture ? frame->gltexture->rtmaterial : RG_NO_MATERIAL,
+			.pipelineState = 
+			    RG_RASTERIZED_GEOMETRY_STATE_DEPTH_TEST | 
+			    RG_RASTERIZED_GEOMETRY_STATE_DEPTH_WRITE | 
+			    RG_RASTERIZED_GEOMETRY_STATE_ALPHA_TEST,
+			.blendFuncSrc = 0,
+			.blendFuncDst = 0,
+		};
 
-	psprite = (msprite_t *)e->model->extradata;
-	if (psprite->type == SPR_ORIENTED)
-		vkCmdSetDepthBias (cbx->cb, OFFSET_DECAL, 0.0f, 1.0f);
+		RgResult r = rgUploadRasterizedGeometry (vulkan_globals.instance, &info, NULL, NULL);
+		RG_CHECK (r);
+	}
 	else
-		vkCmdSetDepthBias (cbx->cb, OFFSET_NONE, 0.0f, 0.0f);
+	{
+		/*
+		RgGeometryUploadInfo info = {
+			.uniqueID = entityid,
+			.flags = 0,
+			.geomType = RG_GEOMETRY_TYPE_DYNAMIC,
+			.passThroughType = RG_GEOMETRY_PASS_THROUGH_TYPE_ALPHA_TESTED,
+			.visibilityType = RG_GEOMETRY_VISIBILITY_TYPE_WORLD_0,
+			.vertexCount = countof (vertices),
+			.pVertexData =,
+			.pNormalData =,
+			.pTexCoordLayerData =,
+			.indexCount = RT_GetFanIndexCount (countof (vertices)),
+			.pIndexData = RT_GetFanIndices (countof (vertices)),
+			.layerColors = {RT_COLOR_WHITE},
+			.layerBlendingTypes = RG_GEOMETRY_MATERIAL_BLEND_TYPE_OPAQUE,
+			.defaultRoughness = CVAR_TO_FLOAT (rt_model_rough),
+			.defaultMetallicity = CVAR_TO_FLOAT (rt_model_metal),
+			.defaultEmission = 0,
+			.geomMaterial = frame->gltexture ? frame->gltexture->rtmaterial : RG_NO_MATERIAL,
+			.transform = RT_TRANSFORM_IDENTITY,
+		};
 
-	vkCmdBindDescriptorSets (
-		cbx->cb, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.basic_pipeline_layout.handle, 0, 1, &frame->gltexture->descriptor_set, 0, NULL);
-	vkCmdDrawIndexed (cbx->cb, 6, 1, 0, 0, 0);
+		RgResult r = rgUploadGeometry (vulkan_globals.instance, &info);
+		RG_CHECK (r);
+		*/
+	}
 }
 
 /*
@@ -212,24 +255,4 @@ R_DrawSpriteModel_ShowTris
 */
 void R_DrawSpriteModel_ShowTris (cb_context_t *cbx, entity_t *e)
 {
-	VkBuffer        buffer;
-	VkDeviceSize    buffer_offset;
-	basicvertex_t  *vertices = (basicvertex_t *)R_VertexAllocate (4 * sizeof (basicvertex_t), &buffer, &buffer_offset);
-	mspriteframe_t *frame = R_GetSpriteFrame (e);
-
-	R_CreateSpriteVertices (e, frame, vertices);
-
-	vkCmdBindVertexBuffers (cbx->cb, 0, 1, &buffer, &buffer_offset);
-	vkCmdBindIndexBuffer (cbx->cb, vulkan_globals.fan_index_buffer, 0, VK_INDEX_TYPE_UINT16);
-
-	R_BindPipeline (cbx, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.sprite_pipeline);
-
-	if (r_showtris.value == 1)
-		R_BindPipeline (cbx, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.showtris_pipeline);
-	else
-		R_BindPipeline (cbx, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.showtris_depth_test_pipeline);
-
-	vkCmdBindDescriptorSets (
-		cbx->cb, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.basic_pipeline_layout.handle, 0, 1, &frame->gltexture->descriptor_set, 0, NULL);
-	vkCmdDrawIndexed (cbx->cb, 6, 1, 0, 0, 0);
 }

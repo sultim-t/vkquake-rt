@@ -30,7 +30,6 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 void          GL_WaitForDeviceIdle (void);
 qboolean      GL_BeginRendering (qboolean use_tasks, task_handle_t *begin_rendering_task, int *x, int *y, int *width, int *height);
-qboolean      GL_AcquireNextSwapChainImage (void);
 task_handle_t GL_EndRendering (qboolean use_tasks, qboolean use_swapchain);
 void          GL_SynchronizeEndRenderingTask (void);
 
@@ -391,7 +390,7 @@ void R_TranslateNewPlayerSkin (int playernum); // johnfitz -- this handles cases
 void R_DrawWorld (cb_context_t *cbx, int index);
 void R_DrawAliasModel (cb_context_t *cbx, entity_t *e);
 void R_DrawBrushModel (cb_context_t *cbx, entity_t *e, int chain);
-void R_DrawSpriteModel (cb_context_t *cbx, entity_t *e);
+void R_DrawSpriteModel (cb_context_t *cbx, entity_t *e, int entityid);
 
 void R_DrawTextureChains_Water (cb_context_t *cbx, qmodel_t *model, entity_t *ent, texchain_t chain);
 

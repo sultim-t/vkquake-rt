@@ -101,6 +101,11 @@ static cvar_t rt_shadowrays = {"rt_shadowrays", "2", CVAR_ARCHIVE};
 static cvar_t rt_sky_intensity = {"rt_sky_intensity", "0.05", CVAR_ARCHIVE};
 static cvar_t rt_sky_saturation = {"rt_sky_saturation", "1", CVAR_ARCHIVE};
 
+static cvar_t rt_brush_metal = {"rt_brush_metal", "0.0", CVAR_ARCHIVE};
+static cvar_t rt_brush_rough = {"rt_brush_rough", "0.9", CVAR_ARCHIVE};
+static cvar_t rt_model_metal = {"rt_model_metal", "0.0", CVAR_ARCHIVE};
+static cvar_t rt_model_rough = {"rt_model_rough", "0.9", CVAR_ARCHIVE};
+
 static cvar_t rt_normalmap_stren = {"rt_normalmap_stren", "1", CVAR_ARCHIVE};
 static cvar_t rt_emis_mapboost = {"rt_normalmap_stren", "16", CVAR_ARCHIVE};
 static cvar_t rt_emis_maxscrcolor = {"rt_emis_maxscrcolor", "125", CVAR_ARCHIVE};
@@ -1097,6 +1102,11 @@ void VID_Init (void)
 
 		Cvar_RegisterVariable (&rt_sky_intensity);
 		Cvar_RegisterVariable (&rt_sky_saturation);
+
+		Cvar_RegisterVariable (&rt_brush_metal);
+		Cvar_RegisterVariable (&rt_brush_rough);
+		Cvar_RegisterVariable (&rt_model_metal);
+		Cvar_RegisterVariable (&rt_model_rough);
 
 		Cvar_RegisterVariable (&rt_normalmap_stren);
 		Cvar_RegisterVariable (&rt_emis_mapboost);

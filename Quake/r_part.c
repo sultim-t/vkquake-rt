@@ -993,5 +993,4 @@ R_DrawParticles_ShowTris -- johnfitz
 */
 void R_DrawParticles_ShowTris (cb_context_t *cbx)
 {
-	R_DrawParticles (cbx);
 }

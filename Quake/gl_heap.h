@@ -21,4 +21,9 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #ifndef __HEAP__
 #define __HEAP__
 
+int RT_GetFanIndexCount (int vertexcount);
+
+// Don't call if previously returned ptr is in use.
+const unsigned *RT_GetFanIndices (int vertexcount);
+
 #endif
