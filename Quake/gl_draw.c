@@ -25,6 +25,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 // draw.c -- 2d drawing
 
 #include "quakedef.h"
+#include "gl_heap.h"
 
 cvar_t scr_conalpha = {"scr_conalpha", "0.5", CVAR_ARCHIVE}; // johnfitz
 
@@ -566,7 +567,7 @@ void Draw_String (cb_context_t *cbx, int x, int y, const char *str)
 		if (*tmp != 32)
 			num_verts += 6;
 	
-	RgVertex *vertices = Mem_Alloc (num_verts * sizeof (RgVertex));
+	RgVertex *vertices = RT_AllocScratchMemoryNulled (num_verts * sizeof (RgVertex));
 
 	for (i = 0; *str != 0; ++str)
 	{
@@ -594,8 +595,6 @@ void Draw_String (cb_context_t *cbx, int x, int y, const char *str)
 
 	RgResult r = rgUploadRasterizedGeometry (vulkan_globals.instance, &info, cbx->cur_viewprojection, &cbx->cur_viewport);
 	RG_CHECK (r);
-
-	Mem_Free (vertices);
 }
 
 /*

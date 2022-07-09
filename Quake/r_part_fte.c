@@ -27,6 +27,7 @@ The engine has a few builtins.
 */
 
 #include "quakedef.h"
+#include "gl_heap.h"
 
 cvar_t r_fteparticles = {"r_fteparticles", "1", CVAR_ARCHIVE};
 
@@ -5572,136 +5573,30 @@ int PScript_ParticleTrail (vec3_t startpos, vec3_t end, int type, float timeinte
 	return 0;
 }
 
-static int             current_buffer_index = 0;
-static VkBuffer        vertex_buffers[2] = {VK_NULL_HANDLE, VK_NULL_HANDLE};
-static vulkan_memory_t vertex_buffers_memory[2] = {{VK_NULL_HANDLE, 0, 0}, {VK_NULL_HANDLE, 0, 0}};
-static VkBuffer        index_buffers[2] = {VK_NULL_HANDLE, VK_NULL_HANDLE};
-static vulkan_memory_t index_buffers_memory[2] = {{VK_NULL_HANDLE, 0, 0}, {VK_NULL_HANDLE, 0, 0}};
+static int current_buffer_index = 0;
 
 static void ReallocateVertexBuffer ()
 {
-	VkResult err;
-
-	if (vertex_buffers[current_buffer_index] != VK_NULL_HANDLE)
-		vkDestroyBuffer (vulkan_globals.device, vertex_buffers[current_buffer_index], NULL);
-
-	vulkan_memory_t      old_memory = vertex_buffers_memory[current_buffer_index];
-	const basicvertex_t *old_cl_curstrisvert = cl_curstrisvert;
-	const int            old_maxstrisvert = cl_maxstrisvert[current_buffer_index];
-
-	cl_maxstrisvert[current_buffer_index] = q_max (cl_maxstrisvert[current_buffer_index] * 2, INITIAL_NUM_VERTICES);
-	const VkDeviceSize new_size = cl_maxstrisvert[current_buffer_index] * sizeof (basicvertex_t);
+	const uint32_t new_count = q_max (cl_maxstrisvert[current_buffer_index] * 2, INITIAL_NUM_VERTICES);
+    const size_t new_size = new_count * sizeof (basicvertex_t);
 	Sys_Printf ("Reallocating FTE particle vertex buffer (%u KB)\n", (int)(new_size / 1024));
 
-	VkBufferCreateInfo buffer_create_info;
-	memset (&buffer_create_info, 0, sizeof (buffer_create_info));
-	buffer_create_info.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
-	buffer_create_info.size = new_size;
-	buffer_create_info.usage = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT;
+	cl_curstrisvert = Mem_Realloc (cl_curstrisvert, new_size);
 
-	err = vkCreateBuffer (vulkan_globals.device, &buffer_create_info, NULL, &vertex_buffers[current_buffer_index]);
-	if (err != VK_SUCCESS)
-		Sys_Error ("vkCreateBuffer failed");
-	GL_SetObjectName ((uint64_t)vertex_buffers[current_buffer_index], VK_OBJECT_TYPE_BUFFER, "FTE Particle Vertex Buffer");
-
-	VkMemoryRequirements memory_requirements;
-	vkGetBufferMemoryRequirements (vulkan_globals.device, vertex_buffers[current_buffer_index], &memory_requirements);
-
-	const int align_mod = memory_requirements.size % memory_requirements.alignment;
-	const int aligned_size = ((memory_requirements.size % memory_requirements.alignment) == 0)
-	                             ? memory_requirements.size
-	                             : (memory_requirements.size + memory_requirements.alignment - align_mod);
-
-	VkMemoryAllocateInfo memory_allocate_info;
-	memset (&memory_allocate_info, 0, sizeof (memory_allocate_info));
-	memory_allocate_info.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
-	memory_allocate_info.allocationSize = aligned_size;
-	memory_allocate_info.memoryTypeIndex =
-		GL_MemoryTypeFromProperties (memory_requirements.memoryTypeBits, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, VK_MEMORY_PROPERTY_HOST_CACHED_BIT);
-
-	R_AllocateVulkanMemory (&vertex_buffers_memory[current_buffer_index], &memory_allocate_info, VULKAN_MEMORY_TYPE_HOST);
-	GL_SetObjectName ((uint64_t)vertex_buffers_memory[current_buffer_index].handle, VK_OBJECT_TYPE_DEVICE_MEMORY, "FTE Particle Vertex Buffer");
-
-	err = vkBindBufferMemory (vulkan_globals.device, vertex_buffers[current_buffer_index], vertex_buffers_memory[current_buffer_index].handle, 0);
-	if (err != VK_SUCCESS)
-		Sys_Error ("vkBindBufferMemory failed");
-
-	err = vkMapMemory (vulkan_globals.device, vertex_buffers_memory[current_buffer_index].handle, 0, new_size, 0, (void **)&cl_curstrisvert);
-	if (err != VK_SUCCESS)
-		Sys_Error ("vkMapMemory failed");
 	cl_strisvert[current_buffer_index] = cl_curstrisvert;
-
-	if (old_memory.handle != VK_NULL_HANDLE)
-	{
-		// Copy over data from old buffer
-		memcpy (cl_curstrisvert, old_cl_curstrisvert, old_maxstrisvert * sizeof (basicvertex_t));
-
-		vkUnmapMemory (vulkan_globals.device, old_memory.handle);
-		R_FreeVulkanMemory (&old_memory);
-	}
+	cl_maxstrisvert[current_buffer_index] = new_count;
 }
 
 static void ReallocateIndexBuffer ()
 {
-	VkResult err;
-
-	if (index_buffers[current_buffer_index] != VK_NULL_HANDLE)
-		vkDestroyBuffer (vulkan_globals.device, index_buffers[current_buffer_index], NULL);
-
-	vulkan_memory_t       old_memory = index_buffers_memory[current_buffer_index];
-	const unsigned short *old_cl_curstrisidx = cl_curstrisidx;
-	const int             old_maxstrisidx = cl_maxstrisidx[current_buffer_index];
-
-	cl_maxstrisidx[current_buffer_index] = q_max (cl_maxstrisidx[current_buffer_index] * 2, INITIAL_NUM_INDICES);
-	const VkDeviceSize new_size = cl_maxstrisidx[current_buffer_index] * sizeof (unsigned short);
+	const uint32_t new_count = q_max (cl_maxstrisidx[current_buffer_index] * 2, INITIAL_NUM_INDICES);
+	const size_t new_size = new_count * sizeof (unsigned short);
 	Sys_Printf ("Reallocating FTE particle index buffer (%u KB)\n", (int)(new_size / 1024));
 
-	VkBufferCreateInfo buffer_create_info;
-	memset (&buffer_create_info, 0, sizeof (buffer_create_info));
-	buffer_create_info.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
-	buffer_create_info.size = new_size;
-	buffer_create_info.usage = VK_BUFFER_USAGE_INDEX_BUFFER_BIT;
+	cl_curstrisidx = Mem_Realloc (cl_curstrisidx, new_size);
 
-	err = vkCreateBuffer (vulkan_globals.device, &buffer_create_info, NULL, &index_buffers[current_buffer_index]);
-	if (err != VK_SUCCESS)
-		Sys_Error ("vkCreateBuffer failed");
-	GL_SetObjectName ((uint64_t)index_buffers[current_buffer_index], VK_OBJECT_TYPE_BUFFER, "FTE Particle Index Buffer");
-
-	VkMemoryRequirements memory_requirements;
-	vkGetBufferMemoryRequirements (vulkan_globals.device, index_buffers[current_buffer_index], &memory_requirements);
-
-	const int align_mod = memory_requirements.size % memory_requirements.alignment;
-	const int aligned_size = ((memory_requirements.size % memory_requirements.alignment) == 0)
-	                             ? memory_requirements.size
-	                             : (memory_requirements.size + memory_requirements.alignment - align_mod);
-
-	VkMemoryAllocateInfo memory_allocate_info;
-	memset (&memory_allocate_info, 0, sizeof (memory_allocate_info));
-	memory_allocate_info.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
-	memory_allocate_info.allocationSize = aligned_size;
-	memory_allocate_info.memoryTypeIndex =
-		GL_MemoryTypeFromProperties (memory_requirements.memoryTypeBits, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, VK_MEMORY_PROPERTY_HOST_CACHED_BIT);
-
-	R_AllocateVulkanMemory (&index_buffers_memory[current_buffer_index], &memory_allocate_info, VULKAN_MEMORY_TYPE_HOST);
-	GL_SetObjectName ((uint64_t)index_buffers_memory[current_buffer_index].handle, VK_OBJECT_TYPE_DEVICE_MEMORY, "FTE Particle index Buffer");
-
-	err = vkBindBufferMemory (vulkan_globals.device, index_buffers[current_buffer_index], index_buffers_memory[current_buffer_index].handle, 0);
-	if (err != VK_SUCCESS)
-		Sys_Error ("vkBindBufferMemory failed");
-
-	err = vkMapMemory (vulkan_globals.device, index_buffers_memory[current_buffer_index].handle, 0, new_size, 0, (void **)&cl_curstrisidx);
-	if (err != VK_SUCCESS)
-		Sys_Error ("vkMapMemory failed");
 	cl_strisidx[current_buffer_index] = cl_curstrisidx;
-
-	if (old_memory.handle != VK_NULL_HANDLE)
-	{
-		// Copy over data from old buffer
-		memcpy (cl_curstrisidx, old_cl_curstrisidx, old_maxstrisidx * sizeof (unsigned short));
-
-		vkUnmapMemory (vulkan_globals.device, old_memory.handle);
-		R_FreeVulkanMemory (&old_memory);
-	}
+	cl_maxstrisidx[current_buffer_index] = new_count;
 }
 
 static vec3_t pright, pup;
@@ -6925,6 +6820,28 @@ static void PScript_DrawParticleTypes (cb_context_t *cbx, float pframetime)
 	R_BeginDebugUtilsLabel (cbx, "FTE Particles");
 	Fog_DisableGFog (cbx);
 
+
+	uint8_t *memallc = RT_AllocScratchMemoryNulled (
+		cl_maxstrisvert[current_buffer_index] * sizeof (RgVertex) + 
+	    cl_maxstrisidx[current_buffer_index] * sizeof(uint32_t));
+
+	RgVertex *rtvertices = (RgVertex *)memallc;
+	for (uint32_t v = 0; v < cl_maxstrisvert[current_buffer_index]; v++)
+	{
+		basicvertex_t *src = &cl_strisvert[current_buffer_index][v];
+		RgVertex      *dst = &rtvertices[v];
+
+		memcpy (dst->position, src->position, sizeof (float) * 3);
+		memcpy (dst->texCoord, src->texcoord, sizeof (float) * 2);
+		dst->packedColor = RT_PackColorToUint32 (src->color[0], src->color[1], src->color[2], src->color[3]);
+	}
+
+	uint32_t *rtindices = (uint32_t *)(memallc + (cl_maxstrisvert[current_buffer_index] * sizeof (RgVertex)));
+	for (uint32_t v = 0; v < cl_maxstrisidx[current_buffer_index]; v++)
+	{
+		rtindices[v] = cl_strisidx[current_buffer_index][v];
+	}
+
 	for (o = 0; o < 3; o++)
 	{
 		static int blend_modes_order[] = {1, 1, 2, 2, 0, 0, 0, 2};
@@ -6940,16 +6857,70 @@ static void PScript_DrawParticleTypes (cb_context_t *cbx, float pframetime)
 			if (tris->numidx == 0)
 				continue;
 
-			const vulkan_pipeline_t pipeline = vulkan_globals.fte_particle_pipelines[blend_mode + (draw_lines ? 8 : 0)];
-			R_BindPipeline (cbx, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline);
 			gltexture_t *tex = (tris->beflags & BEF_LINES) ? whitetexture : tris->texture;
 
-			const int          num_indices = tris->numidx;
-			const VkDeviceSize vertex_buffer_offset = 0;
-			vulkan_globals.vk_cmd_bind_index_buffer (cbx->cb, index_buffers[current_buffer_index], 0, VK_INDEX_TYPE_UINT16);
-			vulkan_globals.vk_cmd_bind_vertex_buffers (cbx->cb, 0, 1, &vertex_buffers[current_buffer_index], &vertex_buffer_offset);
-			vulkan_globals.vk_cmd_bind_descriptor_sets (cbx->cb, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline.layout.handle, 0, 1, &tex->descriptor_set, 0, NULL);
-			vulkan_globals.vk_cmd_draw_indexed (cbx->cb, num_indices, 1, tris->firstidx, tris->firstvert, 0);
+			const int num_indices = tris->numidx;
+			
+			RgRasterizedGeometryUploadInfo info = {
+				.renderType = RG_RASTERIZED_GEOMETRY_RENDER_TYPE_DEFAULT,
+				.vertexCount = 4, // !!! assuming that 'x' in "if (cl_numstrisvert + 'x' > cl_maxstrisvert[])" is always <=4 
+				.pVertices = rtvertices + tris->firstvert,
+				.indexCount = num_indices,
+				.pIndices = rtindices + tris->firstidx,
+				.transform = RT_TRANSFORM_IDENTITY,
+				.color = RT_COLOR_WHITE,
+				.material = tex ? tex->rtmaterial : RG_NO_MATERIAL,
+				.pipelineState = RG_RASTERIZED_GEOMETRY_STATE_BLEND_ENABLE | RG_RASTERIZED_GEOMETRY_STATE_DEPTH_TEST,
+				.blendFuncSrc = 0,
+				.blendFuncDst = 0,
+			};
+
+            switch (blend_mode)
+			{
+			case BM_BLEND: /*SRC_ALPHA ONE_MINUS_SRC_ALPHA*/
+				info.blendFuncSrc = RG_BLEND_FACTOR_SRC_ALPHA;
+				info.blendFuncDst = RG_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
+				break;
+			case BM_BLENDCOLOUR: /*SRC_COLOR ONE_MINUS_SRC_COLOR*/
+				info.blendFuncSrc = RG_BLEND_FACTOR_SRC_COLOR;
+				info.blendFuncDst = RG_BLEND_FACTOR_ONE_MINUS_SRC_COLOR;
+				break;
+			case BM_ADDA: /*SRC_ALPHA ONE*/
+				info.blendFuncSrc = RG_BLEND_FACTOR_SRC_ALPHA;
+				info.blendFuncDst = RG_BLEND_FACTOR_ONE;
+				break;
+			case BM_ADDC: /*GL_SRC_COLOR GL_ONE*/
+				info.blendFuncSrc = RG_BLEND_FACTOR_SRC_COLOR;
+				info.blendFuncDst = RG_BLEND_FACTOR_ONE;
+				break;
+			case BM_SUBTRACT: /*SRC_ALPHA ONE_MINUS_SRC_COLOR*/
+				info.blendFuncSrc = RG_BLEND_FACTOR_SRC_ALPHA;
+				info.blendFuncDst = RG_BLEND_FACTOR_ONE_MINUS_SRC_COLOR;
+				break;
+			case BM_INVMODA: /*ZERO ONE_MINUS_SRC_ALPHA*/
+				info.blendFuncSrc = RG_BLEND_FACTOR_ZERO;
+				info.blendFuncDst = RG_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
+				break;
+			case BM_INVMODC: /*ZERO ONE_MINUS_SRC_COLOR*/
+				info.blendFuncSrc = RG_BLEND_FACTOR_ZERO;
+				info.blendFuncDst = RG_BLEND_FACTOR_ONE_MINUS_SRC_COLOR;
+				break;
+			case BM_PREMUL: /*ONE ONE_MINUS_SRC_ALPHA*/
+				info.blendFuncSrc = RG_BLEND_FACTOR_ONE;
+				info.blendFuncDst = RG_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
+				break;
+			default:
+				assert (0);
+				break;
+			}
+
+			if (draw_lines)
+			{
+				info.pipelineState |= RG_RASTERIZED_GEOMETRY_STATE_FORCE_LINE_LIST;
+			}
+
+			RgResult r = rgUploadRasterizedGeometry (vulkan_globals.instance, &info, NULL, NULL);
+			RG_CHECK (r);
 		}
 	}
 	R_EndDebugUtilsLabel (cbx);
@@ -7011,20 +6982,6 @@ R_DrawParticles_ShowTris
 */
 void PScript_DrawParticles_ShowTris (cb_context_t *cbx)
 {
-	if (r_showtris.value == 1)
-		R_BindPipeline (cbx, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.showtris_pipeline);
-	else
-		R_BindPipeline (cbx, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.showtris_depth_test_pipeline);
-
-	for (unsigned int i = 0; i < cl_numstris; i++)
-	{
-		scenetris_t       *tris = &cl_stris[i];
-		const int          num_indices = tris->numidx;
-		const VkDeviceSize vertex_buffer_offset = 0;
-		vulkan_globals.vk_cmd_bind_index_buffer (cbx->cb, index_buffers[current_buffer_index], 0, VK_INDEX_TYPE_UINT16);
-		vulkan_globals.vk_cmd_bind_vertex_buffers (cbx->cb, 0, 1, &vertex_buffers[current_buffer_index], &vertex_buffer_offset);
-		vulkan_globals.vk_cmd_draw_indexed (cbx->cb, num_indices, 1, tris->firstidx, tris->firstvert, 0);
-	}
 }
 
 #endif

@@ -182,37 +182,6 @@ typedef struct
 	qboolean                         non_solid_fill;
 	qboolean                         screen_effects_sops;
 
-	// Pipelines
-	vulkan_pipeline_t        basic_alphatest_pipeline[2];
-	vulkan_pipeline_t        basic_blend_pipeline[2];
-	vulkan_pipeline_t        basic_notex_blend_pipeline[2];
-	vulkan_pipeline_t        world_pipelines;
-	vulkan_pipeline_t        raster_tex_warp_pipeline;
-	vulkan_pipeline_t        particle_pipeline;
-	vulkan_pipeline_t        sprite_pipeline;
-	vulkan_pipeline_t        sky_stencil_pipeline;
-	vulkan_pipeline_t        sky_color_pipeline;
-	vulkan_pipeline_t        sky_box_pipeline;
-	vulkan_pipeline_t        sky_layer_pipeline;
-	vulkan_pipeline_t        alias_pipeline;
-	vulkan_pipeline_t        alias_blend_pipeline;
-	vulkan_pipeline_t        alias_alphatest_pipeline;
-	vulkan_pipeline_t        alias_alphatest_blend_pipeline;
-	vulkan_pipeline_t        postprocess_pipeline;
-	vulkan_pipeline_t        screen_effects_pipeline;
-	vulkan_pipeline_t        screen_effects_scale_pipeline;
-	vulkan_pipeline_t        screen_effects_scale_sops_pipeline;
-	vulkan_pipeline_t        cs_tex_warp_pipeline;
-	vulkan_pipeline_t        showtris_pipeline;
-	vulkan_pipeline_t        showtris_depth_test_pipeline;
-	vulkan_pipeline_t        showbboxes_pipeline;
-	vulkan_pipeline_t        alias_showtris_pipeline;
-	vulkan_pipeline_t        alias_showtris_depth_test_pipeline;
-	vulkan_pipeline_t        update_lightmap_pipeline;
-#ifdef PSET_SCRIPT
-	vulkan_pipeline_t fte_particle_pipelines;
-#endif
-
 	// Matrices
 	float projection_matrix[16];
 	float view_matrix[16];
@@ -453,6 +422,14 @@ static inline uint32_t RT_PackColorToUint32(uint8_t r, uint8_t g, uint8_t b, uin
 		((uint32_t)b << 16) |
 		((uint32_t)g << 8)  |
 		((uint32_t)r);
+}
+static inline uint32_t RT_PackColorToUint32_FromFloat01(float r, float g, float b, float a)
+{
+	return RT_PackColorToUint32 (
+	    (uint8_t)CLAMP(0, r * 255.0f, 255),
+	    (uint8_t)CLAMP(0, g * 255.0f, 255),
+	    (uint8_t)CLAMP(0, b * 255.0f, 255),
+	    (uint8_t)CLAMP(0, a * 255.0f, 255));
 }
 #define RT_TRANSFORM_IDENTITY { 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0 }
 #define RT_COLOR_WHITE { 1, 1, 1, 1 }
