@@ -750,7 +750,7 @@ void Sky_ProcessEntities (cb_context_t *cbx, float color[3])
 Sky_EmitSkyBoxVertex
 ==============
 */
-void Sky_EmitSkyBoxVertex (RgRasterizedGeometryVertexStruct *vertex, float s, float t, int axis)
+void Sky_EmitSkyBoxVertex (RgVertex *vertex, float s, float t, int axis)
 {
 	vec3_t v, b;
 	int    j, k;
@@ -810,7 +810,7 @@ void Sky_DrawSkyBox (cb_context_t *cbx)
 
 		gltexture_t *texture = skybox_textures[skytexorder[i]];
 
-		RgRasterizedGeometryVertexStruct vertices[4];
+		RgVertex vertices[4] = {0};
 
 #if 1 // FIXME: this is to avoid tjunctions until i can do it the right way
 		skymins[0][i] = -1;
@@ -825,10 +825,9 @@ void Sky_DrawSkyBox (cb_context_t *cbx)
 
 		RgRasterizedGeometryUploadInfo info = {
 			.renderType = RG_RASTERIZED_GEOMETRY_RENDER_TYPE_SKY,
-			.vertexCount = countof (vertices),
-			.pStructs = vertices,
+			.pVertices = vertices,
 			.indexCount = RT_GetFanIndexCount (countof (vertices)),
-			.pIndexData = RT_GetFanIndices (countof (vertices)),
+			.pIndices = RT_GetFanIndices (countof (vertices)),
 			.transform = RT_TRANSFORM_IDENTITY,
 			.color = RT_COLOR_WHITE,
 			.material = texture ? texture->rtmaterial : RG_NO_MATERIAL,
@@ -912,7 +911,7 @@ void Sky_DrawFaceQuad (cb_context_t *cbx, glpoly_t *p, float alpha)
 
 	uint8_t alpha8 = CLAMP (0, 255.0f * alpha, 255);
 
-	RgRasterizedGeometryVertexStruct vertices[4];
+	RgVertex vertices[4] = {0};
 
 	for (int alphalayer = 0; alphalayer <= 1; alphalayer++)
 	{
@@ -932,9 +931,9 @@ void Sky_DrawFaceQuad (cb_context_t *cbx, glpoly_t *p, float alpha)
 		RgRasterizedGeometryUploadInfo info = {
 			.renderType = RG_RASTERIZED_GEOMETRY_RENDER_TYPE_SKY,
 			.vertexCount = countof (vertices),
-			.pStructs = vertices,
+			.pVertices = vertices,
 			.indexCount = RT_GetFanIndexCount(countof(vertices)),
-			.pIndexData = RT_GetFanIndices (countof (vertices)),
+			.pIndices = RT_GetFanIndices (countof (vertices)),
 			.transform = RT_TRANSFORM_IDENTITY,
 			.color = RT_COLOR_WHITE,
 			.material = texture ? texture->rtmaterial : RG_NO_MATERIAL,

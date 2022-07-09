@@ -101,10 +101,10 @@ static cvar_t rt_shadowrays = {"rt_shadowrays", "2", CVAR_ARCHIVE};
 static cvar_t rt_sky_intensity = {"rt_sky_intensity", "0.05", CVAR_ARCHIVE};
 static cvar_t rt_sky_saturation = {"rt_sky_saturation", "1", CVAR_ARCHIVE};
 
-static cvar_t rt_brush_metal = {"rt_brush_metal", "0.0", CVAR_ARCHIVE};
-static cvar_t rt_brush_rough = {"rt_brush_rough", "0.9", CVAR_ARCHIVE};
-static cvar_t rt_model_metal = {"rt_model_metal", "0.0", CVAR_ARCHIVE};
-static cvar_t rt_model_rough = {"rt_model_rough", "0.9", CVAR_ARCHIVE};
+cvar_t rt_brush_metal = {"rt_brush_metal", "0.0", CVAR_ARCHIVE};
+cvar_t rt_brush_rough = {"rt_brush_rough", "0.9", CVAR_ARCHIVE};
+cvar_t rt_model_metal = {"rt_model_metal", "0.0", CVAR_ARCHIVE};
+cvar_t rt_model_rough = {"rt_model_rough", "0.9", CVAR_ARCHIVE};
 
 static cvar_t rt_normalmap_stren = {"rt_normalmap_stren", "1", CVAR_ARCHIVE};
 static cvar_t rt_emis_mapboost = {"rt_normalmap_stren", "16", CVAR_ARCHIVE};
@@ -567,11 +567,6 @@ static void GL_InitInstance (void)
 		.overridenNormalTextureIsSRGB = false,
 
 		.pWaterNormalTexturePath = pWaterTexturePath,
-
-		.vertexPositionStride = 3 * sizeof (float),
-		.vertexNormalStride = 3 * sizeof (float),
-		.vertexTexCoordStride = 2 * sizeof (float),
-		.vertexColorStride = sizeof (uint32_t),
 	};
 
 	RgResult r = rgCreateInstance (&info, &vulkan_globals.instance);

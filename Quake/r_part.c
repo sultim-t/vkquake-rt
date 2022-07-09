@@ -23,6 +23,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 */
 
 #include "quakedef.h"
+#include "gl_heap.h"
 
 #define MAX_PARTICLES \
 	16384 // default max # of particles at one
@@ -891,11 +892,11 @@ static void R_DrawParticlesFaces (cb_context_t *cbx, gltexture_t *texture)
 		num_particles += 1;
 
 
-	RgRasterizedGeometryVertexStruct *vertices;
+	RgVertex *vertices;
 	if (QUAD_PARTICLES)
-		vertices = Mem_Alloc (num_particles * 4 * sizeof (RgRasterizedGeometryVertexStruct));
+		vertices = RT_AllocScratchMemoryNulled (num_particles * 4 * sizeof (RgVertex));
 	else
-		vertices = Mem_Alloc (num_particles * 3 * sizeof (RgRasterizedGeometryVertexStruct));
+		vertices = RT_AllocScratchMemoryNulled (num_particles * 3 * sizeof (RgVertex));
 
 
 	int current_vertex = 0;
@@ -956,9 +957,9 @@ static void R_DrawParticlesFaces (cb_context_t *cbx, gltexture_t *texture)
 	RgRasterizedGeometryUploadInfo info = {
 		.renderType = RG_RASTERIZED_GEOMETRY_RENDER_TYPE_DEFAULT,
 		.vertexCount = current_vertex,
-		.pStructs = vertices,
+		.pVertices = vertices,
 		.indexCount = QUAD_PARTICLES ? num_particles * 6 : 0,
-		.pIndexData = QUAD_PARTICLES ? quadindices : NULL,
+		.pIndices = QUAD_PARTICLES ? quadindices : NULL,
 		.transform = RT_TRANSFORM_IDENTITY,
 		.color = RT_COLOR_WHITE,
 		.material = texture ? texture->rtmaterial : RG_NO_MATERIAL,
@@ -969,8 +970,6 @@ static void R_DrawParticlesFaces (cb_context_t *cbx, gltexture_t *texture)
 
     RgResult r = rgUploadRasterizedGeometry (vulkan_globals.instance, &info, NULL, NULL);
 	RG_CHECK (r);
-
-	Mem_Free (vertices);
 }
 
 /*

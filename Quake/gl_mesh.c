@@ -54,8 +54,6 @@ int stripverts[128];
 int striptris[128];
 int stripcount;
 
-
-
 /*
 ================
 StripLength
@@ -445,6 +443,17 @@ GLMesh_DeleteVertexBuffer
 */
 static void GLMesh_DeleteVertexBuffer (qmodel_t *m)
 {
+	if (m->rtvertices != NULL)
+	{
+	    Mem_Free (m->rtvertices);
+	    m->rtvertices = NULL;
+	}
+
+	if (m->rtindices != NULL)
+	{
+		Mem_Free (m->rtindices);
+		m->rtindices = NULL;
+	}
 }
 
 /*
@@ -458,93 +467,77 @@ Original code by MH from RMQEngine
 */
 static void GLMesh_LoadVertexBuffer (qmodel_t *m, const aliashdr_t *hdr)
 {
-	int                totalvbosize = 0;
-	int                remaining_size;
 	int                copy_offset;
-	const aliasmesh_t *desc;
-	const short       *indexes;
-	const trivertx_t  *trivertexes;
-	byte              *vbodata;
-	int                f;
 
-	GLMesh_DeleteVertexBuffer (m);
-
-	// count the sizes we need
+    GLMesh_DeleteVertexBuffer (m);
 
 	// ericw -- RMQEngine stored these vbo*ofs values in aliashdr_t, but we must not
 	// mutate Mod_Extradata since it might be reloaded from disk, so I moved them to qmodel_t
 	// (test case: roman1.bsp from arwop, 64mb heap)
 
-	totalvbosize += (hdr->numposes * hdr->numverts_vbo * sizeof (meshxyz_t)); // ericw -- what RMQEngine called nummeshframes is called numposes in QuakeSpasm
-
-	const int vbostofs = totalvbosize;
-	totalvbosize += (hdr->numverts_vbo * sizeof (meshst_t));
+	// ericw -- what RMQEngine called nummeshframes is called numposes in QuakeSpasm
 
 	if (isDedicated)
 		return;
 	if (!hdr->numindexes)
 		return;
-	if (!totalvbosize)
+	if (!hdr->numposes)
+		return;
+	if (!hdr->numverts_vbo)
 		return;
 
 	// grab the pointers to data in the extradata
 
-	desc = (aliasmesh_t *)((byte *)hdr + hdr->meshdesc);
-	indexes = (short *)((byte *)hdr + hdr->indexes);
-	trivertexes = (trivertx_t *)((byte *)hdr + hdr->vertexes);
+	const aliasmesh_t *desc			= (aliasmesh_t *)((byte *)hdr + hdr->meshdesc);
+	const short       *indexes		=       (short *)((byte *)hdr + hdr->indexes);
+	const trivertx_t  *trivertexes	=  (trivertx_t *)((byte *)hdr + hdr->vertexes);
 
+	// create and fill the 32-bit index buffer
 	{
-		const int totalindexsize = hdr->numindexes * sizeof (unsigned short);
-		indexes;
+		m->rtindices = Mem_Alloc (hdr->numindexes * sizeof (uint32_t));
+
+		for (int k = 0; k < hdr->numindexes; k++)
+		{
+			m->rtindices[k] = indexes[k];
+		}
 	}
 
 	// create the vertex buffer (empty)
+	{
+		size_t sz = hdr->numposes * (hdr->numverts_vbo * sizeof (RgVertex));
 
-	vbodata = (byte *)Mem_Alloc (totalvbosize);
-	memset (vbodata, 0, totalvbosize);
+		m->rtvertices = Mem_Alloc (sz);
+		memset (m->rtvertices, 0, sz);
+	}
 
 	// fill in the vertices at the start of the buffer
-	for (f = 0; f < hdr->numposes; f++) // ericw -- what RMQEngine called nummeshframes is called numposes in QuakeSpasm
+	for (size_t f = 0; f < (size_t)hdr->numposes; f++) // ericw -- what RMQEngine called nummeshframes is called numposes in QuakeSpasm
 	{
-		int               v;
-		meshxyz_t        *xyz = (meshxyz_t *)(vbodata + (f * hdr->numverts_vbo * sizeof (meshxyz_t)));
-		const trivertx_t *tv = trivertexes + (hdr->numverts * f);
+		RgVertex *dstpose = m->rtvertices + (hdr->numverts_vbo * f);
+		const trivertx_t *srctv = trivertexes + (hdr->numverts * f);
 
-		for (v = 0; v < hdr->numverts_vbo; v++)
+		for (int v = 0; v < hdr->numverts_vbo; v++)
 		{
-			trivertx_t trivert = tv[desc[v].vertindex];
+			trivertx_t trivert = srctv[desc[v].vertindex];
 
-			xyz[v].xyz[0] = trivert.v[0];
-			xyz[v].xyz[1] = trivert.v[1];
-			xyz[v].xyz[2] = trivert.v[2];
-			xyz[v].xyz[3] = 1; // need w 1 for 4 byte vertex compression
+			dstpose[v].position[0] = trivert.v[0];
+			dstpose[v].position[1] = trivert.v[1];
+			dstpose[v].position[2] = trivert.v[2];
 
 			// map the normal coordinates in [-1..1] to [-127..127] and store in an unsigned char.
 			// this introduces some error (less than 0.004), but the normals were very coarse
 			// to begin with
-			xyz[v].normal[0] = 127 * r_avertexnormals[trivert.lightnormalindex][0];
-			xyz[v].normal[1] = 127 * r_avertexnormals[trivert.lightnormalindex][1];
-			xyz[v].normal[2] = 127 * r_avertexnormals[trivert.lightnormalindex][2];
-			xyz[v].normal[3] = 0; // unused; for 4-byte alignment
+			dstpose[v].normal[0] = 127 * r_avertexnormals[trivert.lightnormalindex][0];
+			dstpose[v].normal[1] = 127 * r_avertexnormals[trivert.lightnormalindex][1];
+			dstpose[v].normal[2] = 127 * r_avertexnormals[trivert.lightnormalindex][2];
+
+			// texCoord is same in all poses
+			dstpose[v].texCoord[0] = ((float)desc[v].st[0] + 0.5f) / (float)hdr->skinwidth;
+			dstpose[v].texCoord[1] = ((float)desc[v].st[1] + 0.5f) / (float)hdr->skinheight;
+
+			dstpose[v].packedColor = RT_PackColorToUint32 (255, 255, 255, 255);
 		}
 	}
-
-	// fill in the ST coords at the end of the buffer
-	{
-		meshst_t *st;
-
-		st = (meshst_t *)(vbodata + vbostofs);
-		for (f = 0; f < hdr->numverts_vbo; f++)
-		{
-			st[f].st[0] = ((float)desc[f].st[0] + 0.5f) / (float)hdr->skinwidth;
-			st[f].st[1] = ((float)desc[f].st[1] + 0.5f) / (float)hdr->skinheight;
-		}
-	}
-
-	vbodata;
-	totalvbosize;
-
-	Mem_Free (vbodata);
 }
 
 /*

@@ -454,7 +454,7 @@ void Draw_Init (void)
 Draw_FillCharacterQuad
 ================
 */
-static void Draw_FillCharacterQuad (int x, int y, char num, RgRasterizedGeometryVertexStruct *output, int rotation)
+static void Draw_FillCharacterQuad (int x, int y, char num, RgVertex *output, int rotation)
 {
 	int   row, col;
 	float frow, fcol, size;
@@ -466,7 +466,7 @@ static void Draw_FillCharacterQuad (int x, int y, char num, RgRasterizedGeometry
 	fcol = col * 0.0625;
 	size = 0.0625;
 
-	RgRasterizedGeometryVertexStruct corner_verts[4];
+	RgVertex corner_verts[4] = {0};
 
 	float texcoords[4][2] = {
 		{x, y},
@@ -527,15 +527,15 @@ void Draw_Character (cb_context_t *cbx, int x, int y, int num)
 	if (num == 32)
 		return; // don't waste verts on spaces
 
-	RgRasterizedGeometryVertexStruct vertices[6];
+	RgVertex vertices[6];
 	Draw_FillCharacterQuad (x, y, (char)num, vertices, rotation);
 
 	RgRasterizedGeometryUploadInfo info = {
 		.renderType = RG_RASTERIZED_GEOMETRY_RENDER_TYPE_SWAPCHAIN,
 		.vertexCount = countof (vertices),
-		.pStructs = vertices,
+		.pVertices = vertices,
 		.indexCount = 0,
-		.pIndexData = NULL,
+		.pIndices = NULL,
 		.transform = RT_TRANSFORM_IDENTITY,
 		.color = RT_COLOR_WHITE,
 		.material = char_texture ? char_texture->rtmaterial : RG_NO_MATERIAL,
@@ -566,7 +566,7 @@ void Draw_String (cb_context_t *cbx, int x, int y, const char *str)
 		if (*tmp != 32)
 			num_verts += 6;
 	
-	RgRasterizedGeometryVertexStruct *vertices = Mem_Alloc (num_verts * sizeof (RgRasterizedGeometryVertexStruct));
+	RgVertex *vertices = Mem_Alloc (num_verts * sizeof (RgVertex));
 
 	for (i = 0; *str != 0; ++str)
 	{
@@ -581,9 +581,9 @@ void Draw_String (cb_context_t *cbx, int x, int y, const char *str)
 	RgRasterizedGeometryUploadInfo info = {
 		.renderType = RG_RASTERIZED_GEOMETRY_RENDER_TYPE_SWAPCHAIN,
 		.vertexCount = num_verts,
-		.pStructs = vertices,
+		.pVertices = vertices,
 		.indexCount = 0,
-		.pIndexData = NULL,
+		.pIndices = NULL,
 		.transform = RT_TRANSFORM_IDENTITY,
 		.color = RT_COLOR_WHITE,
 		.material = char_texture ? char_texture->rtmaterial : RG_NO_MATERIAL,
@@ -613,9 +613,9 @@ void Draw_Pic (cb_context_t *cbx, int x, int y, qpic_t *pic, float alpha, qboole
 		Scrap_Upload ();
 	memcpy (&gl, pic->data, sizeof (glpic_t));
 
-	RgRasterizedGeometryVertexStruct vertices[6];
+	RgVertex vertices[6];
 	{
-		RgRasterizedGeometryVertexStruct corner_verts[4];
+		RgVertex corner_verts[4] = {0};
 
 		corner_verts[0].position[0] = x;
 		corner_verts[0].position[1] = y;
@@ -656,9 +656,9 @@ void Draw_Pic (cb_context_t *cbx, int x, int y, qpic_t *pic, float alpha, qboole
 	RgRasterizedGeometryUploadInfo info = {
 		.renderType = RG_RASTERIZED_GEOMETRY_RENDER_TYPE_SWAPCHAIN,
 		.vertexCount = countof (vertices),
-		.pStructs = vertices,
+		.pVertices = vertices,
 		.indexCount = 0,
-		.pIndexData = NULL,
+		.pIndices = NULL,
 		.transform = RT_TRANSFORM_IDENTITY,
 		.color = RT_COLOR_WHITE,
 		.material = gl.gltexture ? gl.gltexture->rtmaterial : RG_NO_MATERIAL,
@@ -688,9 +688,9 @@ void Draw_SubPic (cb_context_t *cbx, float x, float y, float w, float h, qpic_t 
 	if (!gl.gltexture)
 		return;
 
-	RgRasterizedGeometryVertexStruct vertices[6];
+	RgVertex vertices[6];
 	{
-		RgRasterizedGeometryVertexStruct corner_verts[4];
+		RgVertex corner_verts[4] = {0};
 
 		corner_verts[0].position[0] = x;
 		corner_verts[0].position[1] = y;
@@ -736,9 +736,9 @@ void Draw_SubPic (cb_context_t *cbx, float x, float y, float w, float h, qpic_t 
 	RgRasterizedGeometryUploadInfo info = {
 		.renderType = RG_RASTERIZED_GEOMETRY_RENDER_TYPE_SWAPCHAIN,
 		.vertexCount = countof (vertices),
-		.pStructs = vertices,
+		.pVertices = vertices,
 		.indexCount = 0,
-		.pIndexData = NULL,
+		.pIndices = NULL,
 		.transform = RT_TRANSFORM_IDENTITY,
 		.color = RT_COLOR_WHITE,
 		.material = gl.gltexture ? gl.gltexture->rtmaterial : RG_NO_MATERIAL,
@@ -813,9 +813,9 @@ void Draw_TileClear (cb_context_t *cbx, int x, int y, int w, int h)
 	memcpy (&gl, draw_backtile->data, sizeof (glpic_t));
 
 
-	RgRasterizedGeometryVertexStruct vertices[6];
+	RgVertex vertices[6];
 	{
-		RgRasterizedGeometryVertexStruct corner_verts[4];
+		RgVertex corner_verts[4] = {0};
 
 		corner_verts[0].position[0] = x;
 		corner_verts[0].position[1] = y;
@@ -856,9 +856,9 @@ void Draw_TileClear (cb_context_t *cbx, int x, int y, int w, int h)
 	RgRasterizedGeometryUploadInfo info = {
 		.renderType = RG_RASTERIZED_GEOMETRY_RENDER_TYPE_SWAPCHAIN,
 		.vertexCount = countof (vertices),
-		.pStructs = vertices,
+		.pVertices = vertices,
 		.indexCount = 0,
-		.pIndexData = NULL,
+		.pIndices = NULL,
 		.transform = RT_TRANSFORM_IDENTITY,
 		.color = RT_COLOR_WHITE,
 		.material = gl.gltexture ? gl.gltexture->rtmaterial : RG_NO_MATERIAL,
@@ -883,9 +883,9 @@ void Draw_Fill (cb_context_t *cbx, int x, int y, int w, int h, int c, float alph
 	int   i;
 	byte *pal = (byte *)d_8to24table; // johnfitz -- use d_8to24table instead of host_basepal
 
-	RgRasterizedGeometryVertexStruct vertices[6];
+	RgVertex vertices[6];
 	{
-		RgRasterizedGeometryVertexStruct corner_verts[4] = {0};
+		RgVertex corner_verts[4] = {0};
 
 		corner_verts[0].position[0] = x;
 		corner_verts[0].position[1] = y;
@@ -919,9 +919,9 @@ void Draw_Fill (cb_context_t *cbx, int x, int y, int w, int h, int c, float alph
 	RgRasterizedGeometryUploadInfo info = {
 		.renderType = RG_RASTERIZED_GEOMETRY_RENDER_TYPE_SWAPCHAIN,
 		.vertexCount = countof (vertices),
-		.pStructs = vertices,
+		.pVertices = vertices,
 		.indexCount = 0,
-		.pIndexData = NULL,
+		.pIndices = NULL,
 		.transform = RT_TRANSFORM_IDENTITY,
 		.color = RT_COLOR_WHITE,
 		.material = RG_NO_MATERIAL,
@@ -945,9 +945,9 @@ void Draw_FadeScreen (cb_context_t *cbx)
 
 	GL_SetCanvas (cbx, CANVAS_DEFAULT);
 
-	RgRasterizedGeometryVertexStruct vertices[6];
+	RgVertex vertices[6];
 	{
-		RgRasterizedGeometryVertexStruct corner_verts[4] = {0};
+		RgVertex corner_verts[4] = {0};
 
 		corner_verts[0].position[0] = 0.0f;
 		corner_verts[0].position[1] = 0.0f;
@@ -979,9 +979,9 @@ void Draw_FadeScreen (cb_context_t *cbx)
 	RgRasterizedGeometryUploadInfo info = {
 		.renderType = RG_RASTERIZED_GEOMETRY_RENDER_TYPE_SWAPCHAIN,
 		.vertexCount = countof (vertices),
-		.pStructs = vertices,
+		.pVertices = vertices,
 		.indexCount = 0,
-		.pIndexData = NULL,
+		.pIndices = NULL,
 		.transform = RT_TRANSFORM_IDENTITY,
 		.color = RT_COLOR_WHITE,
 		.material = RG_NO_MATERIAL,

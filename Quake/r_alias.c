@@ -28,6 +28,9 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 extern cvar_t r_drawflat, gl_fullbrights, r_lerpmodels, r_lerpmove, r_showtris; // johnfitz
 extern cvar_t scr_fov, cl_gun_fovscale;
 
+extern cvar_t rt_model_rough;
+extern cvar_t rt_model_metal;
+
 // up to 16 color translated skins
 gltexture_t *playertextures[MAX_SCOREBOARD]; // johnfitz -- changed to an array of pointers
 
@@ -61,18 +64,28 @@ typedef struct
 	unsigned int flags;
 } aliasubo_t;
 
-/*
-=============
-GLARB_GetXYZOffset
-
-Returns the offset of the first vertex's meshxyz_t.xyz in the vbo for the given
-model and pose.
-=============
-*/
-static VkDeviceSize GLARB_GetXYZOffset (entity_t *e, aliashdr_t *hdr, int pose)
+static const RgVertex *GetModelVerticesForPose (const qmodel_t *m, const aliashdr_t *hdr, int pose)
 {
-	const int xyzoffs = offsetof (meshxyz_t, xyz);
-	return e->model->vboxyzofs + (hdr->numverts_vbo * pose * sizeof (meshxyz_t)) + xyzoffs;
+	assert (m != NULL && m->rtvertices != NULL);
+
+	return &m->rtvertices[(size_t)pose * hdr->numverts_vbo];
+}
+
+static RgTransform GetModelTransform (float model_matrix[16])
+{
+#define MODEL_MAT(i, j) (model_matrix[(i)*4 + (j)])
+
+	// right side should be 0, and translation values on bottom
+	assert (fabsf (MODEL_MAT (0, 3)) < 0.001f && fabsf (MODEL_MAT (1, 3)) < 0.001f && fabsf (MODEL_MAT (2, 3)) < 0.001f);
+
+	RgTransform t = {
+		MODEL_MAT (0,0), MODEL_MAT (1,0), MODEL_MAT (2,0), MODEL_MAT (3, 0),
+		MODEL_MAT (0,1), MODEL_MAT (1,1), MODEL_MAT (2,1), MODEL_MAT (3, 1),
+		MODEL_MAT (0,2), MODEL_MAT (1,2), MODEL_MAT (2,2), MODEL_MAT (3, 2),
+	};
+
+	return t;
+#undef MODEL_MAT
 }
 
 /*
@@ -90,58 +103,76 @@ Based on code by MH from RMQEngine
 */
 static void GL_DrawAliasFrame (
 	cb_context_t *cbx, entity_t *e, aliashdr_t *paliashdr, lerpdata_t lerpdata, gltexture_t *tx, gltexture_t *fb, float model_matrix[16], float entity_alpha,
-	qboolean alphatest, vec3_t shadevector, vec3_t lightcolor)
+	qboolean alphatest, vec3_t shadevector, vec3_t lightcolor, int entityid)
 {
-	float blend;
 
-	if (lerpdata.pose1 != lerpdata.pose2)
-		blend = lerpdata.blend;
-	else // poses the same means either 1. the entity has paused its animation, or 2. r_lerpmodels is disabled
-		blend = 0;
+	// poses the same means either 1. the entity has paused its animation, or 2. r_lerpmodels is disabled
+	// TODO RT: blending between alias poses
+    // float blend = lerpdata.pose1 != lerpdata.pose2 ? lerpdata.blend : 0;
 
-	vulkan_pipeline_t pipeline;
-	if (entity_alpha >= 1.0f)
+	qboolean rasterize = entity_alpha < 1.0f;
+	qboolean isfirstperson = (e == &cl.viewent);
+
+	if (rasterize)
 	{
-		if (!alphatest)
-			pipeline = vulkan_globals.alias_pipeline;
-		else
-			pipeline = vulkan_globals.alias_alphatest_pipeline;
+		RgRasterizedGeometryUploadInfo info = {
+			.renderType = RG_RASTERIZED_GEOMETRY_RENDER_TYPE_DEFAULT,
+			.vertexCount = paliashdr->numverts_vbo,
+			.pVertices = GetModelVerticesForPose (e->model, paliashdr, lerpdata.pose1),
+			.indexCount = paliashdr->numindexes,
+			.pIndices = e->model->rtindices,
+			.transform = GetModelTransform (model_matrix),
+			.color = RT_COLOR_WHITE,
+			.material = tx ? tx->rtmaterial : RG_NO_MATERIAL,
+			.pipelineState = RG_RASTERIZED_GEOMETRY_STATE_DEPTH_TEST | RG_RASTERIZED_GEOMETRY_STATE_DEPTH_WRITE,
+			.blendFuncSrc = 0,
+			.blendFuncDst = 0,
+		};
+
+		if (alphatest)
+		{
+			info.pipelineState |= RG_RASTERIZED_GEOMETRY_STATE_ALPHA_TEST;
+		}
+
+		RgResult r = rgUploadRasterizedGeometry (vulkan_globals.instance, &info, NULL, NULL);
+		RG_CHECK (r);
 	}
 	else
 	{
-		if (!alphatest)
-			pipeline = vulkan_globals.alias_blend_pipeline;
-		else
-			pipeline = vulkan_globals.alias_alphatest_blend_pipeline;
+		RgGeometryUploadInfo info = {
+			.uniqueID = entityid,
+			.flags = 0,
+			.geomType = RG_GEOMETRY_TYPE_DYNAMIC,
+			.passThroughType = RG_GEOMETRY_PASS_THROUGH_TYPE_ALPHA_TESTED,
+			.visibilityType = isfirstperson ? RG_GEOMETRY_VISIBILITY_TYPE_FIRST_PERSON : RG_GEOMETRY_VISIBILITY_TYPE_WORLD_0,
+			.vertexCount = paliashdr->numverts_vbo,
+			.pVertices = GetModelVerticesForPose (e->model, paliashdr, lerpdata.pose1),
+			.indexCount = paliashdr->numindexes,
+			.pIndices = e->model->rtindices,
+			.layerColors =
+				{
+					RT_COLOR_WHITE,
+					RT_COLOR_WHITE,
+				},
+			.layerBlendingTypes =
+				{
+					RG_GEOMETRY_MATERIAL_BLEND_TYPE_OPAQUE,
+					RG_GEOMETRY_MATERIAL_BLEND_TYPE_ADD,
+				},
+			.geomMaterial =
+				{
+					tx ? tx->rtmaterial : RG_NO_MATERIAL,
+					fb ? fb->rtmaterial : RG_NO_MATERIAL,
+				},
+			.defaultRoughness = CVAR_TO_FLOAT (rt_model_rough),
+			.defaultMetallicity = CVAR_TO_FLOAT (rt_model_metal),
+			.defaultEmission = 0,
+			.transform = GetModelTransform (model_matrix),
+		};
+
+		RgResult r = rgUploadGeometry (vulkan_globals.instance, &info);
+		RG_CHECK (r);
 	}
-
-	R_BindPipeline (cbx, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline);
-
-	VkBuffer        uniform_buffer;
-	uint32_t        uniform_offset;
-	VkDescriptorSet ubo_set;
-	aliasubo_t     *ubo = (aliasubo_t *)R_UniformAllocate (sizeof (aliasubo_t), &uniform_buffer, &uniform_offset, &ubo_set);
-
-	memcpy (ubo->model_matrix, model_matrix, 16 * sizeof (float));
-	memcpy (ubo->shade_vector, shadevector, 3 * sizeof (float));
-	ubo->blend_factor = blend;
-	memcpy (ubo->light_color, lightcolor, 3 * sizeof (float));
-	ubo->flags = (fb != NULL) ? 0x1 : 0x0;
-	if (r_fullbright_cheatsafe || (r_lightmap_cheatsafe && r_fullbright.value))
-		ubo->flags |= 0x2;
-	ubo->entalpha = entity_alpha;
-
-	VkDescriptorSet descriptor_sets[3] = {tx->descriptor_set, (fb != NULL) ? fb->descriptor_set : tx->descriptor_set, ubo_set};
-	vulkan_globals.vk_cmd_bind_descriptor_sets (
-		cbx->cb, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.alias_pipeline.layout.handle, 0, 3, descriptor_sets, 1, &uniform_offset);
-
-	VkBuffer     vertex_buffers[3] = {e->model->vertex_buffer, e->model->vertex_buffer, e->model->vertex_buffer};
-	VkDeviceSize vertex_offsets[3] = {
-		(unsigned)e->model->vbostofs, GLARB_GetXYZOffset (e, paliashdr, lerpdata.pose1), GLARB_GetXYZOffset (e, paliashdr, lerpdata.pose2)};
-	vulkan_globals.vk_cmd_bind_vertex_buffers (cbx->cb, 0, 3, vertex_buffers, vertex_offsets);
-	vulkan_globals.vk_cmd_bind_index_buffer (cbx->cb, e->model->index_buffer, 0, VK_INDEX_TYPE_UINT16);
-
-	vulkan_globals.vk_cmd_draw_indexed (cbx->cb, paliashdr->numindexes, 1, 0, 0, 0);
 
 	Atomic_AddUInt32 (&rs_aliaspasses, paliashdr->numtris);
 }
@@ -372,7 +403,7 @@ static void R_SetupAliasLighting (entity_t *e, vec3_t *shadevector, vec3_t *ligh
 R_DrawAliasModel -- johnfitz -- almost completely rewritten
 =================
 */
-void R_DrawAliasModel (cb_context_t *cbx, entity_t *e)
+void R_DrawAliasModel (cb_context_t *cbx, entity_t *e, int entityid)
 {
 	aliashdr_t  *paliashdr;
 	int          anim, skinnum;
@@ -474,7 +505,7 @@ void R_DrawAliasModel (cb_context_t *cbx, entity_t *e)
 	//
 	// draw it
 	//
-	GL_DrawAliasFrame (cbx, e, paliashdr, lerpdata, tx, fb, model_matrix, entalpha, alphatest, shadevector, lightcolor);
+	GL_DrawAliasFrame (cbx, e, paliashdr, lerpdata, tx, fb, model_matrix, entalpha, alphatest, shadevector, lightcolor, entityid);
 }
 
 // johnfitz -- values for shadow matrix
@@ -491,77 +522,4 @@ R_DrawAliasModel_ShowTris -- johnfitz
 */
 void R_DrawAliasModel_ShowTris (cb_context_t *cbx, entity_t *e)
 {
-	aliashdr_t *paliashdr;
-	lerpdata_t  lerpdata;
-	float       blend;
-
-	//
-	// setup pose/lerp data -- do it first so we don't miss updates due to culling
-	//
-	paliashdr = (aliashdr_t *)Mod_Extradata (e->model);
-	R_SetupAliasFrame (e, paliashdr, e->frame, &lerpdata);
-	R_SetupEntityTransform (e, &lerpdata);
-
-	//
-	// cull it
-	//
-	if (R_CullModelForEntity (e))
-		return;
-
-	//
-	// transform it
-	//
-	float model_matrix[16];
-	IdentityMatrix (model_matrix);
-	R_RotateForEntity (model_matrix, lerpdata.origin, lerpdata.angles);
-
-	float fovscale = 1.0f;
-	if (e == &cl.viewent && scr_fov.value > 90.f)
-	{
-		fovscale = tan (scr_fov.value * (0.5f * M_PI / 180.f));
-		fovscale = 1.f + (fovscale - 1.f) * cl_gun_fovscale.value;
-	}
-
-	float translation_matrix[16];
-	TranslationMatrix (translation_matrix, paliashdr->scale_origin[0], paliashdr->scale_origin[1] * fovscale, paliashdr->scale_origin[2] * fovscale);
-	MatrixMultiply (model_matrix, translation_matrix);
-
-	// Scale multiplied by 255 because we use UNORM instead of USCALED in the vertex shader
-	float scale_matrix[16];
-	ScaleMatrix (scale_matrix, paliashdr->scale[0] * 255.0f, paliashdr->scale[1] * fovscale * 255.0f, paliashdr->scale[2] * fovscale * 255.0f);
-	MatrixMultiply (model_matrix, scale_matrix);
-
-	if (r_showtris.value == 1)
-		R_BindPipeline (cbx, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.alias_showtris_pipeline);
-	else
-		R_BindPipeline (cbx, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.alias_showtris_depth_test_pipeline);
-
-	if (lerpdata.pose1 != lerpdata.pose2)
-		blend = lerpdata.blend;
-	else // poses the same means either 1. the entity has paused its animation, or 2. r_lerpmodels is disabled
-		blend = 0;
-
-	VkBuffer        uniform_buffer;
-	uint32_t        uniform_offset;
-	VkDescriptorSet ubo_set;
-	aliasubo_t     *ubo = (aliasubo_t *)R_UniformAllocate (sizeof (aliasubo_t), &uniform_buffer, &uniform_offset, &ubo_set);
-
-	memcpy (ubo->model_matrix, model_matrix, 16 * sizeof (float));
-	memset (ubo->shade_vector, 0, 3 * sizeof (float));
-	ubo->blend_factor = blend;
-	memset (ubo->light_color, 0, 3 * sizeof (float));
-	ubo->entalpha = 1.0f;
-	ubo->flags = 0;
-
-	VkDescriptorSet descriptor_sets[3] = {nulltexture->descriptor_set, nulltexture->descriptor_set, ubo_set};
-	vulkan_globals.vk_cmd_bind_descriptor_sets (
-		cbx->cb, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.alias_pipeline.layout.handle, 0, 3, descriptor_sets, 1, &uniform_offset);
-
-	VkBuffer     vertex_buffers[3] = {e->model->vertex_buffer, e->model->vertex_buffer, e->model->vertex_buffer};
-	VkDeviceSize vertex_offsets[3] = {
-		(unsigned)e->model->vbostofs, GLARB_GetXYZOffset (e, paliashdr, lerpdata.pose1), GLARB_GetXYZOffset (e, paliashdr, lerpdata.pose2)};
-	vulkan_globals.vk_cmd_bind_vertex_buffers (cbx->cb, 0, 3, vertex_buffers, vertex_offsets);
-	vulkan_globals.vk_cmd_bind_index_buffer (cbx->cb, e->model->index_buffer, 0, VK_INDEX_TYPE_UINT16);
-
-	vulkan_globals.vk_cmd_draw_indexed (cbx->cb, paliashdr->numindexes, 1, 0, 0, 0);
 }

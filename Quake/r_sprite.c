@@ -84,7 +84,7 @@ static mspriteframe_t *R_GetSpriteFrame (entity_t *currentent)
 R_CreateSpriteVertices
 ================
 */
-static void R_CreateSpriteVertices (entity_t *e, mspriteframe_t *frame, RgRasterizedGeometryVertexStruct *vertices)
+static void R_CreateSpriteVertices (entity_t *e, mspriteframe_t *frame, RgVertex vertices[4])
 {
 	vec3_t     point, v_forward, v_right, v_up;
 	msprite_t *psprite;
@@ -141,8 +141,6 @@ static void R_CreateSpriteVertices (entity_t *e, mspriteframe_t *frame, RgRaster
 		return;
 	}
 
-	memset (vertices, 255, 4 * sizeof (basicvertex_t));
-
 	VectorMA (e->origin, frame->down, s_up, point);
 	VectorMA (point, frame->left, s_right, point);
 	vertices[0].position[0] = point[0];
@@ -190,20 +188,21 @@ void R_DrawSpriteModel (cb_context_t *cbx, entity_t *e, int entityid)
 	msprite_t      *psprite = (msprite_t *)e->model->extradata;
 	mspriteframe_t *frame = R_GetSpriteFrame (e);
 
-	RgRasterizedGeometryVertexStruct vertices[4];
+
+    RgVertex vertices[4] = {0};
 	R_CreateSpriteVertices (e, frame, vertices);
 
-	qboolean is_rasterized = true;
 	qboolean is_decal = psprite->type == SPR_ORIENTED;
+	qboolean is_rasterized = is_decal;
 
 	if (is_rasterized)
 	{
 		RgRasterizedGeometryUploadInfo info = {
 			.renderType = RG_RASTERIZED_GEOMETRY_RENDER_TYPE_DEFAULT,
 			.vertexCount = countof (vertices),
-			.pStructs = vertices,
+			.pVertices = vertices,
 			.indexCount = RT_GetFanIndexCount (countof (vertices)),
-			.pIndexData = RT_GetFanIndices (countof (vertices)),
+			.pIndices = RT_GetFanIndices (countof (vertices)),
 			.transform = RT_TRANSFORM_IDENTITY,
 			.color = RT_COLOR_WHITE,
 			.material = frame->gltexture ? frame->gltexture->rtmaterial : RG_NO_MATERIAL,
@@ -220,7 +219,6 @@ void R_DrawSpriteModel (cb_context_t *cbx, entity_t *e, int entityid)
 	}
 	else
 	{
-		/*
 		RgGeometryUploadInfo info = {
 			.uniqueID = entityid,
 			.flags = 0,
@@ -228,23 +226,20 @@ void R_DrawSpriteModel (cb_context_t *cbx, entity_t *e, int entityid)
 			.passThroughType = RG_GEOMETRY_PASS_THROUGH_TYPE_ALPHA_TESTED,
 			.visibilityType = RG_GEOMETRY_VISIBILITY_TYPE_WORLD_0,
 			.vertexCount = countof (vertices),
-			.pVertexData =,
-			.pNormalData =,
-			.pTexCoordLayerData =,
+			.pVertices = vertices,
 			.indexCount = RT_GetFanIndexCount (countof (vertices)),
-			.pIndexData = RT_GetFanIndices (countof (vertices)),
+			.pIndices = RT_GetFanIndices (countof (vertices)),
 			.layerColors = {RT_COLOR_WHITE},
-			.layerBlendingTypes = RG_GEOMETRY_MATERIAL_BLEND_TYPE_OPAQUE,
+			.layerBlendingTypes = {RG_GEOMETRY_MATERIAL_BLEND_TYPE_OPAQUE},
 			.defaultRoughness = CVAR_TO_FLOAT (rt_model_rough),
 			.defaultMetallicity = CVAR_TO_FLOAT (rt_model_metal),
 			.defaultEmission = 0,
-			.geomMaterial = frame->gltexture ? frame->gltexture->rtmaterial : RG_NO_MATERIAL,
+			.geomMaterial = {frame->gltexture ? frame->gltexture->rtmaterial : RG_NO_MATERIAL},
 			.transform = RT_TRANSFORM_IDENTITY,
 		};
 
 		RgResult r = rgUploadGeometry (vulkan_globals.instance, &info);
 		RG_CHECK (r);
-		*/
 	}
 }
 

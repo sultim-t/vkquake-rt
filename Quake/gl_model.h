@@ -288,6 +288,7 @@ typedef struct aliasmesh_s
 	unsigned short vertindex;
 } aliasmesh_t;
 
+#if 0
 typedef struct meshxyz_s
 {
 	byte        xyz[4];
@@ -298,6 +299,7 @@ typedef struct meshst_s
 {
 	float st[2];
 } meshst_t;
+#endif
 //--
 
 typedef struct
@@ -505,15 +507,8 @@ typedef struct qmodel_s
 	//
 	// alias model
 	//
-	//VkBuffer             vertex_buffer;
-	//struct glheap_s     *vertex_heap;
-	//struct glheapnode_s *vertex_heap_node;
-	//VkBuffer             index_buffer;
-	//struct glheap_s     *index_heap;
-	//struct glheapnode_s *index_heap_node;
-	//int                  vboindexofs; // offset in vbo of the hdr->numindexes unsigned shorts
-	//int                  vboxyzofs;   // offset in vbo of hdr->numposes*hdr->numverts_vbo meshxyz_t
-	//int                  vbostofs;    // offset in vbo of hdr->numverts_vbo meshst_t
+	uint32_t *rtindices;	// hdr->numindexes
+	RgVertex *rtvertices;	// hdr->numposes * hdr->numverts_vbo
 
 	//
 	// additional model data

@@ -21,9 +21,17 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #ifndef __HEAP__
 #define __HEAP__
 
+#include "quakedef.h"
+
 int RT_GetFanIndexCount (int vertexcount);
 
-// Don't call if previously returned ptr is in use.
-const unsigned *RT_GetFanIndices (int vertexcount);
+// Don't call if previously returned pointer is in use.
+// But no need to free it.
+const uint32_t *RT_GetFanIndices (int vertexcount);
+
+// Don't call if previously returned pointer is in use.
+// But no need to free it.
+void *RT_AllocScratchMemory (size_t bytecount);
+void *RT_AllocScratchMemoryNulled (size_t bytecount);
 
 #endif

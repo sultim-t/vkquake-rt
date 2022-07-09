@@ -390,7 +390,7 @@ void R_TranslatePlayerSkin (int playernum);
 void R_TranslateNewPlayerSkin (int playernum); // johnfitz -- this handles cases when the actual texture changes
 
 void R_DrawWorld (cb_context_t *cbx, int index);
-void R_DrawAliasModel (cb_context_t *cbx, entity_t *e);
+void R_DrawAliasModel (cb_context_t *cbx, entity_t *e, int entityid);
 void R_DrawBrushModel (cb_context_t *cbx, entity_t *e, int chain);
 void R_DrawSpriteModel (cb_context_t *cbx, entity_t *e, int entityid);
 

@@ -447,7 +447,7 @@ void R_DrawEntitiesOnList (cb_context_t *cbx, qboolean alphapass, int chain, int
 		switch (currententity->model->type)
 		{
 		case mod_alias:
-			R_DrawAliasModel (cbx, currententity);
+			R_DrawAliasModel (cbx, currententity, i);
 			break;
 		case mod_brush:
 			R_DrawBrushModel (cbx, currententity, chain);
@@ -488,7 +488,7 @@ void R_DrawViewModel (cb_context_t *cbx)
 	GL_Viewport (
 		cbx, glx + r_refdef.vrect.x, gly + glheight - r_refdef.vrect.y - r_refdef.vrect.height, r_refdef.vrect.width, r_refdef.vrect.height, 0.7f, 1.0f);
 
-	R_DrawAliasModel (cbx, currententity);
+	R_DrawAliasModel (cbx, currententity, UINT16_MAX);
 
 	GL_Viewport (
 		cbx, glx + r_refdef.vrect.x, gly + glheight - r_refdef.vrect.y - r_refdef.vrect.height, r_refdef.vrect.width, r_refdef.vrect.height, 0.0f, 1.0f);
@@ -505,7 +505,7 @@ void R_EmitWirePoint (cb_context_t *cbx, vec3_t origin)
 {
 	const int size = 8;
 
-	RgRasterizedGeometryVertexStruct vertices[6] = {0};
+	RgVertex vertices[6] = {0};
 
 	vertices[0].position[0] = origin[0] - size;
 	vertices[0].position[1] = origin[1];
@@ -534,9 +534,9 @@ void R_EmitWirePoint (cb_context_t *cbx, vec3_t origin)
 	RgRasterizedGeometryUploadInfo info = {
 		.renderType = RG_RASTERIZED_GEOMETRY_RENDER_TYPE_DEFAULT,
 		.vertexCount = countof (vertices),
-		.pStructs = vertices,
+		.pVertices = vertices,
 		.indexCount = 0,
-		.pIndexData = NULL,
+		.pIndices = NULL,
 		.transform = RT_TRANSFORM_IDENTITY,
 		.color = RT_COLOR_WHITE,
 		.material = RG_NO_MATERIAL,
@@ -558,7 +558,7 @@ void R_EmitWireBox (cb_context_t *cbx, vec3_t mins, vec3_t maxs)
 {
 	const static uint32_t box_indices[24] = {0, 1, 2, 3, 4, 5, 6, 7, 0, 4, 1, 5, 2, 6, 3, 7, 0, 2, 1, 3, 4, 6, 5, 7};
 
-	RgRasterizedGeometryVertexStruct vertices[8] = {0};
+	RgVertex vertices[8] = {0};
 
 	for (int i = 0; i < 8; ++i)
 	{
@@ -571,9 +571,9 @@ void R_EmitWireBox (cb_context_t *cbx, vec3_t mins, vec3_t maxs)
 	RgRasterizedGeometryUploadInfo info = {
 		.renderType = RG_RASTERIZED_GEOMETRY_RENDER_TYPE_DEFAULT,
 		.vertexCount = countof (vertices),
-		.pStructs = vertices,
+		.pVertices = vertices,
 		.indexCount = countof (box_indices),
-		.pIndexData = box_indices,
+		.pIndices = box_indices,
 		.transform = RT_TRANSFORM_IDENTITY,
 		.color = RT_COLOR_WHITE,
 		.material = RG_NO_MATERIAL,
