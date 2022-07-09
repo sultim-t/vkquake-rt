@@ -129,6 +129,9 @@ extern int r_trace_line_cache_counter;
 #define InvalidateTraceLineCache()
 #endif
 
+#define NUM_WORLD_CBX    6
+#define NUM_ENTITIES_CBX 6
+
 typedef enum
 {
 	CBX_UPDATE_LIGHTMAPS,
@@ -236,7 +239,6 @@ extern mplane_t frustum[4];
 extern qboolean render_warp;
 extern qboolean in_update_screen;
 extern qboolean use_simd;
-extern int      render_scale;
 
 //
 // view origin

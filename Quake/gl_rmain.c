@@ -31,7 +31,6 @@ int r_framecount;    // used for dlight push checking
 mplane_t frustum[4];
 
 qboolean render_warp;
-int      render_scale;
 
 // johnfitz -- rendering statistics
 atomic_uint32_t rs_brushpolys, rs_aliaspolys, rs_skypolys, rs_particles, rs_fogpolys;
@@ -108,7 +107,7 @@ qboolean r_drawworld_cheatsafe, r_fullbright_cheatsafe, r_lightmap_cheatsafe; //
 
 cvar_t r_gpulightmapupdate = {"r_gpulightmapupdate", "1", CVAR_NONE};
 
-cvar_t r_tasks = {"r_tasks", "1", CVAR_NONE};
+cvar_t r_tasks = {"r_tasks", "0", CVAR_NONE};
 
 /*
 =================
@@ -335,8 +334,6 @@ static void R_SetupContext (cb_context_t *cbx)
 {
 	GL_Viewport (
 		cbx, glx + r_refdef.vrect.x, gly + glheight - r_refdef.vrect.y - r_refdef.vrect.height, r_refdef.vrect.width, r_refdef.vrect.height, 0.0f, 1.0f);
-	R_BindPipeline (cbx, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.basic_blend_pipeline[cbx->render_pass_index]);
-	R_PushConstants (cbx, VK_SHADER_STAGE_ALL_GRAPHICS, 0, 16 * sizeof (float), vulkan_globals.view_projection_matrix);
 }
 
 /*
@@ -366,7 +363,6 @@ static void R_SetupViewBeforeMark (void *unused)
 	r_fovx = r_refdef.fov_x;
 	r_fovy = r_refdef.fov_y;
 	render_warp = false;
-	render_scale = (int)r_scale.value;
 
 	if (r_waterwarp.value)
 	{
@@ -507,10 +503,9 @@ R_EmitWirePoint -- johnfitz -- draws a wireframe cross shape for point entities
 */
 void R_EmitWirePoint (cb_context_t *cbx, vec3_t origin)
 {
-	VkBuffer       vertex_buffer;
-	VkDeviceSize   vertex_buffer_offset;
-	basicvertex_t *vertices = (basicvertex_t *)R_VertexAllocate (6 * sizeof (basicvertex_t), &vertex_buffer, &vertex_buffer_offset);
-	int            size = 8;
+	const int size = 8;
+
+	RgRasterizedGeometryVertexStruct vertices[6] = {0};
 
 	vertices[0].position[0] = origin[0] - size;
 	vertices[0].position[1] = origin[1];
@@ -531,8 +526,27 @@ void R_EmitWirePoint (cb_context_t *cbx, vec3_t origin)
 	vertices[5].position[1] = origin[1];
 	vertices[5].position[2] = origin[2] + size;
 
-	vulkan_globals.vk_cmd_bind_vertex_buffers (cbx->cb, 0, 1, &vertex_buffer, &vertex_buffer_offset);
-	vulkan_globals.vk_cmd_draw (cbx->cb, 6, 1, 0, 0);
+	for (int i = 0; i < (int)countof (vertices); i++)
+	{
+		vertices[i].packedColor = RT_PackColorToUint32 (255, 255, 255, 255);
+	}
+
+	RgRasterizedGeometryUploadInfo info = {
+		.renderType = RG_RASTERIZED_GEOMETRY_RENDER_TYPE_DEFAULT,
+		.vertexCount = countof (vertices),
+		.pStructs = vertices,
+		.indexCount = 0,
+		.pIndexData = NULL,
+		.transform = RT_TRANSFORM_IDENTITY,
+		.color = RT_COLOR_WHITE,
+		.material = RG_NO_MATERIAL,
+		.pipelineState = RG_RASTERIZED_GEOMETRY_STATE_FORCE_LINE_LIST,
+		.blendFuncSrc = 0,
+		.blendFuncDst = 0,
+	};
+
+	RgResult r = rgUploadRasterizedGeometry (vulkan_globals.instance, &info, NULL, NULL);
+	RG_CHECK (r);
 }
 
 /*
@@ -540,25 +554,37 @@ void R_EmitWirePoint (cb_context_t *cbx, vec3_t origin)
 R_EmitWireBox -- johnfitz -- draws one axis aligned bounding box
 ================
 */
-void R_EmitWireBox (cb_context_t *cbx, vec3_t mins, vec3_t maxs, VkBuffer box_index_buffer, VkDeviceSize box_index_buffer_offset)
+void R_EmitWireBox (cb_context_t *cbx, vec3_t mins, vec3_t maxs)
 {
-	VkBuffer       vertex_buffer;
-	VkDeviceSize   vertex_buffer_offset;
-	basicvertex_t *vertices = (basicvertex_t *)R_VertexAllocate (8 * sizeof (basicvertex_t), &vertex_buffer, &vertex_buffer_offset);
+	const static uint32_t box_indices[24] = {0, 1, 2, 3, 4, 5, 6, 7, 0, 4, 1, 5, 2, 6, 3, 7, 0, 2, 1, 3, 4, 6, 5, 7};
+
+	RgRasterizedGeometryVertexStruct vertices[8] = {0};
 
 	for (int i = 0; i < 8; ++i)
 	{
 		vertices[i].position[0] = ((i % 2) < 1) ? mins[0] : maxs[0];
 		vertices[i].position[1] = ((i % 4) < 2) ? mins[1] : maxs[1];
 		vertices[i].position[2] = ((i % 8) < 4) ? mins[2] : maxs[2];
+		vertices[i].packedColor = RT_PackColorToUint32 (255, 255, 255, 255);
 	}
 
-	vulkan_globals.vk_cmd_bind_index_buffer (cbx->cb, box_index_buffer, box_index_buffer_offset, VK_INDEX_TYPE_UINT16);
-	vulkan_globals.vk_cmd_bind_vertex_buffers (cbx->cb, 0, 1, &vertex_buffer, &vertex_buffer_offset);
-	vulkan_globals.vk_cmd_draw_indexed (cbx->cb, 24, 1, 0, 0, 0);
-}
+	RgRasterizedGeometryUploadInfo info = {
+		.renderType = RG_RASTERIZED_GEOMETRY_RENDER_TYPE_DEFAULT,
+		.vertexCount = countof (vertices),
+		.pStructs = vertices,
+		.indexCount = countof (box_indices),
+		.pIndexData = box_indices,
+		.transform = RT_TRANSFORM_IDENTITY,
+		.color = RT_COLOR_WHITE,
+		.material = RG_NO_MATERIAL,
+		.pipelineState = RG_RASTERIZED_GEOMETRY_STATE_FORCE_LINE_LIST,
+		.blendFuncSrc = 0,
+		.blendFuncDst = 0,
+	};
 
-static uint16_t box_indices[24] = {0, 1, 2, 3, 4, 5, 6, 7, 0, 4, 1, 5, 2, 6, 3, 7, 0, 2, 1, 3, 4, 6, 5, 7};
+	RgResult r = rgUploadRasterizedGeometry (vulkan_globals.instance, &info, NULL, NULL);
+	RG_CHECK (r);
+}
 
 /*
 ================
@@ -578,12 +604,6 @@ void R_ShowBoundingBoxes (cb_context_t *cbx)
 		return;
 
 	R_BeginDebugUtilsLabel (cbx, "show bboxes");
-	R_BindPipeline (cbx, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.showbboxes_pipeline);
-
-	VkBuffer     box_index_buffer;
-	VkDeviceSize box_index_buffer_offset;
-	uint16_t    *indices = (uint16_t *)R_IndexAllocate (24 * sizeof (uint16_t), &box_index_buffer, &box_index_buffer_offset);
-	memcpy (indices, box_indices, 24 * sizeof (uint16_t));
 
 	PR_SwitchQCVM (&sv.qcvm);
 	for (i = 0, ed = NEXT_EDICT (qcvm->edicts); i < qcvm->num_edicts; i++, ed = NEXT_EDICT (ed))
@@ -601,7 +621,7 @@ void R_ShowBoundingBoxes (cb_context_t *cbx)
 			// box entity
 			VectorAdd (ed->v.mins, ed->v.origin, mins);
 			VectorAdd (ed->v.maxs, ed->v.origin, maxs);
-			R_EmitWireBox (cbx, mins, maxs, box_index_buffer, box_index_buffer_offset);
+			R_EmitWireBox (cbx, mins, maxs);
 		}
 	}
 	PR_SwitchQCVM (NULL);
@@ -785,7 +805,6 @@ void R_RenderView (qboolean use_tasks, task_handle_t begin_rendering_task, task_
 		Atomic_StoreUInt32 (&rs_brushpasses, 0u);
 	}
 
-	cb_context_t *primary_cbx = &vulkan_globals.primary_cb_context;
 	if (use_tasks)
 	{
 		task_handle_t before_mark = Task_AllocateAndAssignFunc (R_SetupViewBeforeMark, NULL, 0);
@@ -795,12 +814,7 @@ void R_RenderView (qboolean use_tasks, task_handle_t begin_rendering_task, task_
 		task_handle_t cull_surfaces = INVALID_TASK_HANDLE;
 		task_handle_t chain_surfaces = INVALID_TASK_HANDLE;
 		R_MarkSurfaces (use_tasks, before_mark, &store_efrags, &cull_surfaces, &chain_surfaces);
-
-		task_handle_t update_warp_textures = Task_AllocateAndAssignFunc ((task_func_t)R_UpdateWarpTextures, &primary_cbx, sizeof (cb_context_t *));
-		Task_AddDependency (cull_surfaces, update_warp_textures);
-		Task_AddDependency (begin_rendering_task, update_warp_textures);
-		Task_AddDependency (update_warp_textures, draw_done_task);
-
+		
 		task_handle_t draw_world_task = Task_AllocateAndAssignIndexedFunc (R_DrawWorldTask, NUM_WORLD_CBX, NULL, 0);
 		Task_AddDependency (chain_surfaces, draw_world_task);
 		Task_AddDependency (begin_rendering_task, draw_world_task);
@@ -837,7 +851,7 @@ void R_RenderView (qboolean use_tasks, task_handle_t begin_rendering_task, task_
 		Task_AddDependency (begin_rendering_task, update_lightmaps_task);
 		Task_AddDependency (update_lightmaps_task, draw_done_task);
 
-		task_handle_t tasks[] = {before_mark,          store_efrags,       update_warp_textures,     draw_world_task,     draw_sky_and_water_task,
+		task_handle_t tasks[] = {before_mark,          store_efrags,                                 draw_world_task,     draw_sky_and_water_task,
 		                         draw_view_model_task, draw_entities_task, draw_alpha_entities_task, draw_particles_task, update_lightmaps_task};
 		Tasks_Submit ((sizeof (tasks) / sizeof (task_handle_t)), tasks);
 		if (store_efrags != cull_surfaces)
@@ -850,7 +864,6 @@ void R_RenderView (qboolean use_tasks, task_handle_t begin_rendering_task, task_
 	{
 		R_SetupViewBeforeMark (NULL);
 		R_MarkSurfaces (use_tasks, INVALID_TASK_HANDLE, NULL, NULL, NULL); // johnfitz -- create texture chains from PVS
-		R_UpdateWarpTextures (&primary_cbx);
 		R_DrawWorldTask (0, NULL);
 		R_DrawSkyAndWaterTask (NULL);
 		for (int i = 0; i < NUM_ENTITIES_CBX; ++i)
