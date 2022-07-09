@@ -73,8 +73,6 @@ cvar_t gl_polyblend = {"gl_polyblend", "1", CVAR_NONE};
 cvar_t gl_nocolors = {"gl_nocolors", "0", CVAR_NONE};
 
 // johnfitz -- new cvars
-cvar_t r_clearcolor = {"r_clearcolor", "2", CVAR_ARCHIVE};
-cvar_t r_fastclear = {"r_fastclear", "1", CVAR_ARCHIVE};
 cvar_t r_flatlightstyles = {"r_flatlightstyles", "0", CVAR_NONE};
 cvar_t r_lerplightstyles = {"r_lerplightstyles", "1", CVAR_ARCHIVE}; // 0=off; 1=skip abrupt transitions; 2=always lerp
 cvar_t gl_fullbrights = {"gl_fullbrights", "1", CVAR_ARCHIVE};
