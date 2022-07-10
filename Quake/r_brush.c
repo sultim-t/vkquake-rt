@@ -110,7 +110,7 @@ void DrawGLPoly (
 		vertices[i].position[2] = v[2];
 		vertices[i].texCoord[0] = v[3];
 		vertices[i].texCoord[1] = v[4];
-		vertices[i].packedColor = RT_PackColorToUint32 (255, 255, 255, 255);
+		vertices[i].packedColor = RT_PACKED_COLOR_WHITE;
 	}
 
 	const qboolean is_sky = (type == DRAW_GL_POLY_TYPE_SKY);
@@ -778,7 +778,7 @@ void GL_BuildBModelVertexBuffer (void)
 				dst[v].texCoordLayer1[0] = srcv[5];
 				dst[v].texCoordLayer1[1] = srcv[6];
 
-				dst[v].packedColor = RT_PackColorToUint32 (255, 255, 255, 255);
+				dst[v].packedColor = RT_PACKED_COLOR_WHITE;
 			}
 
 			varray_index += s->numedges;

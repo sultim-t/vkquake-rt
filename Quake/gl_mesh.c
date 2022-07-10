@@ -536,7 +536,7 @@ static void GLMesh_LoadVertexBuffer (qmodel_t *m, const aliashdr_t *hdr)
 			dstpose[v].texCoord[0] = ((float)desc[v].st[0] + 0.5f) / (float)hdr->skinwidth;
 			dstpose[v].texCoord[1] = ((float)desc[v].st[1] + 0.5f) / (float)hdr->skinheight;
 
-			dstpose[v].packedColor = RT_PackColorToUint32 (255, 255, 255, 255);
+			dstpose[v].packedColor = RT_PACKED_COLOR_WHITE;
 		}
 	}
 }

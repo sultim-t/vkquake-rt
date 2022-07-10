@@ -4337,28 +4337,28 @@ static void         DrawQC_CharacterQuad (cb_context_t *cbx, float x, float y, i
 		corner_verts[0].position[2] = 0.0f;
 		corner_verts[0].texCoord[0] = fcol;
 		corner_verts[0].texCoord[1] = frow;
-		corner_verts[0].packedColor = RT_PackColorToUint32 (255, 255, 255, 255);
+		corner_verts[0].packedColor = RT_PACKED_COLOR_WHITE;
 
 		corner_verts[1].position[0] = x + 8;
 		corner_verts[1].position[1] = y;
 		corner_verts[1].position[2] = 0.0f;
 		corner_verts[1].texCoord[0] = fcol + size;
 		corner_verts[1].texCoord[1] = frow;
-		corner_verts[1].packedColor = RT_PackColorToUint32 (255, 255, 255, 255);
+		corner_verts[1].packedColor = RT_PACKED_COLOR_WHITE;
 
 		corner_verts[2].position[0] = x + 8;
 		corner_verts[2].position[1] = y + 8;
 		corner_verts[2].position[2] = 0.0f;
 		corner_verts[2].texCoord[0] = fcol + size;
 		corner_verts[2].texCoord[1] = frow + size;
-		corner_verts[2].packedColor = RT_PackColorToUint32 (255, 255, 255, 255);
+		corner_verts[2].packedColor = RT_PACKED_COLOR_WHITE;
 
 		corner_verts[3].position[0] = x;
 		corner_verts[3].position[1] = y + 8;
 		corner_verts[3].position[2] = 0.0f;
 		corner_verts[3].texCoord[0] = fcol;
 		corner_verts[3].texCoord[1] = frow + size;
-		corner_verts[3].packedColor = RT_PackColorToUint32 (255, 255, 255, 255);
+		corner_verts[3].packedColor = RT_PACKED_COLOR_WHITE;
 
 		vertices[0] = corner_verts[0];
 		vertices[1] = corner_verts[1];
@@ -4568,22 +4568,22 @@ static void PF_cl_drawfill (void)
 		corner_verts[0].position[0] = pos[0];
 		corner_verts[0].position[1] = pos[1];
 		corner_verts[0].position[2] = 0.0f;
-		corner_verts[0].packedColor = RT_PackColorToUint32 (255, 255, 255, 255);
+		corner_verts[0].packedColor = RT_PACKED_COLOR_WHITE;
 
 		corner_verts[1].position[0] = pos[0] + size[0];
 		corner_verts[1].position[1] = pos[1];
 		corner_verts[1].position[2] = 0.0f;
-		corner_verts[1].packedColor = RT_PackColorToUint32 (255, 255, 255, 255);
+		corner_verts[1].packedColor = RT_PACKED_COLOR_WHITE;
 
 		corner_verts[2].position[0] = pos[0] + size[0];
 		corner_verts[2].position[1] = pos[1] + size[1];
 		corner_verts[2].position[2] = 0.0f;
-		corner_verts[2].packedColor = RT_PackColorToUint32 (255, 255, 255, 255);
+		corner_verts[2].packedColor = RT_PACKED_COLOR_WHITE;
 
 		corner_verts[3].position[0] = pos[0];
 		corner_verts[3].position[1] = pos[1] + size[1];
 		corner_verts[3].position[2] = 0.0f;
-		corner_verts[3].packedColor = RT_PackColorToUint32 (255, 255, 255, 255);
+		corner_verts[3].packedColor = RT_PACKED_COLOR_WHITE;
 
 		vertices[0] = corner_verts[0];
 		vertices[1] = corner_verts[1];

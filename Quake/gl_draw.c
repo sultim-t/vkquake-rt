@@ -481,28 +481,28 @@ static void Draw_FillCharacterQuad (int x, int y, char num, RgVertex *output, in
 	corner_verts[0].position[2] = 0.0f;
 	corner_verts[0].texCoord[0] = fcol;
 	corner_verts[0].texCoord[1] = frow;
-	corner_verts[0].packedColor = RT_PackColorToUint32 (255, 255, 255, 255);
+	corner_verts[0].packedColor = RT_PACKED_COLOR_WHITE;
 
 	corner_verts[1].position[0] = texcoords[(rotation + 1) % 4][0];
 	corner_verts[1].position[1] = texcoords[(rotation + 1) % 4][1];
 	corner_verts[1].position[2] = 0.0f;
 	corner_verts[1].texCoord[0] = fcol + size;
 	corner_verts[1].texCoord[1] = frow;
-	corner_verts[1].packedColor = RT_PackColorToUint32 (255, 255, 255, 255);
+	corner_verts[1].packedColor = RT_PACKED_COLOR_WHITE;
 
 	corner_verts[2].position[0] = texcoords[(rotation + 2) % 4][0];
 	corner_verts[2].position[1] = texcoords[(rotation + 2) % 4][1];
 	corner_verts[2].position[2] = 0.0f;
 	corner_verts[2].texCoord[0] = fcol + size;
 	corner_verts[2].texCoord[1] = frow + size;
-	corner_verts[2].packedColor = RT_PackColorToUint32 (255, 255, 255, 255);
+	corner_verts[2].packedColor = RT_PACKED_COLOR_WHITE;
 
 	corner_verts[3].position[0] = texcoords[(rotation + 3) % 4][0];
 	corner_verts[3].position[1] = texcoords[(rotation + 3) % 4][1];
 	corner_verts[3].position[2] = 0.0f;
 	corner_verts[3].texCoord[0] = fcol;
 	corner_verts[3].texCoord[1] = frow + size;
-	corner_verts[3].packedColor = RT_PackColorToUint32 (255, 255, 255, 255);
+	corner_verts[3].packedColor = RT_PACKED_COLOR_WHITE;
 
 	output[0] = corner_verts[0];
 	output[1] = corner_verts[1];
@@ -619,28 +619,28 @@ void Draw_Pic (cb_context_t *cbx, int x, int y, qpic_t *pic, float alpha, qboole
 		corner_verts[0].position[2] = 0.0f;
 		corner_verts[0].texCoord[0] = gl.sl;
 		corner_verts[0].texCoord[1] = gl.tl;
-		corner_verts[0].packedColor = RT_PackColorToUint32 (255, 255, 255, 255);
+		corner_verts[0].packedColor = RT_PACKED_COLOR_WHITE;
 
 		corner_verts[1].position[0] = x + pic->width;
 		corner_verts[1].position[1] = y;
 		corner_verts[1].position[2] = 0.0f;
 		corner_verts[1].texCoord[0] = gl.sh;
 		corner_verts[1].texCoord[1] = gl.tl;
-		corner_verts[1].packedColor = RT_PackColorToUint32 (255, 255, 255, 255);
+		corner_verts[1].packedColor = RT_PACKED_COLOR_WHITE;
 
 		corner_verts[2].position[0] = x + pic->width;
 		corner_verts[2].position[1] = y + pic->height;
 		corner_verts[2].position[2] = 0.0f;
 		corner_verts[2].texCoord[0] = gl.sh;
 		corner_verts[2].texCoord[1] = gl.th;
-		corner_verts[2].packedColor = RT_PackColorToUint32 (255, 255, 255, 255);
+		corner_verts[2].packedColor = RT_PACKED_COLOR_WHITE;
 
 		corner_verts[3].position[0] = x;
 		corner_verts[3].position[1] = y + pic->height;
 		corner_verts[3].position[2] = 0.0f;
 		corner_verts[3].texCoord[0] = gl.sl;
 		corner_verts[3].texCoord[1] = gl.th;
-		corner_verts[3].packedColor = RT_PackColorToUint32 (255, 255, 255, 255);
+		corner_verts[3].packedColor = RT_PACKED_COLOR_WHITE;
 
 		vertices[0] = corner_verts[0];
 		vertices[1] = corner_verts[1];
@@ -693,28 +693,28 @@ void Draw_SubPic (cb_context_t *cbx, float x, float y, float w, float h, qpic_t 
 		corner_verts[0].position[2] = 0.0f;
 		corner_verts[0].texCoord[0] = gl.sl * (1 - s1) + s1 * gl.sh;
 		corner_verts[0].texCoord[1] = gl.tl * (1 - t1) + t1 * gl.th;
-		corner_verts[0].packedColor = RT_PackColorToUint32 (255, 255, 255, 255);
+		corner_verts[0].packedColor = RT_PACKED_COLOR_WHITE;
 
 		corner_verts[1].position[0] = x + w;
 		corner_verts[1].position[1] = y;
 		corner_verts[1].position[2] = 0.0f;
 		corner_verts[1].texCoord[0] = gl.sl * (1 - s2) + s2 * gl.sh;
 		corner_verts[1].texCoord[1] = gl.tl * (1 - t1) + t1 * gl.th;
-		corner_verts[1].packedColor = RT_PackColorToUint32 (255, 255, 255, 255);
+		corner_verts[1].packedColor = RT_PACKED_COLOR_WHITE;
 
 		corner_verts[2].position[0] = x + w;
 		corner_verts[2].position[1] = y + h;
 		corner_verts[2].position[2] = 0.0f;
 		corner_verts[2].texCoord[0] = gl.sl * (1 - s2) + s2 * gl.sh;
 		corner_verts[2].texCoord[1] = gl.tl * (1 - t2) + t2 * gl.th;
-		corner_verts[2].packedColor = RT_PackColorToUint32 (255, 255, 255, 255);
+		corner_verts[2].packedColor = RT_PACKED_COLOR_WHITE;
 
 		corner_verts[3].position[0] = x;
 		corner_verts[3].position[1] = y + h;
 		corner_verts[3].position[2] = 0.0f;
 		corner_verts[3].texCoord[0] = gl.sl * (1 - s1) + s1 * gl.sh;
 		corner_verts[3].texCoord[1] = gl.tl * (1 - t2) + t2 * gl.th;
-		corner_verts[3].packedColor = RT_PackColorToUint32 (255, 255, 255, 255);
+		corner_verts[3].packedColor = RT_PACKED_COLOR_WHITE;
 		
 	    vertices[0] = corner_verts[0];
 	    vertices[1] = corner_verts[1];
@@ -813,28 +813,28 @@ void Draw_TileClear (cb_context_t *cbx, int x, int y, int w, int h)
 		corner_verts[0].position[2] = 0.0f;
 		corner_verts[0].texCoord[0] = x / 64.0;
 		corner_verts[0].texCoord[1] = y / 64.0;
-		corner_verts[0].packedColor = RT_PackColorToUint32 (255, 255, 255, 255);
+		corner_verts[0].packedColor = RT_PACKED_COLOR_WHITE;
 
 		corner_verts[1].position[0] = x + w;
 		corner_verts[1].position[1] = y;
 		corner_verts[1].position[2] = 0.0f;
 		corner_verts[1].texCoord[0] = (x + w) / 64.0;
 		corner_verts[1].texCoord[1] = y / 64.0;
-		corner_verts[1].packedColor = RT_PackColorToUint32 (255, 255, 255, 255);
+		corner_verts[1].packedColor = RT_PACKED_COLOR_WHITE;
 
 		corner_verts[2].position[0] = x + w;
 		corner_verts[2].position[1] = y + h;
 		corner_verts[2].position[2] = 0.0f;
 		corner_verts[2].texCoord[0] = (x + w) / 64.0;
 		corner_verts[2].texCoord[1] = (y + h) / 64.0;
-		corner_verts[2].packedColor = RT_PackColorToUint32 (255, 255, 255, 255);
+		corner_verts[2].packedColor = RT_PACKED_COLOR_WHITE;
 
 		corner_verts[3].position[0] = x;
 		corner_verts[3].position[1] = y + h;
 		corner_verts[3].position[2] = 0.0f;
 		corner_verts[3].texCoord[0] = x / 64.0;
 		corner_verts[3].texCoord[1] = (y + h) / 64.0;
-		corner_verts[3].packedColor = RT_PackColorToUint32 (255, 255, 255, 255);
+		corner_verts[3].packedColor = RT_PACKED_COLOR_WHITE;
 
 		vertices[0] = corner_verts[0];
 		vertices[1] = corner_verts[1];
@@ -879,19 +879,19 @@ void Draw_Fill (cb_context_t *cbx, int x, int y, int w, int h, int c, float alph
 
 		corner_verts[0].position[0] = x;
 		corner_verts[0].position[1] = y;
-		corner_verts[0].packedColor = RT_PackColorToUint32 (255, 255, 255, 255);
+		corner_verts[0].packedColor = RT_PACKED_COLOR_WHITE;
 
 		corner_verts[1].position[0] = x + w;
 		corner_verts[1].position[1] = y;
-		corner_verts[1].packedColor = RT_PackColorToUint32 (255, 255, 255, 255);
+		corner_verts[1].packedColor = RT_PACKED_COLOR_WHITE;
 
 		corner_verts[2].position[0] = x + w;
 		corner_verts[2].position[1] = y + h;
-		corner_verts[2].packedColor = RT_PackColorToUint32 (255, 255, 255, 255);
+		corner_verts[2].packedColor = RT_PACKED_COLOR_WHITE;
 
 		corner_verts[3].position[0] = x;
 		corner_verts[3].position[1] = y + h;
-		corner_verts[3].packedColor = RT_PackColorToUint32 (255, 255, 255, 255);
+		corner_verts[3].packedColor = RT_PACKED_COLOR_WHITE;
 
 		vertices[0] = corner_verts[0];
 		vertices[1] = corner_verts[1];
@@ -942,19 +942,19 @@ void Draw_FadeScreen (cb_context_t *cbx)
 
 		corner_verts[0].position[0] = 0.0f;
 		corner_verts[0].position[1] = 0.0f;
-		corner_verts[0].packedColor = RT_PackColorToUint32 (255, 255, 255, 255);
+		corner_verts[0].packedColor = RT_PACKED_COLOR_WHITE;
 
 		corner_verts[1].position[0] = glwidth;
 		corner_verts[1].position[1] = 0.0f;
-		corner_verts[1].packedColor = RT_PackColorToUint32 (255, 255, 255, 255);
+		corner_verts[1].packedColor = RT_PACKED_COLOR_WHITE;
 
 		corner_verts[2].position[0] = glwidth;
 		corner_verts[2].position[1] = glheight;
-		corner_verts[2].packedColor = RT_PackColorToUint32 (255, 255, 255, 255);
+		corner_verts[2].packedColor = RT_PACKED_COLOR_WHITE;
 
 		corner_verts[3].position[0] = 0.0f;
 		corner_verts[3].position[1] = glheight;
-		corner_verts[3].packedColor = RT_PackColorToUint32 (255, 255, 255, 255);
+		corner_verts[3].packedColor = RT_PACKED_COLOR_WHITE;
 
 		vertices[0] = corner_verts[0];
 		vertices[1] = corner_verts[1];

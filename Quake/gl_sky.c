@@ -801,7 +801,7 @@ void Sky_EmitSkyBoxVertex (RgVertex *vertex, float s, float t, int axis)
 	vertex->texCoord[0] = s;
 	vertex->texCoord[1] = t;
 
-	vertex->packedColor = RT_PackColorToUint32 (255, 255, 255, 255);
+	vertex->packedColor = RT_PACKED_COLOR_WHITE;
 }
 
 /*
@@ -933,7 +933,7 @@ void Sky_DrawFaceQuad (cb_context_t *cbx, glpoly_t *p, float alpha)
 
 			Sky_GetTexCoord (v, alphalayer ? 16 : 8, &vertices[i].texCoord[0], &vertices[i].texCoord[1]);
 
-			vertices[i].packedColor = RT_PackColorToUint32 (255, 255, 255, 255);
+			vertices[i].packedColor = RT_PACKED_COLOR_WHITE;
 		}
 
 		gltexture_t *texture = alphalayer ? alphaskytexture : solidskytexture;

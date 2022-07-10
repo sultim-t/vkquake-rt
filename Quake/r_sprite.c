@@ -148,7 +148,7 @@ static void R_CreateSpriteVertices (entity_t *e, mspriteframe_t *frame, RgVertex
 	vertices[0].position[2] = point[2];
 	vertices[0].texCoord[0] = 0.0f;
 	vertices[0].texCoord[1] = frame->tmax;
-	vertices[0].packedColor = RT_PackColorToUint32(255, 255, 255, 255);
+	vertices[0].packedColor = RT_PACKED_COLOR_WHITE;
 
 	VectorMA (e->origin, frame->up, s_up, point);
 	VectorMA (point, frame->left, s_right, point);
@@ -157,7 +157,7 @@ static void R_CreateSpriteVertices (entity_t *e, mspriteframe_t *frame, RgVertex
 	vertices[1].position[2] = point[2];
 	vertices[1].texCoord[0] = 0.0f;
 	vertices[1].texCoord[1] = 0.0f;
-	vertices[1].packedColor = RT_PackColorToUint32 (255, 255, 255, 255);
+	vertices[1].packedColor = RT_PACKED_COLOR_WHITE;
 
 	VectorMA (e->origin, frame->up, s_up, point);
 	VectorMA (point, frame->right, s_right, point);
@@ -166,7 +166,7 @@ static void R_CreateSpriteVertices (entity_t *e, mspriteframe_t *frame, RgVertex
 	vertices[2].position[2] = point[2];
 	vertices[2].texCoord[0] = frame->smax;
 	vertices[2].texCoord[1] = 0.0f;
-	vertices[2].packedColor = RT_PackColorToUint32 (255, 255, 255, 255);
+	vertices[2].packedColor = RT_PACKED_COLOR_WHITE;
 
 	VectorMA (e->origin, frame->down, s_up, point);
 	VectorMA (point, frame->right, s_right, point);
@@ -175,7 +175,7 @@ static void R_CreateSpriteVertices (entity_t *e, mspriteframe_t *frame, RgVertex
 	vertices[3].position[2] = point[2];
 	vertices[3].texCoord[0] = frame->smax;
 	vertices[3].texCoord[1] = frame->tmax;
-	vertices[3].packedColor = RT_PackColorToUint32 (255, 255, 255, 255);
+	vertices[3].packedColor = RT_PACKED_COLOR_WHITE;
 }
 
 /*

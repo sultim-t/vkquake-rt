@@ -588,7 +588,7 @@ void R_EmitWirePoint (cb_context_t *cbx, vec3_t origin)
 
 	for (int i = 0; i < (int)countof (vertices); i++)
 	{
-		vertices[i].packedColor = RT_PackColorToUint32 (255, 255, 255, 255);
+		vertices[i].packedColor = RT_PACKED_COLOR_WHITE;
 	}
 
 	RgRasterizedGeometryUploadInfo info = {
@@ -625,7 +625,7 @@ void R_EmitWireBox (cb_context_t *cbx, vec3_t mins, vec3_t maxs)
 		vertices[i].position[0] = ((i % 2) < 1) ? mins[0] : maxs[0];
 		vertices[i].position[1] = ((i % 4) < 2) ? mins[1] : maxs[1];
 		vertices[i].position[2] = ((i % 8) < 4) ? mins[2] : maxs[2];
-		vertices[i].packedColor = RT_PackColorToUint32 (255, 255, 255, 255);
+		vertices[i].packedColor = RT_PACKED_COLOR_WHITE;
 	}
 
 	RgRasterizedGeometryUploadInfo info = {
