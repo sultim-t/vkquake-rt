@@ -25,13 +25,13 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 
 
-int GetNextStep (int count, int step)
+static int GetNextStep (int count, int step)
 {
 	int div = (count + step - 1) / step;
 	return div * step;
 }
 
-size_t GetNextStep64 (size_t count, size_t step)
+static size_t GetNextStep64 (size_t count, size_t step)
 {
 	size_t div = (count + step - 1) / step;
 	return div * step;
@@ -73,9 +73,9 @@ const uint32_t *RT_GetFanIndices (int vertexcount)
 
 		for (int i = 0; i < fan_indices_count / 3; i++)
 		{
-			fan_indices[i + 0] = 0;
-			fan_indices[i + 1] = 1 + i;
-			fan_indices[i + 2] = 2 + i;
+			fan_indices[i * 3 + 0] = 0;
+			fan_indices[i * 3 + 1] = 1 + i;
+			fan_indices[i * 3 + 2] = 2 + i;
 		}
 	}
 

@@ -672,9 +672,9 @@ static void R_TriangleIndicesForSurf (int basevert, int vertcount, uint32_t *des
 	int i;
 	for (i = 2; i < vertcount; i++)
 	{
-		*dest++ = basevert;
-		*dest++ = basevert + i - 1;
 		*dest++ = basevert + i;
+		*dest++ = basevert + i - 1;
+		*dest++ = basevert;
 	}
 }
 

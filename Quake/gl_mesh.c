@@ -493,10 +493,13 @@ static void GLMesh_LoadVertexBuffer (qmodel_t *m, const aliashdr_t *hdr)
 	// create and fill the 32-bit index buffer
 	{
 		m->rtindices = Mem_Alloc (hdr->numindexes * sizeof (uint32_t));
+		assert (hdr->numindexes % 3 == 0);
 
-		for (int k = 0; k < hdr->numindexes; k++)
+		for (int k = 0; k < hdr->numindexes / 3; k++)
 		{
-			m->rtindices[k] = indexes[k];
+			m->rtindices[k * 3 + 0] = indexes[k * 3 + 2];
+			m->rtindices[k * 3 + 1] = indexes[k * 3 + 1];
+			m->rtindices[k * 3 + 2] = indexes[k * 3 + 0];
 		}
 	}
 
