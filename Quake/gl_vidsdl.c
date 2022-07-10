@@ -956,6 +956,12 @@ void VID_Shutdown (void)
 {
 	if (vid_initialized)
 	{
+		if (vulkan_globals.instance != RG_NULL_HANDLE)
+		{
+		    RgResult r = rgDestroyInstance (vulkan_globals.instance);
+			RG_CHECK (r);
+		}
+
 		SDL_QuitSubSystem (SDL_INIT_VIDEO);
 		draw_context = NULL;
 		PL_VID_Shutdown ();
