@@ -108,6 +108,9 @@ cvar_t r_gpulightmapupdate = {"r_gpulightmapupdate", "0", CVAR_NONE};
 
 cvar_t r_tasks = {"r_tasks", "0", CVAR_NONE};
 
+extern cvar_t rt_dlight_intensity;
+extern cvar_t rt_dlight_radius;
+
 /*
 =================
 R_CullBox -- johnfitz -- replaced with new function from lordhavoc
@@ -335,6 +338,36 @@ static void R_SetupContext (cb_context_t *cbx)
 		cbx, glx + r_refdef.vrect.x, gly + glheight - r_refdef.vrect.y - r_refdef.vrect.height, r_refdef.vrect.width, r_refdef.vrect.height, 0.0f, 1.0f);
 }
 
+static void RT_UploadAllDlights ()
+{
+	for (int i = 0; i < MAX_DLIGHTS; i++)
+	{
+		const dlight_t *l = &cl_dlights[i];
+
+		if (l->die < cl.time || !l->radius)
+		{
+			continue;
+		}
+
+		float falloff_mult = QUAKEUNIT_TO_METRIC (l->radius);
+
+		vec3_t color = {l->color[0], l->color[1], l->color[2]};
+		VectorScale (color, CVAR_TO_FLOAT (rt_dlight_intensity), color);
+		VectorScale (color, RT_QUAKE_LIGHT_AREA_INTENSITY_FIX, color);
+		VectorScale (color, falloff_mult, color);
+
+		RgSphericalLightUploadInfo info = {
+			.uniqueID = i,
+			.color = {color[0], color[1], color[2]},
+			.position = {l->origin[0], l->origin[1], l->origin[2]},
+			.radius = METRIC_TO_GOLDSRCUNIT (CVAR_TO_FLOAT (rt_dlight_radius) ),
+		};
+
+		RgResult r = rgUploadSphericalLight (vulkan_globals.instance, &info);
+		RG_CHECK (r);
+	}
+}
+
 /*
 ===============
 R_SetupViewBeforeMark
@@ -403,6 +436,8 @@ void R_SetupViewBeforeMark (void *unused)
 		r_lightmap_cheatsafe = false;
 	}
 	// johnfitz
+
+	RT_UploadAllDlights ();
 }
 
 //==============================================================================
