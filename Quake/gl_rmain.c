@@ -361,7 +361,7 @@ static void RT_UploadAllDlights ()
 			.uniqueID = i,
 			.color = {color[0], color[1], color[2]},
 			.position = {l->origin[0], l->origin[1], l->origin[2]},
-			.radius = METRIC_TO_GOLDSRCUNIT (CVAR_TO_FLOAT (rt_dlight_radius) ),
+			.radius = METRIC_TO_QUAKEUNIT (CVAR_TO_FLOAT (rt_dlight_radius)),
 		};
 
 		RgResult r = rgUploadSphericalLight (vulkan_globals.instance, &info);
@@ -372,8 +372,8 @@ static void RT_UploadAllDlights ()
 	{
 		vec3_t pos;
 		VectorCopy (r_origin, pos);
-		VectorMA (pos, METRIC_TO_GOLDSRCUNIT (-0.3f), vup, pos);
-		VectorMA (pos, METRIC_TO_GOLDSRCUNIT (-0.4f), vright, pos);
+		VectorMA (pos, METRIC_TO_QUAKEUNIT (-0.3f), vup, pos);
+		VectorMA (pos, METRIC_TO_QUAKEUNIT (-0.4f), vright, pos);
 
 		vec3_t color = {1.0f, 0.92f, 0.82f};
 		VectorScale (color, CVAR_TO_FLOAT (rt_flashlight), color);
@@ -384,7 +384,7 @@ static void RT_UploadAllDlights ()
 			.color = {color[0], color[1], color[2]},
 			.position = {pos[0], pos[1], pos[2]},
 			.direction = {vpn[0], vpn[1], vpn[2]},
-			.radius = METRIC_TO_GOLDSRCUNIT (0.1f),
+			.radius = METRIC_TO_QUAKEUNIT (0.1f),
 			.angleOuter = DEG2RAD (30),
 			.angleInner = 0,
 		};

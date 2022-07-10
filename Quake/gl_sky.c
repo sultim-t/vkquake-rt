@@ -921,8 +921,6 @@ void Sky_DrawFaceQuad (cb_context_t *cbx, glpoly_t *p, float alpha)
 	float *v;
 	int    i;
 
-	uint8_t alpha8 = CLAMP (0, 255.0f * alpha, 255);
-
 	RgVertex vertices[4] = {0};
 
 	for (int alphalayer = 0; alphalayer <= 1; alphalayer++)
@@ -935,7 +933,7 @@ void Sky_DrawFaceQuad (cb_context_t *cbx, glpoly_t *p, float alpha)
 
 			Sky_GetTexCoord (v, alphalayer ? 16 : 8, &vertices[i].texCoord[0], &vertices[i].texCoord[1]);
 
-			vertices[i].packedColor = RT_PackColorToUint32 (255, 255, 255, alpha8);
+			vertices[i].packedColor = RT_PackColorToUint32 (255, 255, 255, 255);
 		}
 
 		gltexture_t *texture = alphalayer ? alphaskytexture : solidskytexture;
@@ -947,7 +945,7 @@ void Sky_DrawFaceQuad (cb_context_t *cbx, glpoly_t *p, float alpha)
 			.indexCount = RT_GetFanIndexCount(countof(vertices)),
 			.pIndices = RT_GetFanIndices (countof (vertices)),
 			.transform = RT_TRANSFORM_IDENTITY,
-			.color = RT_COLOR_WHITE,
+			.color = {1.0f, 1.0f, 1.0f, alpha},
 			.material = texture ? texture->rtmaterial : RG_NO_MATERIAL,
 			.pipelineState = alphalayer ? RG_RASTERIZED_GEOMETRY_STATE_BLEND_ENABLE : 0,
 			.blendFuncSrc = alphalayer ? RG_BLEND_FACTOR_SRC_ALPHA : 0,

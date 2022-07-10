@@ -429,9 +429,10 @@ static inline uint32_t RT_PackColorToUint32_FromFloat01(float r, float g, float 
 #define RT_TRANSFORM_IDENTITY { 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0 }
 #define RT_COLOR_WHITE { 1, 1, 1, 1 }
 
-#define QUAKEUNIT_IN_METERS      0.025f
-#define QUAKEUNIT_TO_METRIC(x)   ((x) * QUAKEUNIT_IN_METERS)
-#define METRIC_TO_GOLDSRCUNIT(x) ((x) / QUAKEUNIT_IN_METERS)
+#define QUAKEUNIT_IN_METERS    0.025f
+#define QUAKEUNIT_TO_METRIC(x) ((x)*QUAKEUNIT_IN_METERS)
+#define METRIC_TO_QUAKEUNIT(x) ((x) / QUAKEUNIT_IN_METERS)
+
 // because of units are not in meters
 #define RT_QUAKE_LIGHT_AREA_INTENSITY_FIX (1.0f / (QUAKEUNIT_IN_METERS * QUAKEUNIT_IN_METERS))
 

@@ -842,11 +842,12 @@ static void GL_EndRenderingTask (end_rendering_parms_t *parms)
 		.reflectRefractToIndirect = CVAR_TO_BOOL (rt_reflrefr_toindir),
 		.indexOfRefractionGlass = CVAR_TO_FLOAT (rt_refr_glass),
 		.indexOfRefractionWater = CVAR_TO_FLOAT (rt_refr_water),
-		.waterWaveSpeed = CVAR_TO_FLOAT (rt_water_speed),
+		.waterWaveSpeed = METRIC_TO_QUAKEUNIT (CVAR_TO_FLOAT (rt_water_speed)),
 		.waterWaveNormalStrength = CVAR_TO_FLOAT (rt_water_normstren),
 		.waterExtinction = {CVAR_TO_FLOAT (rt_water_colr), CVAR_TO_FLOAT (rt_water_colg), CVAR_TO_FLOAT (rt_water_colb)},
 		.waterWaveTextureDerivativesMultiplier = CVAR_TO_FLOAT (rt_water_normsharp),
-		.waterTextureAreaScale = CVAR_TO_FLOAT (rt_water_scale),};
+		.waterTextureAreaScale = METRIC_TO_QUAKEUNIT (CVAR_TO_FLOAT (rt_water_scale)),
+	};
 	VectorScale (refl_refr_params.waterExtinction.data, CVAR_TO_FLOAT (rt_water_density), refl_refr_params.waterExtinction.data);
 	
 	RgDrawFrameSkyParams sky_params = {
@@ -854,7 +855,7 @@ static void GL_EndRenderingTask (end_rendering_parms_t *parms)
 		.skyColorDefault = {skyflatcolor[0], skyflatcolor[1], skyflatcolor[2]},
 		.skyColorMultiplier = CVAR_TO_FLOAT (rt_sky_intensity),
 		.skyColorSaturation = CVAR_TO_FLOAT (rt_sky_saturation),
-		.skyViewerPosition = {0},
+		.skyViewerPosition = {r_origin[0], r_origin[1], r_origin[2]},
 	};
 
 	RgDrawFrameTexturesParams texture_params = {
