@@ -27,7 +27,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "gl_heap.h"
 
 extern cvar_t gl_fullbrights, r_drawflat, r_gpulightmapupdate; // johnfitz
-extern cvar_t rt_brush_metal, rt_brush_rough;
+extern cvar_t rt_brush_metal, rt_brush_rough, rt_enable_pvs;
 
 int gl_lightmap_format;
 
@@ -209,22 +209,28 @@ void R_DrawBrushModel (cb_context_t *cbx, entity_t *e, int chain, int entuniquei
 	qmodel_t   *clmodel;
 	vec3_t      modelorg;
 
-	if (R_CullModelForEntity (e))
-		return;
+	if (CVAR_TO_BOOL (rt_enable_pvs))
+	{
+		if (R_CullModelForEntity (e))
+			return;
+	}
 
 	clmodel = e->model;
 
-	VectorSubtract (r_refdef.vieworg, e->origin, modelorg);
-	if (e->angles[0] || e->angles[1] || e->angles[2])
+	if (CVAR_TO_BOOL (rt_enable_pvs))
 	{
-		vec3_t temp;
-		vec3_t forward, right, up;
+		VectorSubtract (r_refdef.vieworg, e->origin, modelorg);
+		if (e->angles[0] || e->angles[1] || e->angles[2])
+		{
+			vec3_t temp;
+			vec3_t forward, right, up;
 
-		VectorCopy (modelorg, temp);
-		AngleVectors (e->angles, forward, right, up);
-		modelorg[0] = DotProduct (temp, forward);
-		modelorg[1] = -DotProduct (temp, right);
-		modelorg[2] = DotProduct (temp, up);
+			VectorCopy (modelorg, temp);
+			AngleVectors (e->angles, forward, right, up);
+			modelorg[0] = DotProduct (temp, forward);
+			modelorg[1] = -DotProduct (temp, right);
+			modelorg[2] = DotProduct (temp, up);
+		}
 	}
 
 	psurf = &clmodel->surfaces[clmodel->firstmodelsurface];
@@ -245,18 +251,21 @@ void R_DrawBrushModel (cb_context_t *cbx, entity_t *e, int chain, int entuniquei
 	R_ClearTextureChains (clmodel, chain);
 	for (i = 0; i < clmodel->nummodelsurfaces; i++, psurf++)
 	{
-		pplane = psurf->plane;
-		dot = DotProduct (modelorg, pplane->normal) - pplane->dist;
-		if (((psurf->flags & SURF_PLANEBACK) && (dot < -BACKFACE_EPSILON)) || (!(psurf->flags & SURF_PLANEBACK) && (dot > BACKFACE_EPSILON)))
+		if (CVAR_TO_BOOL (rt_enable_pvs))
 		{
-			R_ChainSurface (psurf, chain);
-			if (!r_gpulightmapupdate.value)
-				R_RenderDynamicLightmaps (psurf);
-			else if (psurf->lightmaptexturenum >= 0)
-				Atomic_StoreUInt32(&lightmaps[psurf->lightmaptexturenum].modified, true);
-			Atomic_IncrementUInt32 (&rs_brushpolys);
+			pplane = psurf->plane;
+			dot = DotProduct (modelorg, pplane->normal) - pplane->dist;
+			if ((!(psurf->flags & SURF_PLANEBACK) || dot >= -BACKFACE_EPSILON) && (psurf->flags & SURF_PLANEBACK || dot <= BACKFACE_EPSILON))
+				continue;
 		}
-	}
+
+        R_ChainSurface (psurf, chain);
+        if (!r_gpulightmapupdate.value)
+            R_RenderDynamicLightmaps (psurf);
+        else if (psurf->lightmaptexturenum >= 0)
+            Atomic_StoreUInt32(&lightmaps[psurf->lightmaptexturenum].modified, true);
+        Atomic_IncrementUInt32 (&rs_brushpolys);
+    }
 
 	R_DrawTextureChains (cbx, clmodel, e, chain, entuniqueid);
 	R_DrawTextureChains_Water (cbx, clmodel, e, chain, entuniqueid);

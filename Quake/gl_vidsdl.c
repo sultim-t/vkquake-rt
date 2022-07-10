@@ -96,11 +96,11 @@ cvar_t                          r_usesops = {"r_usesops", "1", CVAR_ARCHIVE};   
 task_handle_t prev_end_rendering_task = INVALID_TASK_HANDLE;
 
 // RT
+cvar_t rt_enable_pvs = {"rt_enable_pvs", "0", CVAR_ARCHIVE};
 static cvar_t rt_shadowrays = {"rt_shadowrays", "2", CVAR_ARCHIVE};
 
 cvar_t rt_dlight_intensity = {"rt_dlight_intensity", "1.0", CVAR_ARCHIVE};
 cvar_t rt_dlight_radius = {"rt_dlight_radius", "0.1", CVAR_ARCHIVE};
-
 cvar_t rt_flashlight = {"rt_flashlight", "0", CVAR_ARCHIVE};
 
 static cvar_t rt_sky_intensity = {"rt_sky_intensity", "0.05", CVAR_ARCHIVE};
@@ -579,6 +579,19 @@ static void GL_InitInstance (void)
 
 
 	Cmd_AddCommand ("rt_pfnreloadshaders", &RT_ReloadShaders);
+
+
+    vulkan_globals.primary_cb_context.batch_indices = Mem_Alloc (sizeof (uint32_t) * MAX_BATCH_INDICES);
+	vulkan_globals.primary_cb_context.batch_verts = Mem_Alloc (sizeof (RgVertex) * MAX_BATCH_VERTS);
+	vulkan_globals.primary_cb_context.batch_verts_count = 0;
+	vulkan_globals.primary_cb_context.batch_indices_count = 0;
+	for (int i = 0; i < CBX_NUM; i++)
+	{
+		vulkan_globals.secondary_cb_contexts[i].batch_indices = Mem_Alloc (sizeof (uint32_t) * MAX_BATCH_INDICES);
+		vulkan_globals.secondary_cb_contexts[i].batch_verts = Mem_Alloc (sizeof (RgVertex) * MAX_BATCH_VERTS);
+		vulkan_globals.secondary_cb_contexts[i].batch_verts_count = 0;
+		vulkan_globals.secondary_cb_contexts[i].batch_indices_count = 0;
+	}
 }
 
 /*
@@ -965,6 +978,14 @@ void VID_Shutdown (void)
 		{
 		    RgResult r = rgDestroyInstance (vulkan_globals.instance);
 			RG_CHECK (r);
+
+			Mem_Free (vulkan_globals.primary_cb_context.batch_indices);
+			Mem_Free (vulkan_globals.primary_cb_context.batch_verts);
+			for (int i = 0; i < CBX_NUM; i++)
+			{
+				Mem_Free (vulkan_globals.secondary_cb_contexts[i].batch_indices);
+				Mem_Free (vulkan_globals.secondary_cb_contexts[i].batch_verts);
+			}
 		}
 
 		SDL_QuitSubSystem (SDL_INIT_VIDEO);
@@ -1104,11 +1125,11 @@ void VID_Init (void)
 
 	// RT
 	{
+		Cvar_RegisterVariable (&rt_enable_pvs);
 		Cvar_RegisterVariable (&rt_shadowrays);
 
 		Cvar_RegisterVariable (&rt_dlight_intensity);
 		Cvar_RegisterVariable (&rt_dlight_radius);
-
 		Cvar_RegisterVariable (&rt_flashlight);
 
 		Cvar_RegisterVariable (&rt_sky_intensity);

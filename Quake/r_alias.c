@@ -28,8 +28,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 extern cvar_t r_drawflat, gl_fullbrights, r_lerpmodels, r_lerpmove, r_showtris; // johnfitz
 extern cvar_t scr_fov, cl_gun_fovscale;
 
-extern cvar_t rt_model_rough;
-extern cvar_t rt_model_metal;
+extern cvar_t rt_model_rough, rt_model_metal, rt_enable_pvs;
 
 // up to 16 color translated skins
 gltexture_t *playertextures[MAX_SCOREBOARD]; // johnfitz -- changed to an array of pointers
@@ -428,8 +427,11 @@ void R_DrawAliasModel (cb_context_t *cbx, entity_t *e, int entuniqueid)
 	//
 	// cull it
 	//
-	if (R_CullModelForEntity (e))
-		return;
+	if (CVAR_TO_BOOL (rt_enable_pvs))
+	{
+		if (R_CullModelForEntity (e))
+			return;
+	}
 
 	//
 	// set up for alpha blending

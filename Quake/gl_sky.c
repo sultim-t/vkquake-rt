@@ -71,6 +71,8 @@ typedef struct
 	byte  color[4];
 } skylayervertex_t;
 
+extern cvar_t rt_enable_pvs;
+
 //==============================================================================
 //
 //  INIT
@@ -711,8 +713,11 @@ void Sky_ProcessEntities (cb_context_t *cbx, float color[3])
 		if (e->model->type != mod_brush)
 			continue;
 
-		if (R_CullModelForEntity (e))
-			continue;
+		if (CVAR_TO_BOOL (rt_enable_pvs))
+		{
+		    if (R_CullModelForEntity (e))
+			    continue;
+		}
 
 		if (e->alpha == ENTALPHA_ZERO)
 			continue;
@@ -1047,9 +1052,9 @@ void Sky_DrawSky (cb_context_t *cbx)
 	R_BeginDebugUtilsLabel (cbx, "Sky");
 
 #if 0
-	const qboolean slow_sky = CVAR_TO_BOOL (r_fastsky) && !(Fog_GetDensity () > 0 && skyfog >= 1);
+	const qboolean slow_sky = !CVAR_TO_BOOL (r_fastsky) && !(Fog_GetDensity () > 0 && skyfog >= 1);
 #else
-	const qboolean slow_sky = CVAR_TO_BOOL (r_fastsky);
+	const qboolean slow_sky = !CVAR_TO_BOOL (r_fastsky);
 #endif
 	//
 	// reset sky bounds

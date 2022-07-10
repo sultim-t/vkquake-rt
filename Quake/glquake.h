@@ -129,9 +129,10 @@ extern int r_trace_line_cache_counter;
 #define InvalidateTraceLineCache()
 #endif
 
-#define MAX_BATCH_SIZE   65536
-#define NUM_WORLD_CBX    6
-#define NUM_ENTITIES_CBX 6
+#define MAX_BATCH_INDICES 65536
+#define MAX_BATCH_VERTS   8196
+#define NUM_WORLD_CBX     6
+#define NUM_ENTITIES_CBX  6
 
 typedef enum
 {
@@ -163,13 +164,11 @@ typedef struct cb_context_s
 	float      cur_viewprojection[16];
 	RgViewport cur_viewport;
 
-	uint32_t vbo_indices[MAX_BATCH_SIZE];
+	RgVertex *batch_verts;
+	uint32_t *batch_indices;
+	int       batch_verts_count;
+	int       batch_indices_count;
 } cb_context_t;
-
-typedef struct vulkan_pipeline_s
-{
-	int i;
-} vulkan_pipeline_t;
 
 typedef struct
 {
@@ -177,13 +176,13 @@ typedef struct
 	RgInstance instance;
 
 	// Vulkan
-	qboolean                         validation;
-	qboolean                         debug_utils;
-	cb_context_t                     primary_cb_context;
-	cb_context_t                     secondary_cb_contexts[CBX_NUM];
-	qboolean                         supersampling;
-	qboolean                         non_solid_fill;
-	qboolean                         screen_effects_sops;
+	qboolean     validation;
+	qboolean     debug_utils;
+	cb_context_t primary_cb_context;
+	cb_context_t secondary_cb_contexts[CBX_NUM];
+	qboolean     supersampling;
+	qboolean     non_solid_fill;
+	qboolean     screen_effects_sops;
 
 	// Matrices
 	float projection_matrix[16];

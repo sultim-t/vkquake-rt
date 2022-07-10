@@ -36,6 +36,7 @@ extern cvar_t r_gpulightmapupdate;
 
 extern cvar_t rt_brush_metal;
 extern cvar_t rt_brush_rough;
+extern cvar_t rt_enable_pvs;
 
 cvar_t r_parallelmark = {"r_parallelmark", "1", CVAR_NONE};
 
@@ -45,6 +46,10 @@ static int world_texstart[NUM_WORLD_CBX];
 static int world_texend[NUM_WORLD_CBX];
 
 extern RgVertex *rtallbrushvertices;
+
+// RT: remove SIMD here, as the culling is not requires
+#undef USE_SIMD
+#undef USE_SSE2
 
 /*
 ===============
@@ -479,39 +484,47 @@ void R_MarkVisSurfaces (qboolean *use_tasks)
 	leaf = &cl.worldmodel->leafs[1];
 	for (i = 0; i < cl.worldmodel->numleafs; i++, leaf++)
 	{
-		if (vis[i / 32] & (1u << (i % 32)))
-		{
-			if (R_CullBox (leaf->minmaxs, leaf->minmaxs + 3))
-				continue;
+        if (CVAR_TO_BOOL (rt_enable_pvs))
+        {
+		    if (!(vis[i / 32] & 1u << i % 32))
+                continue;
 
-			if (r_oldskyleaf.value || leaf->contents != CONTENTS_SKY)
-			{
-				for (j = 0; j < leaf->nummarksurfaces; j++)
-				{
-					surf = &cl.worldmodel->surfaces[leaf->firstmarksurface[j]];
-					if (surf->visframe != r_visframecount)
-					{
-						surf->visframe = r_visframecount;
-						if (!R_BackFaceCull (surf))
-						{
-							++brushpolys;
-							R_ChainSurface (surf, chain_world);
-							if (!r_gpulightmapupdate.value)
-								R_RenderDynamicLightmaps (surf);
-							else if (surf->lightmaptexturenum >= 0)
-								Atomic_StoreUInt32 (&lightmaps[surf->lightmaptexturenum].modified, true);
-							if (surf->texinfo->texture->warpimage)
-								Atomic_StoreUInt32 (&surf->texinfo->texture->update_warp, true);
-						}
-					}
-				}
-			}
+            if (R_CullBox (leaf->minmaxs, leaf->minmaxs + 3))
+                continue;
+        }
 
-			// add static models
-			if (leaf->efrags)
-				R_StoreEfrags (&leaf->efrags);
-		}
-	}
+        if (r_oldskyleaf.value || leaf->contents != CONTENTS_SKY)
+        {
+            for (j = 0; j < leaf->nummarksurfaces; j++)
+            {
+                surf = &cl.worldmodel->surfaces[leaf->firstmarksurface[j]];
+
+                if (surf->visframe == r_visframecount)
+                    continue;
+
+                surf->visframe = r_visframecount;
+
+                if (CVAR_TO_BOOL (rt_enable_pvs))
+                {		    
+                    if (R_BackFaceCull (surf))
+                        continue;
+                }
+
+                ++brushpolys;
+                R_ChainSurface (surf, chain_world);
+                if (!r_gpulightmapupdate.value)
+                    R_RenderDynamicLightmaps (surf);
+                else if (surf->lightmaptexturenum >= 0)
+                    Atomic_StoreUInt32 (&lightmaps[surf->lightmaptexturenum].modified, true);
+                if (surf->texinfo->texture->warpimage)
+                    Atomic_StoreUInt32 (&surf->texinfo->texture->update_warp, true);
+            }
+        }
+
+        // add static models
+        if (leaf->efrags)
+            R_StoreEfrags (&leaf->efrags);
+    }
 
 	Atomic_AddUInt32 (&rs_brushpolys, brushpolys); // count wpolys here
 	R_SetupWorldCBXTexRanges (*use_tasks);
@@ -683,8 +696,10 @@ static void R_TriangleIndicesForSurf (int basevert, int vertcount, uint32_t *des
 R_ClearBatch
 ================
 */
-static void R_ClearBatch (cb_context_t *cbx)
+static void RT_ClearBatch (cb_context_t *cbx)
 {
+	cbx->batch_verts_count = 0;
+	cbx->batch_indices_count = 0;
 }
 
 RgTransform RT_GetBrushModelMatrix (entity_t *e)
@@ -706,27 +721,32 @@ RgTransform RT_GetBrushModelMatrix (entity_t *e)
 	return RT_GetModelTransform (model_matrix);
 }
 
-static void RT_UploadSurface (
-	cb_context_t *cbx,
-	int entuniqueid, entity_t *ent, qmodel_t *model, msurface_t *surf, 
-	gltexture_t *diffuse_tex, gltexture_t *lightmap_tex, gltexture_t *fullbright_tex, 
-	qboolean alpha_test, float alpha ,qboolean use_zbias, qboolean is_water,
-	uint32_t *brushpasses)
+typedef struct rt_uploadsurf_state_t
 {
-	alpha = CLAMP (0.0f, alpha, 1.0f);
+	int          entuniqueid;
+	entity_t    *ent;
+	qmodel_t    *model;
+	msurface_t  *surf;
+	gltexture_t *diffuse_tex;
+	gltexture_t *lightmap_tex;
+	gltexture_t *fullbright_tex;
+	qboolean     alpha_test;
+	float        alpha;
+	qboolean     use_zbias;
+	qboolean     is_water;
+} rt_uploadsurf_state_t;
 
-	int num_surf_verts = surf->numedges;
-	int num_surf_indices = R_NumTriangleIndicesForSurf (num_surf_verts);
-
-	if (num_surf_verts == 0 || num_surf_indices == 0)
+static void RT_FlushBatch (cb_context_t *cbx, const rt_uploadsurf_state_t *s, uint32_t *brushpasses)
+{
+	if (cbx->batch_verts_count == 0 || cbx->batch_indices_count == 0)
 	{
 		return;
 	}
 
-    const RgVertex *vertices = rtallbrushvertices + surf->vbo_firstvert;
-
-	R_TriangleIndicesForSurf (0, num_surf_verts, &cbx->vbo_indices[0]);
-	const uint32_t *indices = cbx->vbo_indices;
+    const RgVertex *vertices = cbx->batch_verts;
+	const uint32_t *indices = cbx->batch_indices;
+	const int       num_surf_verts = cbx->batch_verts_count;
+	const int       num_surf_indices = cbx->batch_indices_count;
 
 #if 0
 	float constant_factor = 0.0f, slope_factor = 0.0f;
@@ -746,18 +766,13 @@ static void RT_UploadSurface (
 	vkCmdSetDepthBias (cbx->cb, constant_factor, 0.0f, slope_factor);
 #endif
 
-	if (r_lightmap_cheatsafe)
-	{
-		diffuse_tex = NULL;   
-	}
+	gltexture_t *diffuse_tex = r_lightmap_cheatsafe ? NULL : s->diffuse_tex;
+	gltexture_t *lightmap_tex = r_fullbright_cheatsafe ? NULL : s->lightmap_tex;
 
-	if (r_fullbright_cheatsafe)
-	{
-		lightmap_tex = NULL;
-	}
+	float alpha = CLAMP (0.0f, s->alpha, 1.0f);
 
-	qboolean is_static_geom = (model == cl.worldmodel) && !is_water;
-	qboolean rasterize = (alpha < 1.0f) && !is_water;
+	qboolean is_static_geom = (s->model == cl.worldmodel) && !s->is_water;
+	qboolean rasterize = (alpha < 1.0f) && !s->is_water;
 
 	if (rasterize)
 	{
@@ -770,7 +785,7 @@ static void RT_UploadSurface (
 			.pVertices = vertices,
 			.indexCount = num_surf_indices,
 			.pIndices = indices,
-			.transform = RT_GetBrushModelMatrix (ent),
+			.transform = RT_GetBrushModelMatrix (s->ent),
 			.color = RT_COLOR_WHITE,
 			.material = diffuse_tex ? diffuse_tex->rtmaterial : greytexture->rtmaterial,
 			.pipelineState = RG_RASTERIZED_GEOMETRY_STATE_DEPTH_TEST,
@@ -778,7 +793,7 @@ static void RT_UploadSurface (
 			.blendFuncDst = 0,
 		};
 
-		if (alpha_test)
+		if (s->alpha_test)
 		{
 			info.pipelineState |= RG_RASTERIZED_GEOMETRY_STATE_ALPHA_TEST;
 		}
@@ -801,10 +816,10 @@ static void RT_UploadSurface (
 	else
 	{
 		RgGeometryUploadInfo info = {
-			.uniqueID = RT_GetBrushSurfUniqueId (entuniqueid, model, surf),
+			.uniqueID = RT_GetBrushSurfUniqueId (s->entuniqueid, s->model, s->surf),
 			.flags = RG_GEOMETRY_UPLOAD_GENERATE_NORMALS_BIT,
 			.geomType = is_static_geom ? RG_GEOMETRY_TYPE_STATIC : RG_GEOMETRY_TYPE_DYNAMIC,
-			.passThroughType = is_water ? RG_GEOMETRY_PASS_THROUGH_TYPE_WATER_REFLECT_REFRACT : RG_GEOMETRY_PASS_THROUGH_TYPE_OPAQUE,
+			.passThroughType = s->is_water ? RG_GEOMETRY_PASS_THROUGH_TYPE_WATER_REFLECT_REFRACT : RG_GEOMETRY_PASS_THROUGH_TYPE_OPAQUE,
 			.visibilityType = RG_GEOMETRY_VISIBILITY_TYPE_WORLD_0,
 			.vertexCount = num_surf_verts,
 			.pVertices = vertices,
@@ -821,20 +836,38 @@ static void RT_UploadSurface (
 				{
 					diffuse_tex ? diffuse_tex->rtmaterial : greytexture->rtmaterial,
 					lightmap_tex ? lightmap_tex->rtmaterial : greytexture->rtmaterial,
-					fullbright_tex ? fullbright_tex->rtmaterial : RG_NO_MATERIAL,
+					s->fullbright_tex ? s->fullbright_tex->rtmaterial : RG_NO_MATERIAL,
 				},
 			.defaultRoughness = CVAR_TO_FLOAT (rt_brush_rough),
 			.defaultMetallicity = CVAR_TO_FLOAT (rt_brush_metal),
 			.defaultEmission = 0,
-			.transform = RT_GetBrushModelMatrix (ent),
+			.transform = RT_GetBrushModelMatrix (s->ent),
 		};
 
 		RgResult r = rgUploadGeometry (vulkan_globals.instance, &info);
 		RG_CHECK (r);
 	}
 
-	R_ClearBatch (cbx);
+	RT_ClearBatch (cbx);
 	++(*brushpasses);
+}
+
+static void RT_BatchSurface (cb_context_t *cbx, const rt_uploadsurf_state_t *s, uint32_t *brushpasses)
+{
+	int num_surf_verts = s->surf->numedges;
+	int num_surf_indices = R_NumTriangleIndicesForSurf (num_surf_verts);
+
+	if (cbx->batch_indices_count + num_surf_indices > MAX_BATCH_INDICES ||
+		cbx->batch_verts_count + num_surf_verts > MAX_BATCH_VERTS)
+	{
+		RT_FlushBatch (cbx, s, brushpasses);
+	}
+
+	R_TriangleIndicesForSurf (cbx->batch_verts_count, num_surf_verts, &cbx->batch_indices[cbx->batch_indices_count]);
+	memcpy (&cbx->batch_verts[cbx->batch_verts_count], rtallbrushvertices + s->surf->vbo_firstvert, sizeof (RgVertex) * num_surf_verts);
+
+	cbx->batch_indices_count += num_surf_indices;
+	cbx->batch_verts_count += num_surf_verts;
 }
 
 /*
@@ -893,9 +926,10 @@ R_DrawTextureChains_Water -- johnfitz
 */
 void R_DrawTextureChains_Water (cb_context_t *cbx, qmodel_t *model, entity_t *ent, texchain_t chain, int entuniqueid)
 {
-	int         i;
-	msurface_t *s;
-	texture_t  *t;
+	int                   i;
+	msurface_t           *s;
+	texture_t            *t;
+	rt_uploadsurf_state_t last_state = {0};
 
 	uint32_t brushpasses = 0;
 	for (i = 0; i < model->numtextures; ++i)
@@ -904,9 +938,8 @@ void R_DrawTextureChains_Water (cb_context_t *cbx, qmodel_t *model, entity_t *en
 
 		if (!t || !t->texturechains[chain] || !(t->texturechains[chain]->flags & SURF_DRAWTURB))
 			continue;
-
-		gltexture_t *lightmap_tex = NULL;
-		R_ClearBatch (cbx);
+		
+		RT_ClearBatch (cbx);
 
 		for (s = t->texturechains[chain]; s; s = s->texturechains[chain])
 		{
@@ -917,11 +950,32 @@ void R_DrawTextureChains_Water (cb_context_t *cbx, qmodel_t *model, entity_t *en
 				// set this flag
 				Atomic_StoreUInt32 (&t->update_warp, true); // FIXME: one frame too late!
 			}
-			
-		    float alpha = GL_WaterAlphaForEntitySurface (ent, s);
-			
-			RT_UploadSurface (cbx, entuniqueid, ent, model, s, t->warpimage, lightmap_tex, NULL, false, alpha, false, true, &brushpasses);
+
+			rt_uploadsurf_state_t cur_state = {
+				.entuniqueid = entuniqueid,
+				.ent = ent,
+				.model = model,
+				.surf = s,
+				.diffuse_tex = t->warpimage,
+				.lightmap_tex = (s->lightmaptexturenum >= 0) ? lightmaps[s->lightmaptexturenum].texture : greytexture,
+				.fullbright_tex = NULL,
+				.alpha_test = false,
+				.alpha = GL_WaterAlphaForEntitySurface (ent, s),
+				.use_zbias = false,
+				.is_water = true,
+			};
+
+			if (cur_state.lightmap_tex != last_state.lightmap_tex ||
+				fabsf(cur_state.alpha - last_state.alpha) < 0.001f)
+			{
+				RT_FlushBatch (cbx, &last_state, &brushpasses);
+			}
+
+			RT_BatchSurface (cbx, &cur_state, &brushpasses);
+			last_state = cur_state;
 		}
+
+		RT_FlushBatch (cbx, &last_state, &brushpasses);
 	}
 
 	Atomic_AddUInt32 (&rs_brushpasses, brushpasses);
@@ -935,12 +989,13 @@ R_DrawTextureChains_Multitexture
 void R_DrawTextureChains_Multitexture (
 	cb_context_t *cbx, qmodel_t *model, entity_t *ent, texchain_t chain, const float alpha, int texstart, int texend, int entuniqueid)
 {
-	int          i;
-	msurface_t  *s;
-	texture_t   *t;
-    qboolean     use_zbias = (gl_zfix.value && model != cl.worldmodel);
-	int          ent_frame = ent != NULL ? ent->frame : 0;
-	gltexture_t *fullbright_tex = NULL;
+	int                   i;
+	msurface_t           *s;
+	texture_t            *t;
+	qboolean              use_zbias = (gl_zfix.value && model != cl.worldmodel);
+	int                   ent_frame = ent != NULL ? ent->frame : 0;
+	gltexture_t          *fullbright_tex = NULL;
+	rt_uploadsurf_state_t last_state = {0};
 	
 	uint32_t brushpasses = 0;
 	for (i = texstart; i < texend; ++i)
@@ -959,17 +1014,37 @@ void R_DrawTextureChains_Multitexture (
 			fullbright_tex = NULL;
 		}
 
-		gltexture_t *lightmap_tex = NULL;
-		R_ClearBatch (cbx);
+		RT_ClearBatch (cbx);
 
 		qboolean alpha_test = (t->texturechains[chain]->flags & SURF_DRAWFENCE) != 0;
-
 		gltexture_t *diffuse_tex = R_TextureAnimation (t, ent_frame)->gltexture;
 
 		for (s = t->texturechains[chain]; s; s = s->texturechains[chain])
 		{
-			RT_UploadSurface (cbx, entuniqueid, ent, model, s, diffuse_tex, lightmap_tex, fullbright_tex, alpha_test, alpha, use_zbias, false, &brushpasses);
+			rt_uploadsurf_state_t cur_state = {
+				.entuniqueid = entuniqueid,
+				.ent = ent,
+				.model = model,
+				.surf = s,
+				.diffuse_tex = diffuse_tex,
+				.lightmap_tex = (s->lightmaptexturenum >= 0) ? lightmaps[s->lightmaptexturenum].texture : greytexture,
+				.fullbright_tex = fullbright_tex,
+				.alpha_test = alpha_test,
+				.alpha = alpha,
+				.use_zbias = use_zbias,
+				.is_water = false,
+			};
+
+			if (cur_state.lightmap_tex != last_state.lightmap_tex)
+			{
+				RT_FlushBatch (cbx, &last_state, &brushpasses);
+			}
+
+			RT_BatchSurface (cbx, &cur_state, &brushpasses);
+			last_state = cur_state;
 		}
+
+		RT_FlushBatch (cbx, &last_state, &brushpasses);
 	}
 
 	Atomic_AddUInt32 (&rs_brushpasses, brushpasses);
