@@ -183,7 +183,7 @@ static void R_CreateSpriteVertices (entity_t *e, mspriteframe_t *frame, RgVertex
 R_DrawSpriteModel -- johnfitz -- rewritten: now supports all orientations
 =================
 */
-void R_DrawSpriteModel (cb_context_t *cbx, entity_t *e, int entityid)
+void R_DrawSpriteModel (cb_context_t *cbx, entity_t *e, int entuniqueid)
 {
 	msprite_t      *psprite = (msprite_t *)e->model->extradata;
 	mspriteframe_t *frame = R_GetSpriteFrame (e);
@@ -220,7 +220,7 @@ void R_DrawSpriteModel (cb_context_t *cbx, entity_t *e, int entityid)
 	else
 	{
 		RgGeometryUploadInfo info = {
-			.uniqueID = entityid,
+			.uniqueID = RT_GetSpriteModelUniqueId (entuniqueid),
 			.flags = 0,
 			.geomType = RG_GEOMETRY_TYPE_DYNAMIC,
 			.passThroughType = RG_GEOMETRY_PASS_THROUGH_TYPE_ALPHA_TESTED,

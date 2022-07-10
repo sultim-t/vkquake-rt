@@ -467,8 +467,6 @@ Original code by MH from RMQEngine
 */
 static void GLMesh_LoadVertexBuffer (qmodel_t *m, const aliashdr_t *hdr)
 {
-	int                copy_offset;
-
     GLMesh_DeleteVertexBuffer (m);
 
 	// ericw -- RMQEngine stored these vbo*ofs values in aliashdr_t, but we must not

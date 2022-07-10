@@ -103,7 +103,7 @@ float map_fallbackalpha;
 
 qboolean r_drawworld_cheatsafe, r_fullbright_cheatsafe, r_lightmap_cheatsafe; // johnfitz
 
-cvar_t r_gpulightmapupdate = {"r_gpulightmapupdate", "1", CVAR_NONE};
+cvar_t r_gpulightmapupdate = {"r_gpulightmapupdate", "0", CVAR_NONE};
 
 cvar_t r_tasks = {"r_tasks", "0", CVAR_NONE};
 
@@ -448,7 +448,7 @@ void R_DrawEntitiesOnList (cb_context_t *cbx, qboolean alphapass, int chain, int
 			R_DrawAliasModel (cbx, currententity, i);
 			break;
 		case mod_brush:
-			R_DrawBrushModel (cbx, currententity, chain);
+			R_DrawBrushModel (cbx, currententity, chain, i);
 			break;
 		case mod_sprite:
 			R_DrawSpriteModel (cbx, currententity, i);
@@ -486,7 +486,7 @@ void R_DrawViewModel (cb_context_t *cbx)
 	GL_Viewport (
 		cbx, glx + r_refdef.vrect.x, gly + glheight - r_refdef.vrect.y - r_refdef.vrect.height, r_refdef.vrect.width, r_refdef.vrect.height, 0.7f, 1.0f);
 
-	R_DrawAliasModel (cbx, currententity, UINT16_MAX);
+	R_DrawAliasModel (cbx, currententity, ENT_UNIQUEID_VIEWMODEL);
 
 	GL_Viewport (
 		cbx, glx + r_refdef.vrect.x, gly + glheight - r_refdef.vrect.y - r_refdef.vrect.height, r_refdef.vrect.width, r_refdef.vrect.height, 0.0f, 1.0f);
@@ -694,7 +694,7 @@ void R_ShowTris (cb_context_t *cbx)
 R_DrawWorldTask
 ================
 */
-static void R_DrawWorldTask (int index, void *unused)
+void R_DrawWorldTask (int index, void *unused)
 {
 	const int     cbx_index = index + CBX_WORLD_0;
 	cb_context_t *cbx = &vulkan_globals.secondary_cb_contexts[cbx_index];
@@ -812,11 +812,12 @@ void R_RenderView (qboolean use_tasks, task_handle_t begin_rendering_task, task_
 		task_handle_t cull_surfaces = INVALID_TASK_HANDLE;
 		task_handle_t chain_surfaces = INVALID_TASK_HANDLE;
 		R_MarkSurfaces (use_tasks, before_mark, &store_efrags, &cull_surfaces, &chain_surfaces);
-		
-		task_handle_t draw_world_task = Task_AllocateAndAssignIndexedFunc (R_DrawWorldTask, NUM_WORLD_CBX, NULL, 0);
+
+		// RT: no need here, as it's done on R_NewMap
+		/*task_handle_t draw_world_task = Task_AllocateAndAssignIndexedFunc (R_DrawWorldTask, NUM_WORLD_CBX, NULL, 0);
 		Task_AddDependency (chain_surfaces, draw_world_task);
 		Task_AddDependency (begin_rendering_task, draw_world_task);
-		Task_AddDependency (draw_world_task, draw_done_task);
+		Task_AddDependency (draw_world_task, draw_done_task);*/
 
 		task_handle_t draw_sky_and_water_task = Task_AllocateAndAssignFunc (R_DrawSkyAndWaterTask, NULL, 0);
 		Task_AddDependency (store_efrags, draw_sky_and_water_task);
@@ -849,7 +850,8 @@ void R_RenderView (qboolean use_tasks, task_handle_t begin_rendering_task, task_
 		Task_AddDependency (begin_rendering_task, update_lightmaps_task);
 		Task_AddDependency (update_lightmaps_task, draw_done_task);
 
-		task_handle_t tasks[] = {before_mark,          store_efrags,                                 draw_world_task,     draw_sky_and_water_task,
+		// RT: no need for draw_world_task, as it's done on R_NewMap
+		task_handle_t tasks[] = {before_mark,          store_efrags,                               /*draw_world_task, */  draw_sky_and_water_task,
 		                         draw_view_model_task, draw_entities_task, draw_alpha_entities_task, draw_particles_task, update_lightmaps_task};
 		Tasks_Submit ((sizeof (tasks) / sizeof (task_handle_t)), tasks);
 		if (store_efrags != cull_surfaces)
@@ -862,7 +864,8 @@ void R_RenderView (qboolean use_tasks, task_handle_t begin_rendering_task, task_
 	{
 		R_SetupViewBeforeMark (NULL);
 		R_MarkSurfaces (use_tasks, INVALID_TASK_HANDLE, NULL, NULL, NULL); // johnfitz -- create texture chains from PVS
-		R_DrawWorldTask (0, NULL);
+		// RT: no need here, as it's done on R_NewMap
+	    // R_DrawWorldTask (0, NULL);
 		R_DrawSkyAndWaterTask (NULL);
 		for (int i = 0; i < NUM_ENTITIES_CBX; ++i)
 			R_DrawEntitiesTask (i, NULL);

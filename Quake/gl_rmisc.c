@@ -33,7 +33,6 @@ extern cvar_t gl_fullbrights;
 extern cvar_t gl_farclip;
 extern cvar_t r_waterquality;
 extern cvar_t r_waterwarp;
-extern cvar_t r_waterwarpcompute;
 extern cvar_t r_oldskyleaf;
 extern cvar_t r_drawworld;
 extern cvar_t r_showtris;
@@ -207,7 +206,6 @@ void R_Init (void)
 	// johnfitz -- new cvars
 	Cvar_RegisterVariable (&r_waterquality);
 	Cvar_RegisterVariable (&r_waterwarp);
-	Cvar_RegisterVariable (&r_waterwarpcompute);
 	Cvar_RegisterVariable (&r_flatlightstyles);
 	Cvar_RegisterVariable (&r_lerplightstyles);
 	Cvar_RegisterVariable (&r_oldskyleaf);
@@ -372,6 +370,8 @@ static void R_ParseWorldspawn (void)
 	}
 }
 
+extern void R_DrawWorldTask (int index, void *unused);
+
 /*
 ===============
 R_NewMap
@@ -398,6 +398,9 @@ void R_NewMap (void)
 
 	GL_BuildLightmaps ();
 	GL_BuildBModelVertexBuffer ();
+	{
+		R_DrawWorldTask (0, NULL);
+	}
 	GL_PrepareSIMDData ();
 	// ericw -- no longer load alias models into a VBO here, it's done in Mod_LoadAliasModel
 
@@ -443,3 +446,57 @@ void R_TimeRefresh_f (void)
 	time = stop - start;
 	Con_Printf ("%f seconds (%f fps)\n", time, 128 / time);
 }
+
+
+
+uint64_t RT_GetBrushSurfUniqueId (int entuniqueid, const qmodel_t *model, const msurface_t *surf)
+{
+	size_t surfindex = surf - model->surfaces;
+
+	// look gl_model.c line 1327
+    if (surfindex > 32767)
+	{
+		Con_DWarning ("%i faces exceeds standard limit of 32767.\n", surfindex);
+	}
+
+	return
+        1ull << 60 |		// brush type
+		surfindex << 32 |	// surface
+	    entuniqueid;		// entity
+}
+
+uint64_t RT_GetAliasModelUniqueId(int entuniqueid)
+{
+	return
+        2ull << 60 |		// model type
+		entuniqueid;		// entity
+}
+
+uint64_t RT_GetSpriteModelUniqueId (int entuniqueid)
+{
+	return
+        3ull << 60 | // model type
+		entuniqueid; // entity
+}
+
+
+
+#define MODEL_MAT(i, j) (model_matrix[(i)*4 + (j)])
+
+RgTransform RT_GetModelTransform(const float model_matrix[16])
+{
+	// right side should be 0, and translation values on bottom
+	assert (
+		fabsf (MODEL_MAT (0, 3)) < 0.001f && 
+		fabsf (MODEL_MAT (1, 3)) < 0.001f && 
+		fabsf (MODEL_MAT (2, 3)) < 0.001f);
+
+	RgTransform t = {
+		MODEL_MAT (0, 0), MODEL_MAT (1, 0), MODEL_MAT (2, 0), MODEL_MAT (3, 0), MODEL_MAT (0, 1), MODEL_MAT (1, 1),
+		MODEL_MAT (2, 1), MODEL_MAT (3, 1), MODEL_MAT (0, 2), MODEL_MAT (1, 2), MODEL_MAT (2, 2), MODEL_MAT (3, 2),
+	};
+
+	return t;
+}
+
+#undef MODEL_MAT

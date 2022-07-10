@@ -603,14 +603,16 @@ void Sky_ClipPoly (int nump, vec3_t vecs, int stage)
 Sky_ProcessPoly
 ================
 */
-void Sky_ProcessPoly (cb_context_t *cbx, glpoly_t *p, float color[3])
+static void Sky_ProcessPoly (cb_context_t *cbx, glpoly_t *p, float color[3], uint64_t uniqueid)
 {
 	int    i;
 	vec3_t verts[MAX_CLIP_VERTS];
 	float *poly_vert;
 
+	const static RgTransform tr = RT_TRANSFORM_IDENTITY;
+
 	// draw it
-	DrawGLPoly (cbx, p, color, 1.0f, fanindices, upload RT poly as sky);
+	DrawGLPoly (cbx, uniqueid, p, color, 1.0f, &tr, NULL, DRAW_GL_POLY_TYPE_SKY);
 	Atomic_IncrementUInt32 (&rs_brushpasses);
 
 	// update sky bounds
@@ -647,7 +649,9 @@ void Sky_ProcessTextureChains (cb_context_t *cbx, float color[3])
 			continue;
 
 		for (s = t->texturechains[chain_world]; s; s = s->texturechains[chain_world])
-			Sky_ProcessPoly (cbx, s->polys, color);
+		{
+			Sky_ProcessPoly (cbx, s->polys, color, RT_GetBrushSurfUniqueId (ENT_UNIQUEID_WORLD, cl.worldmodel, s));
+		}
 	}
 }
 
@@ -656,7 +660,7 @@ void Sky_ProcessTextureChains (cb_context_t *cbx, float color[3])
 Sky_DrawSkySurface
 ================
 */
-static void Sky_DrawSkySurface (cb_context_t *cbx, float color[3], entity_t *e, msurface_t *s, qboolean rotated, vec3_t forward, vec3_t right, vec3_t up)
+static void Sky_DrawSkySurface (cb_context_t *cbx, float color[3], int entuniqueid, entity_t *e, qmodel_t *model, msurface_t *s, qboolean rotated, vec3_t forward, vec3_t right, vec3_t up)
 {
 	// copy the polygon and translate manually, since Sky_ProcessPoly needs it to be in world space
 	glpoly_t *p;
@@ -677,7 +681,8 @@ static void Sky_DrawSkySurface (cb_context_t *cbx, float color[3], entity_t *e, 
 			VectorAdd (s_poly_vert, e->origin, poly_vert);
 		}
 	}
-	Sky_ProcessPoly (cbx, p, color);
+
+	Sky_ProcessPoly (cbx, p, color, RT_GetBrushSurfUniqueId (entuniqueid, model, s));
 	TEMP_FREE (p);
 }
 
@@ -733,7 +738,9 @@ void Sky_ProcessEntities (cb_context_t *cbx, float color[3])
 			{
 				dot = DotProduct (modelorg, s->plane->normal) - s->plane->dist;
 				if (((s->flags & SURF_PLANEBACK) && (dot < -BACKFACE_EPSILON)) || (!(s->flags & SURF_PLANEBACK) && (dot > BACKFACE_EPSILON)))
-					Sky_DrawSkySurface (cbx, color, e, s, rotated, forward, right, up);
+				{
+					Sky_DrawSkySurface (cbx, color, i, e, e->model, s, rotated, forward, right, up);
+				}
 			}
 		}
 	}

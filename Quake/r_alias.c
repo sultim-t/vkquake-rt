@@ -71,21 +71,28 @@ static const RgVertex *GetModelVerticesForPose (const qmodel_t *m, const aliashd
 	return &m->rtvertices[(size_t)pose * hdr->numverts_vbo];
 }
 
-static RgTransform GetModelTransform (float model_matrix[16])
+static RgTransform RT_GetAliasModelTransform (const aliashdr_t *paliashdr, lerpdata_t *lerpdata, qboolean isfirstperson)
 {
-#define MODEL_MAT(i, j) (model_matrix[(i)*4 + (j)])
+	float model_matrix[16];
+	IdentityMatrix (model_matrix);
+	R_RotateForEntity (model_matrix, lerpdata->origin, lerpdata->angles);
 
-	// right side should be 0, and translation values on bottom
-	assert (fabsf (MODEL_MAT (0, 3)) < 0.001f && fabsf (MODEL_MAT (1, 3)) < 0.001f && fabsf (MODEL_MAT (2, 3)) < 0.001f);
+	float fovscale = 1.0f;
+	if (isfirstperson && scr_fov.value > 90.f && cl_gun_fovscale.value)
+	{
+		fovscale = tan (scr_fov.value * (0.5f * M_PI / 180.f));
+		fovscale = 1.f + (fovscale - 1.f) * cl_gun_fovscale.value;
+	}
 
-	RgTransform t = {
-		MODEL_MAT (0,0), MODEL_MAT (1,0), MODEL_MAT (2,0), MODEL_MAT (3, 0),
-		MODEL_MAT (0,1), MODEL_MAT (1,1), MODEL_MAT (2,1), MODEL_MAT (3, 1),
-		MODEL_MAT (0,2), MODEL_MAT (1,2), MODEL_MAT (2,2), MODEL_MAT (3, 2),
-	};
+	float translation_matrix[16];
+	TranslationMatrix (translation_matrix, paliashdr->scale_origin[0], paliashdr->scale_origin[1] * fovscale, paliashdr->scale_origin[2] * fovscale);
+	MatrixMultiply (model_matrix, translation_matrix);
 
-	return t;
-#undef MODEL_MAT
+	float scale_matrix[16];
+	ScaleMatrix (scale_matrix, paliashdr->scale[0], paliashdr->scale[1] * fovscale, paliashdr->scale[2] * fovscale);
+	MatrixMultiply (model_matrix, scale_matrix);
+
+	return RT_GetModelTransform (model_matrix);
 }
 
 /*
@@ -102,8 +109,8 @@ Based on code by MH from RMQEngine
 =============
 */
 static void GL_DrawAliasFrame (
-	cb_context_t *cbx, entity_t *e, aliashdr_t *paliashdr, lerpdata_t lerpdata, gltexture_t *tx, gltexture_t *fb, float model_matrix[16], float entity_alpha,
-	qboolean alphatest, vec3_t shadevector, vec3_t lightcolor, int entityid)
+	cb_context_t *cbx, entity_t *e, aliashdr_t *paliashdr, lerpdata_t lerpdata, gltexture_t *tx, gltexture_t *fb, float entity_alpha,
+	qboolean alphatest, vec3_t shadevector, vec3_t lightcolor, int entuniqueid)
 {
 
 	// poses the same means either 1. the entity has paused its animation, or 2. r_lerpmodels is disabled
@@ -121,7 +128,7 @@ static void GL_DrawAliasFrame (
 			.pVertices = GetModelVerticesForPose (e->model, paliashdr, lerpdata.pose1),
 			.indexCount = paliashdr->numindexes,
 			.pIndices = e->model->rtindices,
-			.transform = GetModelTransform (model_matrix),
+			.transform = RT_GetAliasModelTransform (paliashdr, &lerpdata, isfirstperson),
 			.color = RT_COLOR_WHITE,
 			.material = tx ? tx->rtmaterial : RG_NO_MATERIAL,
 			.pipelineState = RG_RASTERIZED_GEOMETRY_STATE_DEPTH_TEST | RG_RASTERIZED_GEOMETRY_STATE_DEPTH_WRITE,
@@ -140,7 +147,7 @@ static void GL_DrawAliasFrame (
 	else
 	{
 		RgGeometryUploadInfo info = {
-			.uniqueID = entityid,
+			.uniqueID = RT_GetAliasModelUniqueId (entuniqueid),
 			.flags = 0,
 			.geomType = RG_GEOMETRY_TYPE_DYNAMIC,
 			.passThroughType = RG_GEOMETRY_PASS_THROUGH_TYPE_ALPHA_TESTED,
@@ -167,7 +174,7 @@ static void GL_DrawAliasFrame (
 			.defaultRoughness = CVAR_TO_FLOAT (rt_model_rough),
 			.defaultMetallicity = CVAR_TO_FLOAT (rt_model_metal),
 			.defaultEmission = 0,
-			.transform = GetModelTransform (model_matrix),
+			.transform = RT_GetAliasModelTransform (paliashdr, &lerpdata, isfirstperson),
 		};
 
 		RgResult r = rgUploadGeometry (vulkan_globals.instance, &info);
@@ -403,7 +410,7 @@ static void R_SetupAliasLighting (entity_t *e, vec3_t *shadevector, vec3_t *ligh
 R_DrawAliasModel -- johnfitz -- almost completely rewritten
 =================
 */
-void R_DrawAliasModel (cb_context_t *cbx, entity_t *e, int entityid)
+void R_DrawAliasModel (cb_context_t *cbx, entity_t *e, int entuniqueid)
 {
 	aliashdr_t  *paliashdr;
 	int          anim, skinnum;
@@ -423,29 +430,6 @@ void R_DrawAliasModel (cb_context_t *cbx, entity_t *e, int entityid)
 	//
 	if (R_CullModelForEntity (e))
 		return;
-
-	//
-	// transform it
-	//
-	float model_matrix[16];
-	IdentityMatrix (model_matrix);
-	R_RotateForEntity (model_matrix, lerpdata.origin, lerpdata.angles);
-
-	float fovscale = 1.0f;
-	if (e == &cl.viewent && scr_fov.value > 90.f && cl_gun_fovscale.value)
-	{
-		fovscale = tan (scr_fov.value * (0.5f * M_PI / 180.f));
-		fovscale = 1.f + (fovscale - 1.f) * cl_gun_fovscale.value;
-	}
-
-	float translation_matrix[16];
-	TranslationMatrix (translation_matrix, paliashdr->scale_origin[0], paliashdr->scale_origin[1] * fovscale, paliashdr->scale_origin[2] * fovscale);
-	MatrixMultiply (model_matrix, translation_matrix);
-
-	// Scale multiplied by 255 because we use UNORM instead of USCALED in the vertex shader
-	float scale_matrix[16];
-	ScaleMatrix (scale_matrix, paliashdr->scale[0] * 255.0f, paliashdr->scale[1] * fovscale * 255.0f, paliashdr->scale[2] * fovscale * 255.0f);
-	MatrixMultiply (model_matrix, scale_matrix);
 
 	//
 	// set up for alpha blending
@@ -505,7 +489,7 @@ void R_DrawAliasModel (cb_context_t *cbx, entity_t *e, int entityid)
 	//
 	// draw it
 	//
-	GL_DrawAliasFrame (cbx, e, paliashdr, lerpdata, tx, fb, model_matrix, entalpha, alphatest, shadevector, lightcolor, entityid);
+	GL_DrawAliasFrame (cbx, e, paliashdr, lerpdata, tx, fb, entalpha, alphatest, shadevector, lightcolor, entuniqueid);
 }
 
 // johnfitz -- values for shadow matrix

@@ -129,6 +129,7 @@ extern int r_trace_line_cache_counter;
 #define InvalidateTraceLineCache()
 #endif
 
+#define MAX_BATCH_SIZE   65536
 #define NUM_WORLD_CBX    6
 #define NUM_ENTITIES_CBX 6
 
@@ -161,6 +162,8 @@ typedef struct cb_context_s
 	canvastype current_canvas;
 	float      cur_viewprojection[16];
 	RgViewport cur_viewport;
+
+	uint32_t vbo_indices[MAX_BATCH_SIZE];
 } cb_context_t;
 
 typedef struct vulkan_pipeline_s
@@ -293,13 +296,6 @@ extern int gl_lightmap_format;
 	     // uploading...)
 #define LMBLOCK_HEIGHT 1024 // Alternatively, use texture arrays, which would avoid the need to switch textures as often.
 
-typedef struct lm_compute_workgroup_bounds_s
-{
-	float mins[3];
-	float maxs[3];
-} lm_compute_workgroup_bounds_t;
-COMPILE_TIME_ASSERT (lm_compute_workgroup_bounds_t, sizeof (lm_compute_workgroup_bounds_t) == 24);
-
 typedef struct glRect_s
 {
 	unsigned short l, t, w, h;
@@ -307,17 +303,13 @@ typedef struct glRect_s
 struct lightmap_s
 {
 	gltexture_t    *texture;
-	gltexture_t    *surface_indices_texture;
-	gltexture_t    *lightstyle_textures[MAXLIGHTMAPS];
+	glpoly_t       *polys;
 	atomic_uint32_t modified;
 	glRect_t        rectchange;
 
 	// the lightmap texture data needs to be kept in
 	// main memory so texsubimage can update properly
-	byte						  *data;               //[4*LMBLOCK_WIDTH*LMBLOCK_HEIGHT];
-	byte						  *lightstyle_data[4]; //[4*LMBLOCK_WIDTH*LMBLOCK_HEIGHT];
-	uint32_t					  *surface_indices;    //[LMBLOCK_WIDTH*LMBLOCK_HEIGHT];
-	lm_compute_workgroup_bounds_t *workgroup_bounds;   //[(LMBLOCK_WIDTH/8)*(LMBLOCK_HEIGHT/8)];
+	byte *data; //[4*LMBLOCK_WIDTH*LMBLOCK_HEIGHT];
 };
 extern struct lightmap_s *lightmaps;
 extern int                lightmap_count; // allocated lightmaps
@@ -359,11 +351,11 @@ void R_TranslatePlayerSkin (int playernum);
 void R_TranslateNewPlayerSkin (int playernum); // johnfitz -- this handles cases when the actual texture changes
 
 void R_DrawWorld (cb_context_t *cbx, int index);
-void R_DrawAliasModel (cb_context_t *cbx, entity_t *e, int entityid);
-void R_DrawBrushModel (cb_context_t *cbx, entity_t *e, int chain);
-void R_DrawSpriteModel (cb_context_t *cbx, entity_t *e, int entityid);
+void R_DrawAliasModel (cb_context_t *cbx, entity_t *e, int entuniqueid);
+void R_DrawBrushModel (cb_context_t *cbx, entity_t *e, int chain, int entuniqueid);
+void R_DrawSpriteModel (cb_context_t *cbx, entity_t *e, int entuniqueid);
 
-void R_DrawTextureChains_Water (cb_context_t *cbx, qmodel_t *model, entity_t *ent, texchain_t chain);
+void R_DrawTextureChains_Water (cb_context_t *cbx, qmodel_t *model, entity_t *ent, texchain_t chain, int entuniqueid);
 
 void GL_BuildLightmaps (void);
 void GL_DeleteBModelVertexBuffer (void);
@@ -385,7 +377,10 @@ void R_DrawAliasModel_ShowTris (cb_context_t *cbx, entity_t *e);
 void R_DrawParticles_ShowTris (cb_context_t *cbx);
 void R_DrawSpriteModel_ShowTris (cb_context_t *cbx, entity_t *e);
 
-void DrawGLPoly (cb_context_t *cbx, glpoly_t *p, float color[3], float alpha);
+#define DRAW_GL_POLY_TYPE_SKY 1
+#define DRAW_GL_POLY_TYPE_SHOWTRI 2
+#define DRAW_GL_POLY_TYPE_SHOWTRI_NODEPTH 3
+void DrawGLPoly (cb_context_t *cbx, uint64_t uniqueid, glpoly_t *p, float color[3], float alpha, const RgTransform *transform, const gltexture_t *tex, uint32_t type);
 void GL_MakeAliasModelDisplayLists (qmodel_t *m, aliashdr_t *hdr);
 
 void Sky_Init (void);
@@ -398,7 +393,7 @@ void Sky_LoadSkyBox (const char *name);
 
 void R_ClearTextureChains (qmodel_t *mod, texchain_t chain);
 void R_ChainSurface (msurface_t *surf, texchain_t chain);
-void R_DrawTextureChains (cb_context_t *cbx, qmodel_t *model, entity_t *ent, texchain_t chain);
+void R_DrawTextureChains (cb_context_t *cbx, qmodel_t *model, entity_t *ent, texchain_t chain, int entuniqueid);
 void R_DrawWorld_Water (cb_context_t *cbx);
 
 float GL_WaterAlphaForSurface (msurface_t *fa);
@@ -433,5 +428,18 @@ static inline uint32_t RT_PackColorToUint32_FromFloat01(float r, float g, float 
 }
 #define RT_TRANSFORM_IDENTITY { 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0 }
 #define RT_COLOR_WHITE { 1, 1, 1, 1 }
+
+#define ENT_UNIQUEID_WORLD     (UINT16_MAX)
+#define ENT_UNIQUEID_VIEWMODEL (UINT16_MAX + 32) 
+
+#define RT_UNIQUEID_DONTCARE   (UINT64_MAX) 
+
+uint64_t RT_GetBrushSurfUniqueId (int entuniqueid, const qmodel_t *model, const msurface_t *surf);
+uint64_t RT_GetAliasModelUniqueId (int entuniqueid);
+uint64_t RT_GetSpriteModelUniqueId (int entuniqueid);
+
+RgTransform RT_GetModelTransform (const float model_matrix[16]);
+RgTransform RT_GetBrushModelMatrix (entity_t *e);
+
 
 #endif /* GLQUAKE_H */

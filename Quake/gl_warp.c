@@ -22,4 +22,5 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 #include "quakedef.h"
 
-static int dummy = 0;
+cvar_t r_waterquality = {"r_waterquality", "8", CVAR_NONE};
+cvar_t r_waterwarp = {"r_waterwarp", "1", CVAR_ARCHIVE};

@@ -4325,7 +4325,6 @@ static void         DrawQC_CharacterQuad (cb_context_t *cbx, float x, float y, i
 	float    size = 0.0625;
 	float    frow = (num >> 4) * size;
 	float    fcol = (num & 15) * size;
-	int      i;
 	qboolean alpha_blend = alpha < 1.0f;
 	size = 0.0624; // avoid rounding errors...
 
@@ -4338,29 +4337,28 @@ static void         DrawQC_CharacterQuad (cb_context_t *cbx, float x, float y, i
 		corner_verts[0].position[2] = 0.0f;
 		corner_verts[0].texCoord[0] = fcol;
 		corner_verts[0].texCoord[1] = frow;
+		corner_verts[0].packedColor = RT_PackColorToUint32 (255, 255, 255, 255);
 
 		corner_verts[1].position[0] = x + 8;
 		corner_verts[1].position[1] = y;
 		corner_verts[1].position[2] = 0.0f;
 		corner_verts[1].texCoord[0] = fcol + size;
 		corner_verts[1].texCoord[1] = frow;
+		corner_verts[1].packedColor = RT_PackColorToUint32 (255, 255, 255, 255);
 
 		corner_verts[2].position[0] = x + 8;
 		corner_verts[2].position[1] = y + 8;
 		corner_verts[2].position[2] = 0.0f;
 		corner_verts[2].texCoord[0] = fcol + size;
 		corner_verts[2].texCoord[1] = frow + size;
+		corner_verts[2].packedColor = RT_PackColorToUint32 (255, 255, 255, 255);
 
 		corner_verts[3].position[0] = x;
 		corner_verts[3].position[1] = y + 8;
 		corner_verts[3].position[2] = 0.0f;
 		corner_verts[3].texCoord[0] = fcol;
 		corner_verts[3].texCoord[1] = frow + size;
-
-		for (i = 0; i < 4; ++i)
-		{
-			corner_verts[0].packedColor = RT_PackColorToUint32_FromFloat01 (rgb[0], rgb[1], rgb[2], alpha);
-		}
+		corner_verts[3].packedColor = RT_PackColorToUint32 (255, 255, 255, 255);
 
 		vertices[0] = corner_verts[0];
 		vertices[1] = corner_verts[1];
@@ -4377,7 +4375,7 @@ static void         DrawQC_CharacterQuad (cb_context_t *cbx, float x, float y, i
 		.indexCount = 0,
 		.pIndices = NULL,
 		.transform = RT_TRANSFORM_IDENTITY,
-		.color = RT_COLOR_WHITE,
+		.color = {rgb[0], rgb[1], rgb[2], alpha},
 		.material = char_texture ? char_texture->rtmaterial : RG_NO_MATERIAL,
 		.pipelineState = alpha_blend ? RG_RASTERIZED_GEOMETRY_STATE_BLEND_ENABLE : RG_RASTERIZED_GEOMETRY_STATE_ALPHA_TEST,
 		.blendFuncSrc = alpha_blend ? RG_BLEND_FACTOR_SRC_ALPHA : 0,
@@ -4558,7 +4556,6 @@ static void PF_cl_drawsubpic (void)
 
 static void PF_cl_drawfill (void)
 {
-	int    i;
 	float *pos = G_VECTOR (OFS_PARM0);
 	float *size = G_VECTOR (OFS_PARM1);
 	float *rgb = G_VECTOR (OFS_PARM2);
@@ -4571,23 +4568,22 @@ static void PF_cl_drawfill (void)
 		corner_verts[0].position[0] = pos[0];
 		corner_verts[0].position[1] = pos[1];
 		corner_verts[0].position[2] = 0.0f;
+		corner_verts[0].packedColor = RT_PackColorToUint32 (255, 255, 255, 255);
 
 		corner_verts[1].position[0] = pos[0] + size[0];
 		corner_verts[1].position[1] = pos[1];
 		corner_verts[1].position[2] = 0.0f;
+		corner_verts[1].packedColor = RT_PackColorToUint32 (255, 255, 255, 255);
 
 		corner_verts[2].position[0] = pos[0] + size[0];
 		corner_verts[2].position[1] = pos[1] + size[1];
 		corner_verts[2].position[2] = 0.0f;
+		corner_verts[2].packedColor = RT_PackColorToUint32 (255, 255, 255, 255);
 
 		corner_verts[3].position[0] = pos[0];
 		corner_verts[3].position[1] = pos[1] + size[1];
 		corner_verts[3].position[2] = 0.0f;
-
-		for (i = 0; i < 4; ++i)
-		{
-			corner_verts[i].packedColor = RT_PackColorToUint32_FromFloat01 (rgb[0], rgb[1], rgb[2], alpha);
-		}
+		corner_verts[3].packedColor = RT_PackColorToUint32 (255, 255, 255, 255);
 
 		vertices[0] = corner_verts[0];
 		vertices[1] = corner_verts[1];
@@ -4606,7 +4602,7 @@ static void PF_cl_drawfill (void)
 		.indexCount = 0,
 		.pIndices = NULL,
 		.transform = RT_TRANSFORM_IDENTITY,
-		.color = RT_COLOR_WHITE,
+		.color = {rgb[0], rgb[1], rgb[2], alpha},
 		.material = char_texture ? char_texture->rtmaterial : RG_NO_MATERIAL,
 		.pipelineState = RG_RASTERIZED_GEOMETRY_STATE_BLEND_ENABLE,
 		.blendFuncSrc = RG_BLEND_FACTOR_SRC_ALPHA,
