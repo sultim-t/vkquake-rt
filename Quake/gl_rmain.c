@@ -27,6 +27,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 int r_visframecount; // bumped when going to a new PVS
 int r_framecount;    // used for dlight push checking
+atomic_uint32_t rt_require_static_submit;
 
 mplane_t frustum[4];
 
@@ -339,7 +340,7 @@ static void R_SetupContext (cb_context_t *cbx)
 R_SetupViewBeforeMark
 ===============
 */
-static void R_SetupViewBeforeMark (void *unused)
+void R_SetupViewBeforeMark (void *unused)
 {
 	// Need to do those early because we now update dynamic light maps during R_MarkSurfaces
 	if (!r_gpulightmapupdate.value)
@@ -696,11 +697,26 @@ R_DrawWorldTask
 */
 void R_DrawWorldTask (int index, void *unused)
 {
+	if (!Atomic_LoadUInt32 (&rt_require_static_submit))
+	{
+		return;
+	}
+
+	RgResult r;
+	
+	r = rgStartNewScene (vulkan_globals.instance);
+	RG_CHECK (r);
+
 	const int     cbx_index = index + CBX_WORLD_0;
 	cb_context_t *cbx = &vulkan_globals.secondary_cb_contexts[cbx_index];
 	R_SetupContext (cbx);
 	Fog_EnableGFog (cbx);
 	R_DrawWorld (cbx, index);
+
+	r = rgSubmitStaticGeometries (vulkan_globals.instance);
+	RG_CHECK (r);
+
+	Atomic_StoreUInt32 (&rt_require_static_submit, false);
 }
 
 /*
@@ -813,11 +829,10 @@ void R_RenderView (qboolean use_tasks, task_handle_t begin_rendering_task, task_
 		task_handle_t chain_surfaces = INVALID_TASK_HANDLE;
 		R_MarkSurfaces (use_tasks, before_mark, &store_efrags, &cull_surfaces, &chain_surfaces);
 
-		// RT: no need here, as it's done on R_NewMap
-		/*task_handle_t draw_world_task = Task_AllocateAndAssignIndexedFunc (R_DrawWorldTask, NUM_WORLD_CBX, NULL, 0);
+		task_handle_t draw_world_task = Task_AllocateAndAssignIndexedFunc (R_DrawWorldTask, NUM_WORLD_CBX, NULL, 0);
 		Task_AddDependency (chain_surfaces, draw_world_task);
 		Task_AddDependency (begin_rendering_task, draw_world_task);
-		Task_AddDependency (draw_world_task, draw_done_task);*/
+		Task_AddDependency (draw_world_task, draw_done_task);
 
 		task_handle_t draw_sky_and_water_task = Task_AllocateAndAssignFunc (R_DrawSkyAndWaterTask, NULL, 0);
 		Task_AddDependency (store_efrags, draw_sky_and_water_task);
@@ -851,7 +866,7 @@ void R_RenderView (qboolean use_tasks, task_handle_t begin_rendering_task, task_
 		Task_AddDependency (update_lightmaps_task, draw_done_task);
 
 		// RT: no need for draw_world_task, as it's done on R_NewMap
-		task_handle_t tasks[] = {before_mark,          store_efrags,                               /*draw_world_task, */  draw_sky_and_water_task,
+		task_handle_t tasks[] = {before_mark,          store_efrags,		                         draw_world_task,     draw_sky_and_water_task,
 		                         draw_view_model_task, draw_entities_task, draw_alpha_entities_task, draw_particles_task, update_lightmaps_task};
 		Tasks_Submit ((sizeof (tasks) / sizeof (task_handle_t)), tasks);
 		if (store_efrags != cull_surfaces)
@@ -864,8 +879,7 @@ void R_RenderView (qboolean use_tasks, task_handle_t begin_rendering_task, task_
 	{
 		R_SetupViewBeforeMark (NULL);
 		R_MarkSurfaces (use_tasks, INVALID_TASK_HANDLE, NULL, NULL, NULL); // johnfitz -- create texture chains from PVS
-		// RT: no need here, as it's done on R_NewMap
-	    // R_DrawWorldTask (0, NULL);
+		R_DrawWorldTask (0, NULL);
 		R_DrawSkyAndWaterTask (NULL);
 		for (int i = 0; i < NUM_ENTITIES_CBX; ++i)
 			R_DrawEntitiesTask (i, NULL);

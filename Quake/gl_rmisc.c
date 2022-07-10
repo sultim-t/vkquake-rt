@@ -370,7 +370,7 @@ static void R_ParseWorldspawn (void)
 	}
 }
 
-extern void R_DrawWorldTask (int index, void *unused);
+extern atomic_uint32_t rt_require_static_submit;
 
 /*
 ===============
@@ -380,7 +380,6 @@ R_NewMap
 void R_NewMap (void)
 {
 	int      i;
-	RgResult r;
 
 	for (i = 0; i < 256; i++)
 		d_lightstylevalue[i] = 264; // normal light value
@@ -401,14 +400,7 @@ void R_NewMap (void)
 	GL_BuildBModelVertexBuffer ();
 	// RT: submit world geometry once
 	{
-		r = rgStartNewScene (vulkan_globals.instance);
-		RG_CHECK (r);
-
-		R_DrawWorldTask (0, NULL);
-		
-	    r = rgSubmitStaticGeometries (vulkan_globals.instance);
-		RG_CHECK (r);
-
+		Atomic_StoreUInt32 (&rt_require_static_submit, true);
 	}
 	GL_PrepareSIMDData ();
 	// ericw -- no longer load alias models into a VBO here, it's done in Mod_LoadAliasModel
