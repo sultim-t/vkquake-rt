@@ -110,6 +110,7 @@ cvar_t r_tasks = {"r_tasks", "0", CVAR_NONE};
 
 extern cvar_t rt_dlight_intensity;
 extern cvar_t rt_dlight_radius;
+extern cvar_t rt_flashlight;
 
 /*
 =================
@@ -364,6 +365,31 @@ static void RT_UploadAllDlights ()
 		};
 
 		RgResult r = rgUploadSphericalLight (vulkan_globals.instance, &info);
+		RG_CHECK (r);
+	}
+
+	if (CVAR_TO_FLOAT (rt_flashlight) > 0.1f)
+	{
+		vec3_t pos;
+		VectorCopy (r_origin, pos);
+		VectorMA (pos, METRIC_TO_GOLDSRCUNIT (-0.3f), vup, pos);
+		VectorMA (pos, METRIC_TO_GOLDSRCUNIT (-0.4f), vright, pos);
+
+		vec3_t color = {1.0f, 0.92f, 0.82f};
+		VectorScale (color, CVAR_TO_FLOAT (rt_flashlight), color);
+		VectorScale (color, RT_QUAKE_LIGHT_AREA_INTENSITY_FIX, color);
+
+		RgSpotlightUploadInfo info = {
+			.uniqueID = MAX_DLIGHTS,
+			.color = {color[0], color[1], color[2]},
+			.position = {pos[0], pos[1], pos[2]},
+			.direction = {vpn[0], vpn[1], vpn[2]},
+			.radius = METRIC_TO_GOLDSRCUNIT (0.1f),
+			.angleOuter = DEG2RAD (30),
+			.angleInner = 0,
+		};
+
+		RgResult r = rgUploadSpotlightLight (vulkan_globals.instance, &info);
 		RG_CHECK (r);
 	}
 }
