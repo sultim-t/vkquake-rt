@@ -31,10 +31,16 @@ int GetNextStep (int count, int step)
 	return div * step;
 }
 
+size_t GetNextStep64 (size_t count, size_t step)
+{
+	size_t div = (count + step - 1) / step;
+	return div * step;
+}
+
 
 
 static uint32_t *fan_indices = NULL;
-int              fan_indices_count = 0;
+static int       fan_indices_count = 0;
 #define FANINDEX_ALLOC_STEP 255
 
 int RT_GetFanIndexCount(int vertexcount)
@@ -77,9 +83,9 @@ const uint32_t *RT_GetFanIndices (int vertexcount)
 }
 
 
-static void *scratch_bytes = NULL;
-size_t       scratch_bytes_count = 0;
-#define SCRATCH_ALLOC_STEP 255
+static void  *scratch_bytes = NULL;
+static size_t scratch_bytes_count = 0;
+#define SCRATCH_ALLOC_STEP 4096
 
 void *RT_AllocScratchMemory (size_t bytecount)
 {
@@ -97,7 +103,7 @@ void *RT_AllocScratchMemory (size_t bytecount)
 			scratch_bytes = NULL;
 		}
 
-		scratch_bytes_count = GetNextStep (scratch_bytes_count, SCRATCH_ALLOC_STEP);
+		scratch_bytes_count = GetNextStep64 (scratch_bytes_count + bytecount, SCRATCH_ALLOC_STEP);
 		scratch_bytes = Mem_Alloc (scratch_bytes_count);
 	}
 

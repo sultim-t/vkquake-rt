@@ -689,6 +689,12 @@ static void R_ClearBatch (cb_context_t *cbx)
 
 RgTransform RT_GetBrushModelMatrix (entity_t *e)
 {
+	if (e == NULL)
+	{
+		const static RgTransform identity = RT_TRANSFORM_IDENTITY;
+		return identity;
+	}
+
 	vec3_t e_angles;
 	VectorCopy (e->angles, e_angles);
 	e_angles[0] = -e_angles[0]; // stupid quake bug
@@ -750,8 +756,8 @@ static void RT_UploadSurface (
 		lightmap_tex = NULL;
 	}
 
-	qboolean is_static_geom = (model == cl.worldmodel);
-	qboolean rasterize = alpha < 1.0f;
+	qboolean is_static_geom = (model == cl.worldmodel) && !is_water;
+	qboolean rasterize = (alpha < 1.0f) && !is_water;
 
 	if (rasterize)
 	{

@@ -379,7 +379,8 @@ R_NewMap
 */
 void R_NewMap (void)
 {
-	int i;
+	int      i;
+	RgResult r;
 
 	for (i = 0; i < 256; i++)
 		d_lightstylevalue[i] = 264; // normal light value
@@ -398,8 +399,16 @@ void R_NewMap (void)
 
 	GL_BuildLightmaps ();
 	GL_BuildBModelVertexBuffer ();
+	// RT: submit world geometry once
 	{
+		r = rgStartNewScene (vulkan_globals.instance);
+		RG_CHECK (r);
+
 		R_DrawWorldTask (0, NULL);
+		
+	    r = rgSubmitStaticGeometries (vulkan_globals.instance);
+		RG_CHECK (r);
+
 	}
 	GL_PrepareSIMDData ();
 	// ericw -- no longer load alias models into a VBO here, it's done in Mod_LoadAliasModel

@@ -691,7 +691,7 @@ static void TexMgr_LoadImage32 (gltexture_t *glt, unsigned *data)
 		.size = {glt->width, glt->height},
 		.textures =
 			{
-				.albedoAlpha = {.pData = data, .isSRGB = false},
+				.albedoAlpha = {.pData = data, .isSRGB = true},
 				.roughnessMetallicEmission = {0},
 				.normal = {0},
 			},

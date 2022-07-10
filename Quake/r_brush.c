@@ -705,9 +705,6 @@ void GL_DeleteBModelVertexBuffer (void)
 {
 	GL_WaitForDeviceIdle ();
 
-	RgResult r = rgStartNewScene (vulkan_globals.instance);
-	RG_CHECK (r);
-
 	Mem_Free (rtallbrushvertices);
 }
 
