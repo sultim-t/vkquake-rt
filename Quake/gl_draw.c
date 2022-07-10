@@ -971,7 +971,7 @@ void Draw_FadeScreen (cb_context_t *cbx)
 		.indexCount = 0,
 		.pIndices = NULL,
 		.transform = RT_TRANSFORM_IDENTITY,
-		.color = {1.0f, 1.0f, 1.0f, alpha},
+		.color = {0.0f, 0.0f, 0.0f, alpha},
 		.material = RG_NO_MATERIAL,
 		.pipelineState = RG_RASTERIZED_GEOMETRY_STATE_BLEND_ENABLE,
 		.blendFuncSrc = RG_BLEND_FACTOR_SRC_ALPHA,
