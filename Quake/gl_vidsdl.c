@@ -753,7 +753,7 @@ static void UpscaleCvarsToRtgl (RgDrawFrameRenderResolutionParams *pDst)
 	// both disabled
 	if (nvDlss == 0 && amdFsr == 0)
 	{
-		pDst->upscaleTechnique = RG_RENDER_UPSCALE_TECHNIQUE_LINEAR;
+		pDst->upscaleTechnique = RG_RENDER_UPSCALE_TECHNIQUE_NEAREST;
 		pDst->resolutionMode = RG_RENDER_RESOLUTION_MODE_CUSTOM;
 	}
 }
@@ -1721,6 +1721,10 @@ static void VID_Menu_ChooseNextFullScreenMode (int dir)
 
 static void VID_Menu_ChooseNextAA (int vidopt, int dir)
 {
+	const int prev_fsr2 = menu_settings.rt_upscale_fsr2;
+	const int prev_dlss = menu_settings.rt_upscale_dlss;
+	const int prev_rens = menu_settings.rt_renderscale;
+
 	if (vidopt == VID_OPT_FSR2)
 	{
 		menu_settings.rt_upscale_fsr2 += dir < 0 ? -1 : 1;
@@ -1738,20 +1742,29 @@ static void VID_Menu_ChooseNextAA (int vidopt, int dir)
 	menu_settings.rt_upscale_dlss = CLAMP (0, menu_settings.rt_upscale_dlss, 4);
 	menu_settings.rt_renderscale = CLAMP (20, menu_settings.rt_renderscale, 150);
 
-	if (menu_settings.rt_upscale_fsr2 > 0)
+	if (vidopt == VID_OPT_FSR2)
 	{
-		menu_settings.rt_upscale_dlss = 0;
-		menu_settings.rt_renderscale = 100;
+		if (menu_settings.rt_upscale_fsr2 != prev_fsr2)
+		{
+			menu_settings.rt_upscale_dlss = 0;
+			menu_settings.rt_renderscale = 100;
+		}
 	}
-    else if (menu_settings.rt_upscale_dlss > 0)
+	else if (vidopt == VID_OPT_DLSS)
 	{
-		menu_settings.rt_upscale_fsr2 = 0;
-		menu_settings.rt_renderscale = 100;
+		if (menu_settings.rt_upscale_dlss != prev_dlss)
+		{
+			menu_settings.rt_upscale_fsr2 = 0;
+			menu_settings.rt_renderscale = 100;
+		}
 	}
-	else if (menu_settings.rt_renderscale != 100)
+	else if (vidopt == VID_OPT_RENDER_SCALE)
 	{
-		menu_settings.rt_upscale_fsr2 = 0;
-		menu_settings.rt_upscale_dlss = 0;
+		if (menu_settings.rt_renderscale != prev_rens)
+		{
+			menu_settings.rt_upscale_fsr2 = 0;
+			menu_settings.rt_upscale_dlss = 0;
+		}
 	}
 }
 
