@@ -268,6 +268,8 @@ float GL_GetCameraFar (void)
 	return gl_farclip.value;
 }
 
+#define INVERSE_ZDEPTH 0
+
 /*
 =============
 GL_FrustumMatrix
@@ -289,12 +291,21 @@ static void GL_FrustumMatrix (float matrix[16], float radfovx, float radfovy)
 	// Second column
 	matrix[1 * 4 + 1] = -h;
 
+#if INVERSE_ZDEPTH
 	// Third column
-	matrix[2 * 4 + 2] = f / (f - n) - 1.0f;
+	matrix[2 * 4 + 2] = n / (f - n);
 	matrix[2 * 4 + 3] = -1.0f;
 
 	// Fourth column
-	matrix[3 * 4 + 2] = (n * f) / (f - n);
+	matrix[3 * 4 + 2] = (f * n) / (f - n);
+#else
+	// Third column
+	matrix[2 * 4 + 2] = f / (n - f);
+	matrix[2 * 4 + 3] = -1.0f;
+
+	// Fourth column
+	matrix[3 * 4 + 2] = (f * n) / (n - f);
+#endif
 }
 
 /*
