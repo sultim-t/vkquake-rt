@@ -549,7 +549,7 @@ static void GL_InitInstance (void)
 		.pShaderFolderPath = pShaderPath,
 		.pBlueNoiseFilePath = pBlueNoisePath,
 
-		.primaryRaysMaxAlbedoLayers = 1,
+		.primaryRaysMaxAlbedoLayers = 2,
 		.indirectIlluminationMaxAlbedoLayers = 1,
 		.rayCullBackFacingTriangles = 1,
 		.allowGeometryWithSkyFlag = 1,
@@ -602,7 +602,6 @@ GL_BeginRenderingTask
 void GL_BeginRenderingTask (void *unused)
 {
 	RgStartFrameInfo info = {
-		.surfaceSize = {vid.width, vid.height},
 		.requestVSync = CVAR_TO_BOOL (vid_vsync),
 		.requestShaderReload = request_shaders_reload,
 		.requestRasterizedSkyGeometryReuse = false,
