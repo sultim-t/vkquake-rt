@@ -108,7 +108,7 @@ Based on code by MH from RMQEngine
 =============
 */
 static void GL_DrawAliasFrame (
-	cb_context_t *cbx, entity_t *e, aliashdr_t *paliashdr, lerpdata_t lerpdata, gltexture_t *tx, gltexture_t *fb, float entity_alpha,
+	cb_context_t *cbx, entity_t *e, aliashdr_t *paliashdr, lerpdata_t lerpdata, gltexture_t *tx, float entity_alpha,
 	qboolean alphatest, vec3_t shadevector, vec3_t lightcolor, int entuniqueid)
 {
 
@@ -155,21 +155,9 @@ static void GL_DrawAliasFrame (
 			.pVertices = GetModelVerticesForPose (e->model, paliashdr, lerpdata.pose1),
 			.indexCount = paliashdr->numindexes,
 			.pIndices = e->model->rtindices,
-			.layerColors =
-				{
-					RT_COLOR_WHITE,
-					RT_COLOR_WHITE,
-				},
-			.layerBlendingTypes =
-				{
-					RG_GEOMETRY_MATERIAL_BLEND_TYPE_OPAQUE,
-					RG_GEOMETRY_MATERIAL_BLEND_TYPE_ADD,
-				},
-			.geomMaterial =
-				{
-					tx ? tx->rtmaterial : RG_NO_MATERIAL,
-					fb ? fb->rtmaterial : RG_NO_MATERIAL,
-				},
+			.layerColors = {RT_COLOR_WHITE},
+			.layerBlendingTypes = {RG_GEOMETRY_MATERIAL_BLEND_TYPE_OPAQUE},
+			.geomMaterial = {tx ? tx->rtmaterial : RG_NO_MATERIAL},
 			.defaultRoughness = CVAR_TO_FLOAT (rt_model_rough),
 			.defaultMetallicity = CVAR_TO_FLOAT (rt_model_metal),
 			.defaultEmission = 0,
@@ -413,7 +401,7 @@ void R_DrawAliasModel (cb_context_t *cbx, entity_t *e, int entuniqueid)
 {
 	aliashdr_t  *paliashdr;
 	int          anim, skinnum;
-	gltexture_t *tx, *fb;
+	gltexture_t *tx;
 	lerpdata_t   lerpdata;
 	qboolean     alphatest = !!(e->model->flags & MF_HOLEY);
 
@@ -463,12 +451,9 @@ void R_DrawAliasModel (cb_context_t *cbx, entity_t *e, int entuniqueid)
 		skinnum = 0;
 	}
 	tx = paliashdr->gltextures[skinnum][anim];
-	fb = paliashdr->fbtextures[skinnum][anim];
 	if (e->colormap != vid.colormap && !gl_nocolors.value)
 		if ((uintptr_t)e >= (uintptr_t)&cl.entities[1] && (uintptr_t)e <= (uintptr_t)&cl.entities[cl.maxclients])
 			tx = playertextures[e - cl.entities - 1];
-	if (!gl_fullbrights.value)
-		fb = NULL;
 
 	if (r_fullbright_cheatsafe)
 	{
@@ -479,7 +464,6 @@ void R_DrawAliasModel (cb_context_t *cbx, entity_t *e, int entuniqueid)
 	if (r_lightmap_cheatsafe)
 	{
 		tx = whitetexture;
-		fb = NULL;
 		if (r_fullbright.value)
 		{
 			lightcolor[0] = 1.0f;
@@ -491,7 +475,7 @@ void R_DrawAliasModel (cb_context_t *cbx, entity_t *e, int entuniqueid)
 	//
 	// draw it
 	//
-	GL_DrawAliasFrame (cbx, e, paliashdr, lerpdata, tx, fb, entalpha, alphatest, shadevector, lightcolor, entuniqueid);
+	GL_DrawAliasFrame (cbx, e, paliashdr, lerpdata, tx, entalpha, alphatest, shadevector, lightcolor, entuniqueid);
 }
 
 // johnfitz -- values for shadow matrix

@@ -38,10 +38,13 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #define TEXPREF_OVERWRITE   0x0040 // overwrite existing same-name texture
 #define TEXPREF_NOPICMIP    0x0080 // always load full-sized
 #define TEXPREF_FULLBRIGHT  0x0100 // use fullbright mask palette
-#define TEXPREF_NOBRIGHT    0x0200 // use nobright mask palette
+#define TEXPREF_NOBRIGHT    0x0200 // use nobright mask palette -- ignored with RT
 #define TEXPREF_CONCHARS    0x0400 // use conchars palette
 #define TEXPREF_WARPIMAGE   0x0800 // resize this texture when warpimagesize changes
 #define TEXPREF_PREMULTIPLY 0x1000 // rgb = rgb*a; a=a;
+#if RT_RENDERER
+    #define TEXPREF_RT_IS_EMISSIVE 0x2000
+#endif
 
 enum srcformat
 {
@@ -83,7 +86,9 @@ extern gltexture_t *greytexture;
 
 extern unsigned int d_8to24table[256];
 extern unsigned int d_8to24table_fbright[256];
+#if !RT_RENDERER
 extern unsigned int d_8to24table_nobright[256];
+#endif
 extern unsigned int d_8to24table_conchars[256];
 extern unsigned int d_8to24table_shirt[256];
 extern unsigned int d_8to24table_pants[256];
@@ -106,5 +111,12 @@ gltexture_t *TexMgr_LoadImage (
 	unsigned flags);
 void TexMgr_ReloadImage (gltexture_t *glt, int shirt, int pants);
 void TexMgr_ReloadNobrightImages (void);
+
+// RT: kludge to load fullbright image as an emissive part of RgMaterial.
+// 1st call of TexMgr_LoadImage - prepare everything for 'rgCreateStaticMaterial', but hold until:
+// - either 2nd call of TexMgr_LoadImage with TEXPREF_RT_IS_EMISSIVE - submit 'rgCreateStaticMaterial' with data from 1st and 2nd call
+// - or call of TexMgr_RT_SpecialNullEnd - just submit 'rgCreateStaticMaterial' with data from 1st call
+void TexMgr_RT_SpecialStart (float default_rough, float default_metallic);
+void TexMgr_RT_SpecialEnd (void);
 
 #endif /* _GL_TEXMAN_H */

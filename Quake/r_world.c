@@ -729,7 +729,6 @@ typedef struct rt_uploadsurf_state_t
 	msurface_t  *surf;
 	gltexture_t *diffuse_tex;
 	gltexture_t *lightmap_tex;
-	gltexture_t *fullbright_tex;
 	qboolean     alpha_test;
 	float        alpha;
 	qboolean     use_zbias;
@@ -830,13 +829,11 @@ static void RT_FlushBatch (cb_context_t *cbx, const rt_uploadsurf_state_t *s, ui
 				{
 					RG_GEOMETRY_MATERIAL_BLEND_TYPE_OPAQUE,
 					RG_GEOMETRY_MATERIAL_BLEND_TYPE_SHADE,
-					RG_GEOMETRY_MATERIAL_BLEND_TYPE_ADD,
 				},
 			.geomMaterial =
 				{
 					diffuse_tex ? diffuse_tex->rtmaterial : greytexture->rtmaterial,
 					lightmap_tex ? lightmap_tex->rtmaterial : greytexture->rtmaterial,
-					s->fullbright_tex ? s->fullbright_tex->rtmaterial : RG_NO_MATERIAL,
 				},
 			.defaultRoughness = CVAR_TO_FLOAT (rt_brush_rough),
 			.defaultMetallicity = CVAR_TO_FLOAT (rt_brush_metal),
@@ -958,7 +955,6 @@ void R_DrawTextureChains_Water (cb_context_t *cbx, qmodel_t *model, entity_t *en
 				.surf = s,
 				.diffuse_tex = t->warpimage,
 				.lightmap_tex = (s->lightmaptexturenum >= 0) ? lightmaps[s->lightmaptexturenum].texture : greytexture,
-				.fullbright_tex = NULL,
 				.alpha_test = false,
 				.alpha = GL_WaterAlphaForEntitySurface (ent, s),
 				.use_zbias = false,
@@ -994,7 +990,6 @@ void R_DrawTextureChains_Multitexture (
 	texture_t            *t;
 	qboolean              use_zbias = (gl_zfix.value && model != cl.worldmodel);
 	int                   ent_frame = ent != NULL ? ent->frame : 0;
-	gltexture_t          *fullbright_tex = NULL;
 	rt_uploadsurf_state_t last_state = {0};
 	
 	uint32_t brushpasses = 0;
@@ -1004,15 +999,6 @@ void R_DrawTextureChains_Multitexture (
 
 		if (!t || !t->texturechains[chain] || t->texturechains[chain]->flags & (SURF_DRAWTURB | SURF_DRAWTILED | SURF_NOTEXTURE))
 			continue;
-
-		if (gl_fullbrights.value && (fullbright_tex = R_TextureAnimation (t, ent_frame)->fullbright) && !r_lightmap_cheatsafe)
-		{
-			assert (fullbright_tex);
-		}
-		else
-		{
-			fullbright_tex = NULL;
-		}
 
 		RT_ClearBatch (cbx);
 
@@ -1028,7 +1014,6 @@ void R_DrawTextureChains_Multitexture (
 				.surf = s,
 				.diffuse_tex = diffuse_tex,
 				.lightmap_tex = (s->lightmaptexturenum >= 0) ? lightmaps[s->lightmaptexturenum].texture : greytexture,
-				.fullbright_tex = fullbright_tex,
 				.alpha_test = alpha_test,
 				.alpha = alpha,
 				.use_zbias = use_zbias,

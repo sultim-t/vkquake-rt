@@ -57,8 +57,10 @@ gltexture_t        *notexture, *nulltexture, *whitetexture, *greytexture;
 unsigned int d_8to24table[256];
 unsigned int d_8to24table_fbright[256];
 unsigned int d_8to24table_fbright_fence[256];
+#if !RT_RENDERER
 unsigned int d_8to24table_nobright[256];
 unsigned int d_8to24table_nobright_fence[256];
+#endif
 unsigned int d_8to24table_conchars[256];
 unsigned int d_8to24table_shirt[256];
 unsigned int d_8to24table_pants[256];
@@ -66,13 +68,6 @@ unsigned int d_8to24table_pants[256];
 
 SDL_mutex *texmgr_mutex;
 
-/*
-================================================================================
-
-    COMMANDS
-
-================================================================================
-*/
 
 static RgMaterialCreateFlags TexMgr_GetRtFlags (gltexture_t *glt)
 {
@@ -94,18 +89,156 @@ static RgMaterialCreateFlags TexMgr_GetRtFlags (gltexture_t *glt)
 
 static RgSamplerFilter TexMgr_GetFilterMode (gltexture_t *glt)
 {
-    if (glt->flags & TEXPREF_NEAREST)
+	if (glt->flags & TEXPREF_NEAREST)
 	{
 		return RG_SAMPLER_FILTER_NEAREST;
 	}
 
-    if (glt->flags & TEXPREF_LINEAR)
+	if (glt->flags & TEXPREF_LINEAR)
 	{
 		return RG_SAMPLER_FILTER_LINEAR;
 	}
 
-	return CVAR_TO_INT32(vid_filter) == 1 ? RG_SAMPLER_FILTER_NEAREST : RG_SAMPLER_FILTER_LINEAR;
+	return CVAR_TO_INT32 (vid_filter) == 1 ? RG_SAMPLER_FILTER_NEAREST : RG_SAMPLER_FILTER_LINEAR;
 }
+
+static SDL_mutex *rtspecial_mutex;
+
+static THREAD_LOCAL qboolean     rtspecial_started;
+static THREAD_LOCAL qboolean     rtspecial_foundfullbright = false;
+static THREAD_LOCAL gltexture_t *rtspecial_target = NULL;
+static THREAD_LOCAL byte         rtspecial_default_rough;
+static THREAD_LOCAL byte         rtspecial_default_metallic;
+
+static THREAD_LOCAL RgStaticMaterialCreateInfo rtspecial_info = {0};
+static THREAD_LOCAL void                      *rtspecial_info_albedoAlpha = NULL; // to point to data from rtspecial_info
+static THREAD_LOCAL char                       rtspecial_info_pRelativePath[MAX_QPATH];
+
+
+void TexMgr_RT_SpecialStart (float default_rough, float default_metallic)
+{
+
+	assert (!rtspecial_started && !rtspecial_foundfullbright && rtspecial_target == NULL);
+	assert (rtspecial_info_albedoAlpha == NULL);
+
+	rtspecial_started = true;
+	rtspecial_default_rough = CLAMP( 0, (int)(default_rough * 255), 255);
+	rtspecial_default_metallic = CLAMP (0, (int)(default_metallic * 255), 255);
+}
+
+static void TexMgr_RT_SpecialSave (gltexture_t *glt, const RgStaticMaterialCreateInfo *info)
+{
+	assert (rtspecial_info_albedoAlpha == NULL);
+
+	rtspecial_target = glt;
+	rtspecial_info = *info;
+
+	{
+		size_t sz = sizeof (uint32_t) * glt->width * glt->height;
+
+		rtspecial_info_albedoAlpha = Mem_Alloc (sz);
+		memcpy (rtspecial_info_albedoAlpha, info->textures.albedoAlpha.pData, sz);
+	}
+
+	if (info->pRelativePath)
+	{
+		q_strlcpy (rtspecial_info_pRelativePath, info->pRelativePath, sizeof (rtspecial_info_pRelativePath));
+	}
+	else
+	{
+		rtspecial_info_pRelativePath[0] = '\0';
+	}
+}
+
+static byte Luminance (byte r, byte g, byte b)
+{
+	float l = 0.2126f * (float)r / 255.0f + 0.7152f * (float)g / 255.0f + 0.0722f * (float)b / 255.0f;
+	int   i = (int)(l * 255);
+	    
+	return q_min (i, 255);
+}
+
+static void FullbrightToRME (unsigned width, unsigned height, byte *fullbright)
+{
+	size_t pixels = (size_t)width * (size_t)height;
+
+	while (pixels-- > 0)
+	{
+		byte lum = Luminance (fullbright[0], fullbright[1], fullbright[2]);
+
+		// rough
+		fullbright[0] = rtspecial_default_rough;
+		// metallic
+		fullbright[1] = rtspecial_default_metallic;
+		// emissive
+		fullbright[2] = lum;
+
+		fullbright += 4;
+	}
+}
+
+static void TexMgr_RT_SpecialFullbright (unsigned width, unsigned height, uint32_t *fullbright)
+{
+	assert (rtspecial_target != NULL && rtspecial_info_albedoAlpha != NULL);
+	assert (rtspecial_info.size.width > 0 && rtspecial_info.size.height > 0);
+
+	// strange RTGL1 limitation
+	if (rtspecial_info.size.width != width || rtspecial_info.size.height != height)
+	{
+		Con_DWarning ("Ignoring fullbright of \"%s\", as it has different size with albedo", rtspecial_info_pRelativePath);
+		return;
+	}
+
+	rtspecial_foundfullbright = true;
+
+	FullbrightToRME (width, height, (byte *)fullbright);
+
+	rtspecial_info.textures.albedoAlpha.pData = rtspecial_info_albedoAlpha;
+	rtspecial_info.pRelativePath = rtspecial_info_pRelativePath;
+
+	rtspecial_info.textures.roughnessMetallicEmission.pData = fullbright;
+
+    SDL_LockMutex (rtspecial_mutex);
+	RgResult r = rgCreateStaticMaterial (vulkan_globals.instance, &rtspecial_info, &rtspecial_target->rtmaterial);
+	RG_CHECK (r);
+	SDL_UnlockMutex (rtspecial_mutex);
+}
+
+void TexMgr_RT_SpecialEnd ()
+{
+	assert (rtspecial_started);
+	assert (rtspecial_target != NULL && rtspecial_info_albedoAlpha != NULL);
+
+	if (!rtspecial_foundfullbright)
+	{
+		rtspecial_info.textures.albedoAlpha.pData = rtspecial_info_albedoAlpha;
+		rtspecial_info.pRelativePath = rtspecial_info_pRelativePath;
+
+		SDL_LockMutex (rtspecial_mutex);
+		RgResult r = rgCreateStaticMaterial (vulkan_globals.instance, &rtspecial_info, &rtspecial_target->rtmaterial);
+		RG_CHECK (r);
+		SDL_UnlockMutex (rtspecial_mutex);
+
+	}
+
+	Mem_Free (rtspecial_info_albedoAlpha);
+	
+	rtspecial_started=false;
+	rtspecial_target = NULL;
+	rtspecial_foundfullbright = false;
+	memset (&rtspecial_info, 0, sizeof (rtspecial_info));
+	rtspecial_info_albedoAlpha = NULL;
+	rtspecial_info_pRelativePath[0] = '\0';
+
+}
+
+/*
+================================================================================
+
+    COMMANDS
+
+================================================================================
+*/
 
 /*
 ===============
@@ -343,6 +476,7 @@ void TexMgr_LoadPalette (void)
 		dst[2] = dst[1] = dst[0] = 0;
 	}
 
+#if !RT_RENDERER
 	// nobright palette, 224-255 are black (for additive blending)
 	dst = (byte *)d_8to24table_nobright;
 	src = pal;
@@ -359,14 +493,17 @@ void TexMgr_LoadPalette (void)
 		dst[3] = 255;
 		dst[2] = dst[1] = dst[0] = 0;
 	}
+#endif
 
 	// fullbright palette, for fence textures
 	memcpy (d_8to24table_fbright_fence, d_8to24table_fbright, 256 * 4);
 	d_8to24table_fbright_fence[255] = 0; // Alpha of zero.
 
+#if !RT_RENDERER
 	// nobright palette, for fence textures
 	memcpy (d_8to24table_nobright_fence, d_8to24table_nobright, 256 * 4);
 	d_8to24table_nobright_fence[255] = 0; // Alpha of zero.
+#endif
 
 	// conchars palette, 0 and 255 are transparent
 	memcpy (d_8to24table_conchars, d_8to24table, 256 * 4);
@@ -401,6 +538,7 @@ void TexMgr_Init (void)
 	extern texture_t *r_notexture_mip, *r_notexture_mip2;
 
 	texmgr_mutex = SDL_CreateMutex ();
+	rtspecial_mutex = SDL_CreateMutex ();
 
 	// init texture list
 	free_gltextures = (gltexture_t *)Mem_Alloc (MAX_GLTEXTURES * sizeof (gltexture_t));
@@ -701,8 +839,24 @@ static void TexMgr_LoadImage32 (gltexture_t *glt, unsigned *data)
 		.addressModeV = RG_SAMPLER_ADDRESS_MODE_REPEAT,
 	};
 
-	RgResult r = rgCreateStaticMaterial (vulkan_globals.instance, &info, &glt->rtmaterial);
-	RG_CHECK (r);
+	if (!rtspecial_started)
+	{
+		SDL_LockMutex (rtspecial_mutex);
+	    RgResult r = rgCreateStaticMaterial (vulkan_globals.instance, &info, &glt->rtmaterial);
+	    RG_CHECK (r);
+		SDL_UnlockMutex (rtspecial_mutex);
+	}
+	else
+	{
+		if (glt->flags & TEXPREF_RT_IS_EMISSIVE)
+		{
+			TexMgr_RT_SpecialFullbright (glt->width, glt->height, data);
+		}
+		else
+		{
+		    TexMgr_RT_SpecialSave (glt, &info);
+		}
+	}
 
 	SDL_UnlockMutex (texmgr_mutex);
 }
@@ -747,6 +901,7 @@ static void TexMgr_LoadImage8 (gltexture_t *glt, byte *data)
 		else
 			usepal = d_8to24table_fbright;
 	}
+#if !RT_RENDERER
 	else if (glt->flags & TEXPREF_NOBRIGHT && gl_fullbrights.value)
 	{
 		if (glt->flags & TEXPREF_ALPHA)
@@ -754,6 +909,7 @@ static void TexMgr_LoadImage8 (gltexture_t *glt, byte *data)
 		else
 			usepal = d_8to24table_nobright;
 	}
+#endif
 	else if (glt->flags & TEXPREF_CONCHARS)
 	{
 		usepal = d_8to24table_conchars;
@@ -1005,11 +1161,13 @@ TexMgr_ReloadNobrightImages -- reloads all texture that were loaded with the nob
 */
 void TexMgr_ReloadNobrightImages (void)
 {
+#if !RT_RENDERER
 	gltexture_t *glt;
 
 	for (glt = active_gltextures; glt; glt = glt->next)
 		if (glt->flags & TEXPREF_NOBRIGHT)
 			TexMgr_ReloadImage (glt, -1, -1);
+#endif
 }
 
 /*

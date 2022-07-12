@@ -98,7 +98,7 @@ typedef struct texture_s
 	unsigned            width, height;
 	unsigned            shift;                    // Q64
 	struct gltexture_s *gltexture;                // johnfitz -- pointer to gltexture
-	struct gltexture_s *fullbright;               // johnfitz -- fullbright mask texture
+	struct gltexture_s *fullbright;               // johnfitz -- fullbright mask texture; RT -- not used
 	struct gltexture_s *warpimage;                // johnfitz -- for water animation
 	atomic_uint32_t     update_warp;              // johnfitz -- update warp this frame
 	struct msurface_s  *texturechains[chain_num]; // for texture chains
@@ -366,7 +366,7 @@ typedef struct
 	int                 posedata;                 // numposes*poseverts trivert_t
 	int                 commands;                 // gl command list with embedded s/t
 	struct gltexture_s *gltextures[MAX_SKINS][4]; // johnfitz
-	struct gltexture_s *fbtextures[MAX_SKINS][4]; // johnfitz
+	struct gltexture_s *fbtextures[MAX_SKINS][4]; // johnfitz; RT - not used
 	byte			   *texels[MAX_SKINS];        // only for player skins
 	maliasframedesc_t   frames[1];                // variable sized
 } aliashdr_t;

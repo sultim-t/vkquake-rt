@@ -49,6 +49,11 @@ texture_t *r_notexture_mip2; // johnfitz -- used for non-lightmapped surfs with 
 
 SDL_mutex *lightcache_mutex;
 
+extern cvar_t rt_brush_metal;
+extern cvar_t rt_brush_rough;
+extern cvar_t rt_model_metal;
+extern cvar_t rt_model_rough;
+
 /*
 ===============
 ReadShortUnaligned
@@ -626,6 +631,8 @@ static void Mod_LoadTextureTask (int i, load_texture_task_args_t *args)
 			data = Image_LoadImage (filename, &fwidth, &fheight);
 		}
 
+		TexMgr_RT_SpecialStart (CVAR_TO_FLOAT (rt_brush_rough), CVAR_TO_FLOAT (rt_brush_metal));
+
 		// now load whatever we found
 		if (data) // load external image
 		{
@@ -642,7 +649,11 @@ static void Mod_LoadTextureTask (int i, load_texture_task_args_t *args)
 			}
 
 			if (data)
-				tx->fullbright = TexMgr_LoadImage (mod, filename2, fwidth, fheight, SRC_RGBA, data, filename, 0, TEXPREF_MIPMAP | extraflags);
+			{
+				tx->fullbright = TexMgr_LoadImage (
+					mod, filename2, fwidth, fheight, SRC_RGBA, data, filename, 0, 
+					TEXPREF_RT_IS_EMISSIVE | TEXPREF_MIPMAP | extraflags);
+			}
 		}
 		else // use the texture from the bsp file
 		{
@@ -653,9 +664,10 @@ static void Mod_LoadTextureTask (int i, load_texture_task_args_t *args)
 				tx->gltexture = TexMgr_LoadImage (
 					mod, texturename, tx->width, tx->height, SRC_INDEXED, (byte *)(tx + 1), mod->name, offset, TEXPREF_MIPMAP | TEXPREF_NOBRIGHT | extraflags);
 				q_snprintf (texturename, sizeof (texturename), "%s:%s_glow", mod->name, tx->name);
-				tx->fullbright = TexMgr_LoadImage (
+
+			    tx->fullbright = TexMgr_LoadImage (
 					mod, texturename, tx->width, tx->height, SRC_INDEXED, (byte *)(tx + 1), mod->name, offset,
-					TEXPREF_MIPMAP | TEXPREF_FULLBRIGHT | extraflags);
+					TEXPREF_RT_IS_EMISSIVE | TEXPREF_MIPMAP | TEXPREF_FULLBRIGHT | extraflags);
 			}
 			else
 			{
@@ -663,6 +675,8 @@ static void Mod_LoadTextureTask (int i, load_texture_task_args_t *args)
 					TexMgr_LoadImage (mod, texturename, tx->width, tx->height, SRC_INDEXED, (byte *)(tx + 1), mod->name, offset, TEXPREF_MIPMAP | extraflags);
 			}
 		}
+
+		TexMgr_RT_SpecialEnd ();
 	}
 	Mem_Free (data);
 }
@@ -736,7 +750,6 @@ static void Mod_LoadTextures (qmodel_t *mod, byte *mod_base, lump_t *l)
 
 		Atomic_StoreUInt32 (&tx->update_warp, false); // johnfitz
 		tx->warpimage = NULL;                         // johnfitz
-		tx->fullbright = NULL;                        // johnfitz
 		tx->shift = 0;                                // Q64 only
 
 		if (mod->bspversion != BSPVERSION_QUAKE64)
@@ -2740,12 +2753,16 @@ static void Mod_LoadSkinTask (int i, load_skin_task_args_t *args)
 		offset = (src_offset_t)(skin) - (src_offset_t)mod_base;
 		if (Mod_CheckFullbrights (skin, size))
 		{
+			TexMgr_RT_SpecialStart (CVAR_TO_FLOAT (rt_model_rough), CVAR_TO_FLOAT (rt_model_metal));
+
 			pheader->gltextures[i][0] = TexMgr_LoadImage (
 				mod, name, pheader->skinwidth, pheader->skinheight, SRC_INDEXED, skin, mod->name, offset, texflags | TEXPREF_MIPMAP | TEXPREF_NOBRIGHT);
 			q_snprintf (fbr_mask_name, sizeof (fbr_mask_name), "%s:frame%i_glow", mod->name, i);
 			pheader->fbtextures[i][0] = TexMgr_LoadImage (
 				mod, fbr_mask_name, pheader->skinwidth, pheader->skinheight, SRC_INDEXED, skin, mod->name, offset,
-				texflags | TEXPREF_MIPMAP | TEXPREF_FULLBRIGHT);
+				TEXPREF_RT_IS_EMISSIVE | texflags | TEXPREF_MIPMAP | TEXPREF_FULLBRIGHT);
+
+			TexMgr_RT_SpecialEnd ();
 		}
 		else
 		{
@@ -2781,12 +2798,16 @@ static void Mod_LoadSkinTask (int i, load_skin_task_args_t *args)
 			offset = (src_offset_t)(skin) - (src_offset_t)mod_base; // johnfitz
 			if (Mod_CheckFullbrights (skin, size))
 			{
+				TexMgr_RT_SpecialStart (CVAR_TO_FLOAT (rt_model_rough), CVAR_TO_FLOAT (rt_model_metal));
+
 				pheader->gltextures[i][j & 3] = TexMgr_LoadImage (
 					mod, name, pheader->skinwidth, pheader->skinheight, SRC_INDEXED, skin, mod->name, offset, texflags | TEXPREF_MIPMAP | TEXPREF_NOBRIGHT);
 				q_snprintf (fbr_mask_name, sizeof (fbr_mask_name), "%s:frame%i_%i_glow", mod->name, i, j);
 				pheader->fbtextures[i][j & 3] = TexMgr_LoadImage (
 					mod, fbr_mask_name, pheader->skinwidth, pheader->skinheight, SRC_INDEXED, skin, mod->name, offset,
-					texflags | TEXPREF_MIPMAP | TEXPREF_FULLBRIGHT);
+					TEXPREF_RT_IS_EMISSIVE | texflags | TEXPREF_MIPMAP | TEXPREF_FULLBRIGHT);
+
+				TexMgr_RT_SpecialEnd ();
 			}
 			else
 			{
