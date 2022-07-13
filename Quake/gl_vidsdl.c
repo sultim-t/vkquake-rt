@@ -102,6 +102,9 @@ static cvar_t rt_shadowrays = {"rt_shadowrays", "2", CVAR_ARCHIVE};
 cvar_t rt_dlight_intensity = {"rt_dlight_intensity", "1.0", CVAR_ARCHIVE};
 cvar_t rt_dlight_radius = {"rt_dlight_radius", "0.1", CVAR_ARCHIVE};
 cvar_t rt_flashlight = {"rt_flashlight", "0", CVAR_ARCHIVE};
+cvar_t rt_muzzleoffs_x = {"rt_muzzleoffs_x", "0", CVAR_ARCHIVE};
+cvar_t rt_muzzleoffs_y = {"rt_muzzleoffs_y", "-20", CVAR_ARCHIVE};
+cvar_t rt_muzzleoffs_z = {"rt_muzzleoffs_z", "100", CVAR_ARCHIVE};
 
 static cvar_t rt_sky_intensity = {"rt_sky_intensity", "0.05", CVAR_ARCHIVE};
 static cvar_t rt_sky_saturation = {"rt_sky_saturation", "1", CVAR_ARCHIVE};
@@ -1131,6 +1134,9 @@ void VID_Init (void)
 		Cvar_RegisterVariable (&rt_dlight_intensity);
 		Cvar_RegisterVariable (&rt_dlight_radius);
 		Cvar_RegisterVariable (&rt_flashlight);
+		Cvar_RegisterVariable (&rt_muzzleoffs_x);
+		Cvar_RegisterVariable (&rt_muzzleoffs_y);
+		Cvar_RegisterVariable (&rt_muzzleoffs_z);
 
 		Cvar_RegisterVariable (&rt_sky_intensity);
 		Cvar_RegisterVariable (&rt_sky_saturation);

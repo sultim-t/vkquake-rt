@@ -118,9 +118,20 @@ static void GL_DrawAliasFrame (
 
 	qboolean rasterize = entity_alpha < 1.0f;
 	qboolean isfirstperson = (e == &cl.viewent);
+	qboolean isviewer = (e == &cl.entities[cl.viewentity]);
+
+	assert (
+		(!isviewer && !isfirstperson) || 
+		(isviewer && !isfirstperson) || 
+		(!isviewer && isfirstperson));
 
 	if (rasterize)
 	{
+		if (isviewer)
+		{
+			return;
+		}
+
 		RgRasterizedGeometryUploadInfo info = {
 			.renderType = RG_RASTERIZED_GEOMETRY_RENDER_TYPE_DEFAULT,
 			.vertexCount = paliashdr->numverts_vbo,
@@ -150,7 +161,10 @@ static void GL_DrawAliasFrame (
 			.flags = 0,
 			.geomType = RG_GEOMETRY_TYPE_DYNAMIC,
 			.passThroughType = RG_GEOMETRY_PASS_THROUGH_TYPE_ALPHA_TESTED,
-			.visibilityType = isfirstperson ? RG_GEOMETRY_VISIBILITY_TYPE_FIRST_PERSON : RG_GEOMETRY_VISIBILITY_TYPE_WORLD_0,
+			.visibilityType = 
+			    isfirstperson ? RG_GEOMETRY_VISIBILITY_TYPE_FIRST_PERSON :
+		        isviewer ? RG_GEOMETRY_VISIBILITY_TYPE_FIRST_PERSON_VIEWER :
+		        RG_GEOMETRY_VISIBILITY_TYPE_WORLD_0,
 			.vertexCount = paliashdr->numverts_vbo,
 			.pVertices = GetModelVerticesForPose (e->model, paliashdr, lerpdata.pose1),
 			.indexCount = paliashdr->numindexes,

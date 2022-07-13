@@ -62,6 +62,7 @@ entity_t **cl_visedicts;
 
 extern cvar_t r_lerpmodels, r_lerpmove; // johnfitz
 extern float  host_netinterval;         // Spike
+extern cvar_t rt_muzzleoffs_x, rt_muzzleoffs_y, rt_muzzleoffs_z;
 
 qboolean needs_relink;
 
@@ -719,15 +720,31 @@ void CL_RelinkEntities (void)
 
 		if (ent->effects & EF_MUZZLEFLASH)
 		{
-			vec3_t fv, rv, uv;
-
 			dl = CL_AllocDlight (i);
-			VectorCopy (ent->origin, dl->origin);
-			dl->origin[2] += 16;
-			AngleVectors (ent->angles, fv, rv, uv);
 
-			VectorMA (dl->origin, 18, fv, dl->origin);
-			dl->radius = 200 + (rand () & 31);
+#if RT_RENDERER
+			if (ent == &cl.entities[cl.viewentity])
+			{
+			    // offset first-person muzzle flash relative to the camera
+				VectorCopy (r_origin, dl->origin);
+
+				VectorMA (dl->origin, (CVAR_TO_FLOAT (rt_muzzleoffs_x)), vright, dl->origin);
+				VectorMA (dl->origin, (CVAR_TO_FLOAT (rt_muzzleoffs_y)), vup, dl->origin);
+				VectorMA (dl->origin, (CVAR_TO_FLOAT (rt_muzzleoffs_z)), vpn, dl->origin);
+			}
+			else
+#endif
+			{
+				VectorCopy (ent->origin, dl->origin);
+				dl->origin[2] += 16;
+
+				vec3_t fv, rv, uv;
+				AngleVectors (ent->angles, fv, rv, uv);
+
+				VectorMA (dl->origin, 18, fv, dl->origin);
+			}
+
+		    dl->radius = 200 + (rand () & 31);
 			dl->minlight = 32;
 			dl->die = cl.time + 0.1;
 
@@ -864,8 +881,11 @@ void CL_RelinkEntities (void)
 		}
 #endif
 
+		// RT: don't ignore viewer
+#if !RT_RENDERER
 		if (i == cl.viewentity && !chase_active.value)
 			continue;
+#endif
 
 		if (cl_numvisedicts < cl_maxvisedicts)
 		{
