@@ -26,6 +26,8 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "gl_heap.h"
 #include "quakedef.h"
 
+#define RT_SKY_CULLING 0
+
 #define MAX_CLIP_VERTS 64
 
 float Fog_GetDensity (void);
@@ -34,7 +36,9 @@ void  Fog_GetColor (float *c);
 extern atomic_uint32_t rs_skypolys;  // for r_speeds readout
 extern atomic_uint32_t rs_skypasses; // for r_speeds readout
 float                  skyflatcolor[3];
+#if RT_SKY_CULLING
 float                  skymins[2][6], skymaxs[2][6];
+#endif
 
 char skybox_name[1024]; // name of current skybox, or "" if no skybox
 
@@ -427,6 +431,8 @@ void Sky_Init (void)
 //
 //==============================================================================
 
+#if RT_SKY_CULLING
+
 /*
 =================
 Sky_ProjectPoly
@@ -600,6 +606,8 @@ void Sky_ClipPoly (int nump, vec3_t vecs, int stage)
 	Sky_ClipPoly (newc[1], newv[1][0], stage + 1);
 }
 
+#endif // RT_SKY_CULLING
+
 /*
 ================
 Sky_ProcessPoly
@@ -607,15 +615,16 @@ Sky_ProcessPoly
 */
 static void Sky_ProcessPoly (cb_context_t *cbx, glpoly_t *p, float color[3], uint64_t uniqueid)
 {
-	int    i;
-	vec3_t verts[MAX_CLIP_VERTS];
-	float *poly_vert;
-
 	const static RgTransform tr = RT_TRANSFORM_IDENTITY;
 
 	// draw it
 	DrawGLPoly (cbx, uniqueid, p, color, 1.0f, &tr, NULL, DRAW_GL_POLY_TYPE_SKY);
 	Atomic_IncrementUInt32 (&rs_brushpasses);
+
+#if RT_SKY_CULLING
+	int    i;
+	vec3_t verts[MAX_CLIP_VERTS];
+	float *poly_vert;
 
 	// update sky bounds
 	if (!CVAR_TO_BOOL(r_fastsky))
@@ -627,6 +636,7 @@ static void Sky_ProcessPoly (cb_context_t *cbx, glpoly_t *p, float color[3], uin
 		}
 		Sky_ClipPoly (p->numverts, verts[0], 0);
 	}
+#endif // RT_SKY_CULLING
 }
 
 /*
@@ -817,23 +827,34 @@ void Sky_DrawSkyBox (cb_context_t *cbx)
 
 	for (i = 0; i < 6; i++)
 	{
+#if RT_SKY_CULLING
 		if (skymins[0][i] >= skymaxs[0][i] || skymins[1][i] >= skymaxs[1][i])
 			continue;
+#endif
 
 		gltexture_t *texture = skybox_textures[skytexorder[i]];
 
 		RgVertex vertices[4] = {0};
 
-#if 1 // FIXME: this is to avoid tjunctions until i can do it the right way
+#if RT_SKY_CULLING
+    #if 1 // FIXME: this is to avoid tjunctions until i can do it the right way
 		skymins[0][i] = -1;
 		skymins[1][i] = -1;
 		skymaxs[0][i] = 1;
 		skymaxs[1][i] = 1;
-#endif
+    #endif
 		Sky_EmitSkyBoxVertex (vertices + 0, skymins[0][i], skymins[1][i], i);
 		Sky_EmitSkyBoxVertex (vertices + 1, skymins[0][i], skymaxs[1][i], i);
 		Sky_EmitSkyBoxVertex (vertices + 2, skymaxs[0][i], skymaxs[1][i], i);
 		Sky_EmitSkyBoxVertex (vertices + 3, skymaxs[0][i], skymins[1][i], i);
+#else
+		float skymins[] = {-1, -1};
+		float skymaxs[] = { 1,  1};
+		Sky_EmitSkyBoxVertex (vertices + 0, skymins[0], skymins[1], i);
+		Sky_EmitSkyBoxVertex (vertices + 1, skymins[0], skymaxs[1], i);
+		Sky_EmitSkyBoxVertex (vertices + 2, skymaxs[0], skymaxs[1], i);
+		Sky_EmitSkyBoxVertex (vertices + 3, skymaxs[0], skymins[1], i);
+#endif
 
 		RgRasterizedGeometryUploadInfo info = {
 			.renderType = RG_RASTERIZED_GEOMETRY_RENDER_TYPE_SKY,
@@ -992,9 +1013,9 @@ void Sky_DrawFace (cb_context_t *cbx, int axis, float alpha)
 	{
 		for (j = 0; j < dj; j++)
 		{
-			if (i * qi < skymins[0][axis] / 2 + 0.5 - qi || i * qi > skymaxs[0][axis] / 2 + 0.5 || j * qj < skymins[1][axis] / 2 + 0.5 - qj ||
-			    j * qj > skymaxs[1][axis] / 2 + 0.5)
-				continue;
+			//if (i * qi < skymins[0][axis] / 2 + 0.5 - qi || i * qi > skymaxs[0][axis] / 2 + 0.5 || j * qj < skymins[1][axis] / 2 + 0.5 - qj ||
+			//    j * qj > skymaxs[1][axis] / 2 + 0.5)
+			//	continue;
 
 			// if (i&1 ^ j&1) continue; //checkerboard test
 			VectorScale (right, qi * i, temp);
@@ -1029,7 +1050,7 @@ void Sky_DrawSkyLayers (cb_context_t *cbx)
 		return;
 
 	for (i = 0; i < 6; i++)
-		if (skymins[0][i] < skymaxs[0][i] && skymins[1][i] < skymaxs[1][i])
+		//if (skymins[0][i] < skymaxs[0][i] && skymins[1][i] < skymaxs[1][i])
 			Sky_DrawFace (cbx, i, r_skyalpha.value);
 }
 
@@ -1042,8 +1063,6 @@ called once per frame before drawing anything else
 */
 void Sky_DrawSky (cb_context_t *cbx)
 {
-	int i;
-
 	if (r_lightmap_cheatsafe)
 		return;
 
@@ -1057,11 +1076,13 @@ void Sky_DrawSky (cb_context_t *cbx)
 	//
 	// reset sky bounds
 	//
-	for (i = 0; i < 6; i++)
+#if RT_SKY_CULLING
+	for (int i = 0; i < 6; i++)
 	{
 		skymins[0][i] = skymins[1][i] = FLT_MAX;
 		skymaxs[0][i] = skymaxs[1][i] = -FLT_MAX;
 	}
+#endif
 
 	//
 	// process world and bmodels: draw flat-shaded sky surfs, and update skybounds
