@@ -731,6 +731,28 @@ void CL_RelinkEntities (void)
 				VectorMA (dl->origin, (CVAR_TO_FLOAT (rt_muzzleoffs_x)), vright, dl->origin);
 				VectorMA (dl->origin, (CVAR_TO_FLOAT (rt_muzzleoffs_y)), vup, dl->origin);
 				VectorMA (dl->origin, (CVAR_TO_FLOAT (rt_muzzleoffs_z)), vpn, dl->origin);
+
+				vec3_t tolight;
+				VectorSubtract (dl->origin, r_origin, tolight);
+				const float len = VectorLength (tolight);
+				VectorScale (tolight, 1.0f / len, tolight);
+
+				if (len > 0.01f)
+				{
+					const float fraction = 0.7f;
+					
+					vec3_t end;
+					VectorMA (r_origin, len / fraction, tolight, end);
+
+					vec3_t hitpoint;
+					TraceLine (r_origin, end, hitpoint);
+
+					vec3_t delta;
+					VectorSubtract (hitpoint, r_origin, delta);
+					float disttoend = CLAMP (0.0f, VectorLength (delta), len / fraction);
+					
+					VectorMA (r_origin, fraction * disttoend, tolight, dl->origin);
+				}
 			}
 			else
 #endif
