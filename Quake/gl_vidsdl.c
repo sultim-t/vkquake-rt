@@ -777,23 +777,46 @@ static const char *GetUpscalerOptionName (int i)
 	default:
 		return "Custom";
     }
-
 }
 
 typedef struct end_rendering_parms_s
 {
-	double  time;
 	float   vid_width;
 	float   vid_height;
-	float	v_blend[4];
 } end_rendering_parms_t;
 
 #define DEG2RAD(a) ((a)*M_PI_DIV_180)
+#define FROMCOLOR255(a) {((a)[0] / 255.0f), ((a)[1] / 255.0f), ((a)[2] / 255.0f)}
+
 extern float  GL_GetCameraNear (float radfovx, float radfovy);
 extern float  GL_GetCameraFar (void);
 extern float  r_fovx, r_fovy;
 extern cvar_t r_fastsky;
 extern float  skyflatcolor[3];
+extern float    rt_dmg_value;
+extern qboolean rt_dmg_inthisframe;
+
+static qboolean IsCameraUnderWater ()
+{
+	if (!r_viewleaf)
+	{
+		return false;
+	}
+
+	switch (r_viewleaf->contents)
+	{
+	case CONTENTS_EMPTY:
+	case CONTENTS_SOLID:
+	case CONTENTS_SKY:
+		return false;
+	case CONTENTS_LAVA:
+		return false;
+	case CONTENTS_SLIME:
+		return false;
+	default:
+		return true;
+	}
+}
 
 /*
 =================
@@ -802,8 +825,6 @@ GL_EndRenderingTask
 */
 static void GL_EndRenderingTask (end_rendering_parms_t *parms)
 {
-	qboolean is_camera_under_water = false;
-
 	float rscl = CVAR_TO_FLOAT (rt_renderscale) / 100.0f;
 
 	RgDrawFrameRenderResolutionParams resolution_params = {
@@ -839,7 +860,7 @@ static void GL_EndRenderingTask (end_rendering_parms_t *parms)
 
 	RgDrawFrameReflectRefractParams refl_refr_params = {
 		.maxReflectRefractDepth = CVAR_TO_UINT32 (rt_reflrefr_depth),
-		.typeOfMediaAroundCamera = is_camera_under_water ? RG_MEDIA_TYPE_WATER : RG_MEDIA_TYPE_VACUUM,
+		.typeOfMediaAroundCamera = IsCameraUnderWater () ? RG_MEDIA_TYPE_WATER : RG_MEDIA_TYPE_VACUUM,
 		.reflectRefractCastShadows = CVAR_TO_BOOL (rt_reflrefr_castshadows),
 		.reflectRefractToIndirect = CVAR_TO_BOOL (rt_reflrefr_toindir),
 		.indexOfRefractionGlass = CVAR_TO_FLOAT (rt_refr_glass),
@@ -883,12 +904,47 @@ static void GL_EndRenderingTask (end_rendering_parms_t *parms)
 		.intensity = CVAR_TO_FLOAT (rt_ef_chraber),
 	};
 
-	RgPostEffectColorTint tint_effect = {
-		.isActive = parms->v_blend[3] > 0,
+	RgPostEffectColorTint tint_quad = {
+		.isActive = true,
+		.transitionDurationIn = 1.0f,
+		.transitionDurationOut = 1.0f,
+		.intensity = 1.0f,
+		.color = {0.0f, 0.0f, 1.0f},
+	};
+	RgPostEffectColorTint tint_radsuit = {
+		.isActive = true,
+		.transitionDurationIn = 1.0f,
+		.transitionDurationOut = 1.0f,
+		.intensity = 1.0f,
+		.color = {0.2f, 1.0f, 0.4f},
+	};
+	RgPostEffectColorTint tint_bonus = {
+		.isActive = true,
 		.transitionDurationIn = 0.0f,
 		.transitionDurationOut = 0.7f,
-		.intensity = parms->v_blend[3],
-		.color = {parms->v_blend[0], parms->v_blend[1], parms->v_blend[2]},
+		.intensity = 0.5f,
+		.color = {0.85f, 0.72f, 0.27f},
+	};
+	RgPostEffectColorTint tint_damage = {
+		.isActive = true,
+		.transitionDurationIn = 0.0f,
+		.transitionDurationOut = 0.2f + rt_dmg_value * 0.8f,
+		.intensity = 0.5f,
+		.color = FROMCOLOR255 (cl.cshifts[CSHIFT_DAMAGE].destcolor),
+	};
+
+	static RgPostEffectColorTint tint_effect = {0}; // static, so prev state's transition durations are preserved
+	tint_effect.isActive = false;
+	if (cl.items & IT_QUAD) tint_effect = tint_quad;
+	else if (cl.items & IT_SUIT) tint_effect = tint_radsuit;
+	else if (rt_dmg_inthisframe) tint_effect = tint_damage;
+	else if (cl.cshifts[CSHIFT_BONUS].percent > 0) tint_effect = tint_bonus;
+	rt_dmg_inthisframe = false;
+
+    RgPostEffectRadialBlur radial_effect = {
+		.isActive = cl.items & IT_QUAD,
+		.transitionDurationIn = 1.0f,
+		.transitionDurationOut = 2.0f,
 	};
 
 	RgDrawFrameDebugParams debug_params = {
@@ -908,7 +964,7 @@ static void GL_EndRenderingTask (end_rendering_parms_t *parms)
 		.primaryRayMinDist = cameranear,
 		.disableRayTracing = false,
 		.disableRasterization = false,
-		.currentTime = parms->time,
+		.currentTime = (double)SDL_GetTicks () / 1000.0,
 		.disableEyeAdaptation = false,
 		.pRenderResolutionParams = &resolution_params,
 		.pShadowParams = &shadow_params,
@@ -923,6 +979,7 @@ static void GL_EndRenderingTask (end_rendering_parms_t *parms)
 				.pChromaticAberration = &chromatic_aberration_effect,
 				.pColorTint = &tint_effect,
 				.pCRT = &crt_effect,
+				.pRadialBlur = &radial_effect,
 			},
 		.pDebugParams = &debug_params,
 	};
@@ -941,13 +998,8 @@ GL_EndRendering
 task_handle_t GL_EndRendering (qboolean use_tasks, qboolean swapchain)
 {
 	end_rendering_parms_t parms = {
-		.time = cl.time,
 		.vid_width = (float)vid.width,
 		.vid_height = (float)vid.height,
-		.v_blend[0] = (float)v_blend[0] / 255.0f,
-		.v_blend[1] = (float)v_blend[1] / 255.0f,
-		.v_blend[2] = (float)v_blend[2] / 255.0f,
-		.v_blend[3] = (float)v_blend[3] / 255.0f,
 	};
 	task_handle_t end_rendering_task = INVALID_TASK_HANDLE;
 	if (use_tasks)

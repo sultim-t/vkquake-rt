@@ -68,6 +68,8 @@ cvar_t gl_cshiftpercent_powerup = {"gl_cshiftpercent_powerup", "100", CVAR_NONE}
 cvar_t r_viewmodel_quake = {"r_viewmodel_quake", "0", CVAR_ARCHIVE};
 
 float v_dmg_time, v_dmg_roll, v_dmg_pitch;
+float rt_dmg_value;
+qboolean rt_dmg_inthisframe;
 
 extern int in_forward, in_forward2, in_back;
 
@@ -328,6 +330,9 @@ void V_ParseDamage (void)
 	v_dmg_pitch = count * side * v_kickpitch.value;
 
 	v_dmg_time = v_kicktime.value;
+
+	rt_dmg_value = CLAMP (0.0f, count / 30.0f, 1.0f);
+	rt_dmg_inthisframe = true;
 }
 
 /*
@@ -399,7 +404,7 @@ void V_CalcPowerupCshift (void)
 		cl.cshifts[CSHIFT_POWERUP].destcolor[2] = 255;
 		cl.cshifts[CSHIFT_POWERUP].percent = 30;
 	}
-	else if (cl.items & IT_SUIT)
+    else if (cl.items & IT_SUIT)
 	{
 		cl.cshifts[CSHIFT_POWERUP].destcolor[0] = 0;
 		cl.cshifts[CSHIFT_POWERUP].destcolor[1] = 255;
@@ -420,7 +425,7 @@ void V_CalcPowerupCshift (void)
 		cl.cshifts[CSHIFT_POWERUP].destcolor[2] = 0;
 		cl.cshifts[CSHIFT_POWERUP].percent = 30;
 	}
-	else
+	else 
 		cl.cshifts[CSHIFT_POWERUP].percent = 0;
 }
 
