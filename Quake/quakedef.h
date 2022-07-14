@@ -408,4 +408,8 @@ extern int num_vulkan_storage_images;
 #define CVAR_TO_INT32(x)  ((int)(x).value)
 
 
+// Used to access a field inside edict_t
+#define EDICT_KEY_LIGHT "light_lev"
+
+
 #endif /* QUAKEDEFS_H */
