@@ -702,6 +702,127 @@ void R_ShowBoundingBoxes (cb_context_t *cbx)
 
 /*
 ================
+RT_UploadEdictLights -- RT
+
+parse server-side edicts, to find 'light' field inside
+================
+*/
+static void RT_UploadEdictLights ()
+{
+	char        key[128], value[4096];
+	const char *data;
+
+	if (!cl.worldmodel)
+	{
+		return;
+	}
+
+	data = cl.worldmodel->entities;
+	if (!data)
+	{
+		return;
+	}
+	
+    const float RT_ELIGHT_NORMALIZATION = 255;
+
+	struct
+	{
+		vec3_t origin;
+		float  intensity;
+	} struct_values = {0};
+
+    #define STRUCT_STATE_STRUCT_STARTED  1
+    #define STRUCT_STATE_FOUND_ORIGIN    2
+    #define STRUCT_STATE_FOUND_INTENSITY 4
+	int struct_state = 0;
+
+	int elight_index = 0;
+
+	while (1)
+	{
+		data = COM_Parse (data);
+		if (!data)
+			return; // error
+
+	    if (com_token[0] == '{')
+	    {
+			struct_state = STRUCT_STATE_STRUCT_STARTED;
+			memset (&struct_values, 0, sizeof (struct_values));
+            continue;
+	    }
+	    else if (com_token[0] == '}')
+		{
+			if (struct_state & STRUCT_STATE_STRUCT_STARTED)
+			{
+				if ((struct_state & STRUCT_STATE_FOUND_ORIGIN) &&
+				    (struct_state & STRUCT_STATE_FOUND_INTENSITY))
+				{
+					if (struct_values.intensity > 200)
+					{
+						float light_intensity = struct_values.intensity / RT_ELIGHT_NORMALIZATION;
+
+						vec3_t color = {light_intensity, light_intensity, light_intensity};
+						VectorScale (color, CVAR_TO_FLOAT (rt_dlight_intensity), color);
+						VectorScale (color, RT_QUAKE_LIGHT_AREA_INTENSITY_FIX, color);
+
+						RgSphericalLightUploadInfo info = {
+							.uniqueID = MAX_DLIGHTS + 128 + elight_index,
+							.color = {color[0], color[1], color[2]},
+							.position = {struct_values.origin[0], struct_values.origin[1], struct_values.origin[2]},
+							.radius = METRIC_TO_QUAKEUNIT (CVAR_TO_FLOAT (rt_dlight_radius)),
+						};
+
+						RgResult r = rgUploadSphericalLight (vulkan_globals.instance, &info);
+						RG_CHECK (r);
+
+						elight_index++;
+					}
+				}
+			}
+
+			struct_state = 0; // end of struct
+			continue;
+		}
+
+		if (com_token[0] == '_')
+			q_strlcpy (key, com_token + 1, sizeof (key));
+		else
+			q_strlcpy (key, com_token, sizeof (key));
+		while (key[0] && key[strlen (key) - 1] == ' ') // remove trailing spaces
+			key[strlen (key) - 1] = 0;
+		data = COM_Parse (data);
+		if (!data)
+			return; // error
+		q_strlcpy (value, com_token, sizeof (value));
+
+		if (strcmp (RT_ENTITY_KEY_ORIGIN, key) == 0)
+		{
+			vec3_t tmpvec;
+			int    components = sscanf (value, "%f %f %f", &tmpvec[0], &tmpvec[1], &tmpvec[2]);
+
+			if (components == 3)
+			{
+				struct_values.origin[0] = tmpvec[0];
+				struct_values.origin[1] = tmpvec[1];
+				struct_values.origin[2] = tmpvec[2];
+				struct_state |= STRUCT_STATE_FOUND_ORIGIN;
+			}
+		}
+		else if (strcmp (RT_ENTITY_KEY_LIGHT, key) == 0)
+		{
+			float tmpval = strtof(value, NULL);
+
+		    if (tmpval > 0.0f)
+			{
+				struct_values.intensity = tmpval;
+			    struct_state |= STRUCT_STATE_FOUND_INTENSITY;
+			}
+		}
+	}
+}
+
+/*
+================
 R_ShowTris -- johnfitz
 ================
 */
@@ -860,6 +981,7 @@ static void R_DrawViewModelTask (void *unused)
 	R_DrawViewModel (&vulkan_globals.secondary_cb_contexts[CBX_VIEW_MODEL]);     // johnfitz -- moved here from R_RenderView
 	R_ShowTris (&vulkan_globals.secondary_cb_contexts[CBX_VIEW_MODEL]);          // johnfitz
 	R_ShowBoundingBoxes (&vulkan_globals.secondary_cb_contexts[CBX_VIEW_MODEL]); // johnfitz
+	RT_UploadEdictLights (); // RT
 }
 
 /*

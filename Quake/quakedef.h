@@ -408,8 +408,9 @@ extern int num_vulkan_storage_images;
 #define CVAR_TO_INT32(x)  ((int)(x).value)
 
 
-// Used to access a field inside edict_t
-#define EDICT_KEY_LIGHT "light_lev"
+// Used to access a field inside worldmode.entities
+#define RT_ENTITY_KEY_ORIGIN "origin"
+#define RT_ENTITY_KEY_LIGHT "light"
 
 
 #endif /* QUAKEDEFS_H */

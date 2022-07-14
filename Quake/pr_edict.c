@@ -911,8 +911,6 @@ const char *ED_ParseEdict (const char *data, edict_t *ent)
 		// FIXME: change light to _light to get rid of this hack
 		if (!strcmp (com_token, "light"))
 			strcpy (com_token, "light_lev"); // hack for single light def
-	    // RT: EDICT_KEY_LIGHT must be the same as edict light entry key, for rendering
-		assert (!strcmp (EDICT_KEY_LIGHT, "light_lev"));
 
 		q_strlcpy (keyname, com_token, sizeof (keyname));
 
