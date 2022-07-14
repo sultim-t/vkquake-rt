@@ -37,6 +37,7 @@ extern cvar_t r_gpulightmapupdate;
 extern cvar_t rt_brush_metal;
 extern cvar_t rt_brush_rough;
 extern cvar_t rt_enable_pvs;
+extern cvar_t rt_classic_render;
 
 cvar_t r_parallelmark = {"r_parallelmark", "1", CVAR_NONE};
 
@@ -768,6 +769,11 @@ static void RT_FlushBatch (cb_context_t *cbx, const rt_uploadsurf_state_t *s, ui
 	gltexture_t *diffuse_tex = r_lightmap_cheatsafe ? NULL : s->diffuse_tex;
 	gltexture_t *lightmap_tex = r_fullbright_cheatsafe ? NULL : s->lightmap_tex;
 
+    if (!CVAR_TO_BOOL (rt_classic_render))	
+	{
+		lightmap_tex = NULL;
+	}
+
 	float alpha = CLAMP (0.0f, s->alpha, 1.0f);
 
 	qboolean is_static_geom = (s->model == cl.worldmodel) && !s->is_water;
@@ -824,16 +830,20 @@ static void RT_FlushBatch (cb_context_t *cbx, const rt_uploadsurf_state_t *s, ui
 			.pVertices = vertices,
 			.indexCount = num_surf_indices,
 			.pIndices = indices,
-			.layerColors = {RT_COLOR_WHITE, RT_COLOR_WHITE, RT_COLOR_WHITE},
+			.layerColors =
+				{
+					RT_COLOR_WHITE,
+					RT_COLOR_WHITE,
+				},
 			.layerBlendingTypes =
 				{
 					RG_GEOMETRY_MATERIAL_BLEND_TYPE_OPAQUE,
-					RG_GEOMETRY_MATERIAL_BLEND_TYPE_SHADE,
+					lightmap_tex ? RG_GEOMETRY_MATERIAL_BLEND_TYPE_SHADE : 0,
 				},
 			.geomMaterial =
 				{
 					diffuse_tex ? diffuse_tex->rtmaterial : greytexture->rtmaterial,
-					lightmap_tex ? lightmap_tex->rtmaterial : greytexture->rtmaterial,
+					lightmap_tex ? lightmap_tex->rtmaterial : RG_NO_MATERIAL,
 				},
 			.defaultRoughness = CVAR_TO_FLOAT (rt_brush_rough),
 			.defaultMetallicity = CVAR_TO_FLOAT (rt_brush_metal),

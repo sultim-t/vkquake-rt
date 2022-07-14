@@ -51,6 +51,8 @@ unsigned blocklights[LMBLOCK_WIDTH * LMBLOCK_HEIGHT * 3 + 1]; // johnfitz -- was
 extern cvar_t r_showtris;
 extern cvar_t r_simd;
 
+extern cvar_t rt_classic_render;
+
 RgVertex *rtallbrushvertices;
 
 
@@ -1095,9 +1097,14 @@ assumes lightmap texture is already bound
 */
 static void R_UploadLightmap (int lmap)
 {
+	// RT: lightmaps only with a classic renderer
+	if (!CVAR_TO_BOOL (rt_classic_render))
+	{
+		return;
+	}
+
 	// RT TODO: lightmap update is disabled for now
 	return;
-
 
 	struct lightmap_s *lm = &lightmaps[lmap];
 	if (!Atomic_LoadUInt32(&lm->modified))

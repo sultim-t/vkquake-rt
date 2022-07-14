@@ -96,6 +96,7 @@ cvar_t                          r_usesops = {"r_usesops", "1", CVAR_ARCHIVE};   
 task_handle_t prev_end_rendering_task = INVALID_TASK_HANDLE;
 
 // RT
+cvar_t rt_classic_render = {"rt_classic_render", "0", CVAR_ARCHIVE};
 cvar_t rt_enable_pvs = {"rt_enable_pvs", "0", CVAR_ARCHIVE};
 static cvar_t rt_shadowrays = {"rt_shadowrays", "2", CVAR_ARCHIVE};
 
@@ -106,7 +107,7 @@ cvar_t rt_muzzleoffs_x = {"rt_muzzleoffs_x", "0", CVAR_ARCHIVE};
 cvar_t rt_muzzleoffs_y = {"rt_muzzleoffs_y", "-20", CVAR_ARCHIVE};
 cvar_t rt_muzzleoffs_z = {"rt_muzzleoffs_z", "100", CVAR_ARCHIVE};
 
-static cvar_t rt_sky_intensity = {"rt_sky_intensity", "0.05", CVAR_ARCHIVE};
+static cvar_t rt_sky_intensity = {"rt_sky_intensity", "0.7", CVAR_ARCHIVE};
 static cvar_t rt_sky_saturation = {"rt_sky_saturation", "1", CVAR_ARCHIVE};
 
 cvar_t rt_brush_metal = {"rt_brush_metal", "0.0", CVAR_ARCHIVE};
@@ -1180,6 +1181,7 @@ void VID_Init (void)
 
 	// RT
 	{
+		Cvar_RegisterVariable (&rt_classic_render);
 		Cvar_RegisterVariable (&rt_enable_pvs);
 		Cvar_RegisterVariable (&rt_shadowrays);
 
