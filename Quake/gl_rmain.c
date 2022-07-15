@@ -114,6 +114,9 @@ extern cvar_t rt_flashlight;
 extern cvar_t rt_sun;
 extern cvar_t rt_sun_pitch;
 extern cvar_t rt_sun_yaw;
+extern cvar_t rt_elight_intensity;
+extern cvar_t rt_elight_radius;
+extern cvar_t rt_elight_threshold;
 
 /*
 =================
@@ -748,15 +751,13 @@ static void RT_UploadEdictLights ()
 	{
 		return;
 	}
-
-	// TODO: add cvar , quake default is 200 
-    const float RT_ELIGHT_NORMALIZATION = 255;
-
+	
 	struct
 	{
 		vec3_t origin;
 		float  intensity;
-	} struct_values = {0};
+	}
+    struct_values = {0};
 
     #define STRUCT_STATE_STRUCT_STARTED  1
     #define STRUCT_STATE_FOUND_ORIGIN    2
@@ -787,22 +788,20 @@ static void RT_UploadEdictLights ()
 				if ((struct_state & STRUCT_STATE_FOUND_ORIGIN) &&
 				    (struct_state & STRUCT_STATE_FOUND_INTENSITY))
 				{
-					// TODO: add cutoff cvar 
-					if (struct_values.intensity > 200)
+					if (struct_values.intensity > CVAR_TO_FLOAT(rt_elight_threshold))
 					{
 						float light_intensity = struct_values.intensity / RT_ELIGHT_NORMALIZATION;
 
 						vec3_t color = {light_intensity, light_intensity, light_intensity};
 						// TODO: add cvar
-						VectorScale (color, CVAR_TO_FLOAT (rt_dlight_intensity), color);
+						VectorScale (color, CVAR_TO_FLOAT (rt_elight_intensity), color);
 						VectorScale (color, RT_QUAKE_LIGHT_AREA_INTENSITY_FIX, color);
 
 						RgSphericalLightUploadInfo info = {
-							// TODO: make generic
-							.uniqueID = MAX_DLIGHTS + 128 + elight_index,
+							.uniqueID = MAX_DLIGHTS + elight_index,
 							.color = {color[0], color[1], color[2]},
 							.position = {struct_values.origin[0], struct_values.origin[1], struct_values.origin[2]},
-							.radius = METRIC_TO_QUAKEUNIT (CVAR_TO_FLOAT (rt_dlight_radius)),
+							.radius = METRIC_TO_QUAKEUNIT (CVAR_TO_FLOAT (rt_elight_radius)),
 						};
 
 						RgResult r = rgUploadSphericalLight (vulkan_globals.instance, &info);
@@ -828,7 +827,7 @@ static void RT_UploadEdictLights ()
 			return; // error
 		q_strlcpy (value, com_token, sizeof (value));
 
-		if (strcmp (RT_ENTITY_KEY_ORIGIN, key) == 0)
+		if (strcmp (RT_ELIGHT_KEY_ORIGIN, key) == 0)
 		{
 			vec3_t tmpvec;
 			int    components = sscanf (value, "%f %f %f", &tmpvec[0], &tmpvec[1], &tmpvec[2]);
@@ -841,7 +840,7 @@ static void RT_UploadEdictLights ()
 				struct_state |= STRUCT_STATE_FOUND_ORIGIN;
 			}
 		}
-		else if (strcmp (RT_ENTITY_KEY_LIGHT, key) == 0)
+		else if (strcmp (RT_ELIGHT_KEY_INTENSITY, key) == 0)
 		{
 			float tmpval = strtof(value, NULL);
 

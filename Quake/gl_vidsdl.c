@@ -105,6 +105,10 @@ task_handle_t prev_end_rendering_task = INVALID_TASK_HANDLE;
 	CVAR_DEF_T (rt_dlight_intensity, "1.0") \
 	CVAR_DEF_T (rt_dlight_radius, "0.1") \
 	\
+	CVAR_DEF_T (rt_elight_intensity, "1.0") \
+	CVAR_DEF_T (rt_elight_radius, "0.1") \
+	CVAR_DEF_T (rt_elight_threshold, "200") \
+	\
 	CVAR_DEF_T (rt_sun, "0") \
 	CVAR_DEF_T (rt_sun_pitch, "60") \
 	CVAR_DEF_T (rt_sun_yaw, "0") \
@@ -153,7 +157,7 @@ task_handle_t prev_end_rendering_task = INVALID_TASK_HANDLE;
 	\
 	CVAR_DEF_T (rt_bloom_intensity, "1") \
 	CVAR_DEF_T (rt_bloom_threshold, "15") \
-	CVAR_DEF_T (rt_bloom_emis_mult, "50") \
+	CVAR_DEF_T (rt_bloom_emis_mult, "20") \
 	CVAR_DEF_T (rt_bloom_satur_bias, "1") \
 	CVAR_DEF_T (rt_bloom_sky_mult, "0.05") \
 	\

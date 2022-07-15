@@ -409,8 +409,9 @@ extern int num_vulkan_storage_images;
 
 
 // Used to access a field inside worldmode.entities
-#define RT_ENTITY_KEY_ORIGIN "origin"
-#define RT_ENTITY_KEY_LIGHT "light"
+#define RT_ELIGHT_KEY_ORIGIN    "origin"
+#define RT_ELIGHT_KEY_INTENSITY "light"
+#define RT_ELIGHT_NORMALIZATION 200.0f 
 
 
 #endif /* QUAKEDEFS_H */
