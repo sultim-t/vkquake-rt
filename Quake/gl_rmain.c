@@ -114,7 +114,9 @@ extern cvar_t rt_flashlight;
 extern cvar_t rt_sun;
 extern cvar_t rt_sun_pitch;
 extern cvar_t rt_sun_yaw;
-extern cvar_t rt_elight_intensity;
+extern cvar_t rt_elight_normaliz;
+extern cvar_t rt_elight_default;
+extern cvar_t rt_elight_default_mdl;
 extern cvar_t rt_elight_radius;
 extern cvar_t rt_elight_threshold;
 
@@ -727,6 +729,16 @@ void R_ShowBoundingBoxes (cb_context_t *cbx)
 	R_EndDebugUtilsLabel (cbx);
 }
 
+static const char *rt_light_classnames_with_model[] = {
+	"light_fluoro",
+	"light_fluorospark",
+	"light_globe",
+	"light_torch_small_walltorch",
+	"light_flame_small_yellow",
+	"light_flame_large_yellow",
+	"light_flame_small_white",
+};
+
 // TODO: on newmap
 // TODO: find light styles
 /*
@@ -759,11 +771,10 @@ static void RT_UploadEdictLights ()
 	}
     struct_values = {0};
 
-    #define STRUCT_STATE_STRUCT_STARTED  1
-    #define STRUCT_STATE_FOUND_ORIGIN    2
-	// TODO: never ignore light_flame_small_yellow etc look https://github.com/tyabus/quake-progs-from-scratch/blob/master/lights.qc
-	// TODO: OR never ignore if mdl present like torches?
-	#define STRUCT_STATE_FOUND_INTENSITY 4
+    #define STRUCT_STATE_STRUCT_STARTED   1
+    #define STRUCT_STATE_FOUND_ORIGIN     2
+    #define STRUCT_STATE_FOUND_INTENSITY  4
+    #define STRUCT_STATE_FOUND_WITH_MODEL 8
 	int struct_state = 0;
 
 	int elight_index = 0;
@@ -784,31 +795,43 @@ static void RT_UploadEdictLights ()
 		{
 			if (struct_state & STRUCT_STATE_STRUCT_STARTED)
 			{
-				// TODO: intensity can be not presented, so use default 200
-				if ((struct_state & STRUCT_STATE_FOUND_ORIGIN) &&
-				    (struct_state & STRUCT_STATE_FOUND_INTENSITY))
+                if (!(struct_state & STRUCT_STATE_FOUND_INTENSITY))
 				{
-					if (struct_values.intensity > CVAR_TO_FLOAT(rt_elight_threshold))
+					struct_values.intensity = struct_state & STRUCT_STATE_FOUND_WITH_MODEL ? 
+						CVAR_TO_FLOAT (rt_elight_default_mdl) :
+						CVAR_TO_FLOAT (rt_elight_default);
+				}
+				float intensity = struct_values.intensity / q_max (CVAR_TO_FLOAT (rt_elight_normaliz), 0.1f);
+
+			    qboolean accept = false;
+				if (struct_state & STRUCT_STATE_FOUND_ORIGIN)
+				{
+					if (struct_state & STRUCT_STATE_FOUND_WITH_MODEL)
 					{
-						float light_intensity = struct_values.intensity / RT_ELIGHT_NORMALIZATION;
-
-						vec3_t color = {light_intensity, light_intensity, light_intensity};
-						// TODO: add cvar
-						VectorScale (color, CVAR_TO_FLOAT (rt_elight_intensity), color);
-						VectorScale (color, RT_QUAKE_LIGHT_AREA_INTENSITY_FIX, color);
-
-						RgSphericalLightUploadInfo info = {
-							.uniqueID = MAX_DLIGHTS + elight_index,
-							.color = {color[0], color[1], color[2]},
-							.position = {struct_values.origin[0], struct_values.origin[1], struct_values.origin[2]},
-							.radius = METRIC_TO_QUAKEUNIT (CVAR_TO_FLOAT (rt_elight_radius)),
-						};
-
-						RgResult r = rgUploadSphericalLight (vulkan_globals.instance, &info);
-						RG_CHECK (r);
-
-						elight_index++;
+						accept = true;
 					}
+					else
+					{
+						accept = struct_values.intensity >= CVAR_TO_FLOAT (rt_elight_threshold);
+					}
+				}
+
+				if (accept)
+				{
+					vec3_t color = {intensity, intensity, intensity};
+					VectorScale (color, RT_QUAKE_LIGHT_AREA_INTENSITY_FIX, color);
+
+					RgSphericalLightUploadInfo info = {
+						.uniqueID = MAX_DLIGHTS + elight_index,
+						.color = {color[0], color[1], color[2]},
+						.position = {struct_values.origin[0], struct_values.origin[1], struct_values.origin[2]},
+						.radius = METRIC_TO_QUAKEUNIT (CVAR_TO_FLOAT (rt_elight_radius)),
+					};
+
+					RgResult r = rgUploadSphericalLight (vulkan_globals.instance, &info);
+					RG_CHECK (r);
+
+					elight_index++;
 				}
 			}
 
@@ -827,7 +850,18 @@ static void RT_UploadEdictLights ()
 			return; // error
 		q_strlcpy (value, com_token, sizeof (value));
 
-		if (strcmp (RT_ELIGHT_KEY_ORIGIN, key) == 0)
+		
+		if (strcmp (key, "classname") == 0)
+		{
+			for (size_t i = 0; i < countof (rt_light_classnames_with_model); i++)
+			{
+				if (strcmp (value, rt_light_classnames_with_model[i]) == 0)
+				{
+					struct_state |= STRUCT_STATE_FOUND_WITH_MODEL;
+				}
+			}
+		}
+		else if (strcmp (key, RT_ELIGHT_KEY_ORIGIN) == 0)
 		{
 			vec3_t tmpvec;
 			int    components = sscanf (value, "%f %f %f", &tmpvec[0], &tmpvec[1], &tmpvec[2]);
@@ -840,7 +874,7 @@ static void RT_UploadEdictLights ()
 				struct_state |= STRUCT_STATE_FOUND_ORIGIN;
 			}
 		}
-		else if (strcmp (RT_ELIGHT_KEY_INTENSITY, key) == 0)
+		else if (strcmp (key, RT_ELIGHT_KEY_INTENSITY) == 0)
 		{
 			float tmpval = strtof(value, NULL);
 
