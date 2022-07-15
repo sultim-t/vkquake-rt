@@ -768,6 +768,7 @@ static void RT_UploadEdictLights ()
 	{
 		vec3_t origin;
 		float  intensity;
+		int    lightstyle;
 	}
     struct_values = {0};
 
@@ -775,7 +776,14 @@ static void RT_UploadEdictLights ()
     #define STRUCT_STATE_FOUND_ORIGIN     2
     #define STRUCT_STATE_FOUND_INTENSITY  4
     #define STRUCT_STATE_FOUND_WITH_MODEL 8
+    #define STRUCT_STATE_FOUND_LIGHTSTYLE 16
 	int struct_state = 0;
+
+    #define ELIGHT_KEY_ORIGIN     "origin"
+    #define ELIGHT_KEY_INTENSITY  "light"
+    #define ELIGHT_KEY_CLASSNAME  "classname"
+    #define ELIGHT_KEY_LIGHTSTYLE "style"
+
 
 	int elight_index = 0;
 
@@ -818,6 +826,11 @@ static void RT_UploadEdictLights ()
 
 				if (accept)
 				{
+					if (struct_state & STRUCT_STATE_FOUND_LIGHTSTYLE)
+					{
+						intensity *= (float)d_lightstylevalue[struct_values.lightstyle] / 256.0f;
+					}
+									
 					vec3_t color = {intensity, intensity, intensity};
 					VectorScale (color, RT_QUAKE_LIGHT_AREA_INTENSITY_FIX, color);
 
@@ -851,7 +864,7 @@ static void RT_UploadEdictLights ()
 		q_strlcpy (value, com_token, sizeof (value));
 
 		
-		if (strcmp (key, "classname") == 0)
+		if (strcmp (key, ELIGHT_KEY_CLASSNAME) == 0)
 		{
 			for (size_t i = 0; i < countof (rt_light_classnames_with_model); i++)
 			{
@@ -861,7 +874,7 @@ static void RT_UploadEdictLights ()
 				}
 			}
 		}
-		else if (strcmp (key, RT_ELIGHT_KEY_ORIGIN) == 0)
+		else if (strcmp (key, ELIGHT_KEY_ORIGIN) == 0)
 		{
 			vec3_t tmpvec;
 			int    components = sscanf (value, "%f %f %f", &tmpvec[0], &tmpvec[1], &tmpvec[2]);
@@ -874,7 +887,7 @@ static void RT_UploadEdictLights ()
 				struct_state |= STRUCT_STATE_FOUND_ORIGIN;
 			}
 		}
-		else if (strcmp (key, RT_ELIGHT_KEY_INTENSITY) == 0)
+		else if (strcmp (key, ELIGHT_KEY_INTENSITY) == 0)
 		{
 			float tmpval = strtof(value, NULL);
 
@@ -882,6 +895,16 @@ static void RT_UploadEdictLights ()
 			{
 				struct_values.intensity = tmpval;
 			    struct_state |= STRUCT_STATE_FOUND_INTENSITY;
+			}
+		}
+		else if (strcmp (key, ELIGHT_KEY_LIGHTSTYLE) == 0)
+		{
+			int tmpval = strtol (value, NULL, 10);
+
+			if (tmpval >= 0 && tmpval < MAX_LIGHTSTYLES)
+			{
+				struct_values.lightstyle = tmpval;
+				struct_state |= STRUCT_STATE_FOUND_LIGHTSTYLE;
 			}
 		}
 	}

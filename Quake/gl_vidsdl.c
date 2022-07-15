@@ -108,7 +108,7 @@ task_handle_t prev_end_rendering_task = INVALID_TASK_HANDLE;
 	CVAR_DEF_T (rt_elight_normaliz, "200") \
 	CVAR_DEF_T (rt_elight_default, "200") \
 	CVAR_DEF_T (rt_elight_default_mdl, "1000") \
-	CVAR_DEF_T (rt_elight_threshold, "250") \
+	CVAR_DEF_T (rt_elight_threshold, "210") \
 	CVAR_DEF_T (rt_elight_radius, "0.1") \
 	\
 	CVAR_DEF_T (rt_sun, "0") \
@@ -948,7 +948,7 @@ static void GL_EndRenderingTask (end_rendering_parms_t *parms)
 		.isActive = true,
 		.transitionDurationIn = 0.0f,
 		.transitionDurationOut = 0.2f + rt_dmg_value * 0.8f,
-		.intensity = 0.5f,
+		.intensity = 1.0f,
 		.color = FROMCOLOR255 (cl.cshifts[CSHIFT_DAMAGE].destcolor),
 	};
 
