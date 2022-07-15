@@ -111,6 +111,9 @@ cvar_t r_tasks = {"r_tasks", "0", CVAR_NONE};
 extern cvar_t rt_dlight_intensity;
 extern cvar_t rt_dlight_radius;
 extern cvar_t rt_flashlight;
+extern cvar_t rt_sun;
+extern cvar_t rt_sun_pitch;
+extern cvar_t rt_sun_yaw;
 
 /*
 =================
@@ -390,8 +393,8 @@ static void RT_UploadAllDlights ()
 		VectorScale (color, CVAR_TO_FLOAT (rt_flashlight), color);
 		VectorScale (color, RT_QUAKE_LIGHT_AREA_INTENSITY_FIX, color);
 
-		RgSpotlightUploadInfo info = {
-			.uniqueID = MAX_DLIGHTS,
+		RgSpotLightUploadInfo info = {
+			.uniqueID = (uint64_t)UINT32_MAX + 0,
 			.color = {color[0], color[1], color[2]},
 			.position = {pos[0], pos[1], pos[2]},
 			.direction = {vpn[0], vpn[1], vpn[2]},
@@ -400,7 +403,28 @@ static void RT_UploadAllDlights ()
 			.angleInner = 0,
 		};
 
-		RgResult r = rgUploadSpotlightLight (vulkan_globals.instance, &info);
+		RgResult r = rgUploadSpotLight (vulkan_globals.instance, &info);
+		RG_CHECK (r);
+	}
+
+	if (CVAR_TO_FLOAT (rt_sun) > 0.001f)
+	{
+		vec3_t angles = {CVAR_TO_FLOAT (rt_sun_pitch), CVAR_TO_FLOAT (rt_sun_yaw), 0};
+
+		vec3_t forward, right, up;
+		AngleVectors (angles, forward, right, up);
+
+		vec3_t color = {1.0f, 1.0f, 1.0f};
+		VectorScale (color, CVAR_TO_FLOAT (rt_sun), color);
+
+		RgDirectionalLightUploadInfo info = {
+			.uniqueID = (uint64_t)UINT32_MAX + 1,
+			.color = {color[0], color[1], color[2]},
+			.direction = {forward[0], forward[1], forward[2]},
+			.angularDiameterDegrees = 0.05f,
+		};
+
+		RgResult r = rgUploadDirectionalLight (vulkan_globals.instance, &info);
 		RG_CHECK (r);
 	}
 }
@@ -700,11 +724,13 @@ void R_ShowBoundingBoxes (cb_context_t *cbx)
 	R_EndDebugUtilsLabel (cbx);
 }
 
+// TODO: on newmap
+// TODO: find light styles
 /*
 ================
 RT_UploadEdictLights -- RT
 
-parse server-side edicts, to find 'light' field inside
+parse worldmodel->entities, to find static lights
 ================
 */
 static void RT_UploadEdictLights ()
@@ -722,7 +748,8 @@ static void RT_UploadEdictLights ()
 	{
 		return;
 	}
-	
+
+	// TODO: add cvar , quake default is 200 
     const float RT_ELIGHT_NORMALIZATION = 255;
 
 	struct
@@ -733,7 +760,9 @@ static void RT_UploadEdictLights ()
 
     #define STRUCT_STATE_STRUCT_STARTED  1
     #define STRUCT_STATE_FOUND_ORIGIN    2
-    #define STRUCT_STATE_FOUND_INTENSITY 4
+	// TODO: never ignore light_flame_small_yellow etc look https://github.com/tyabus/quake-progs-from-scratch/blob/master/lights.qc
+	// TODO: OR never ignore if mdl present like torches?
+	#define STRUCT_STATE_FOUND_INTENSITY 4
 	int struct_state = 0;
 
 	int elight_index = 0;
@@ -754,18 +783,22 @@ static void RT_UploadEdictLights ()
 		{
 			if (struct_state & STRUCT_STATE_STRUCT_STARTED)
 			{
+				// TODO: intensity can be not presented, so use default 200
 				if ((struct_state & STRUCT_STATE_FOUND_ORIGIN) &&
 				    (struct_state & STRUCT_STATE_FOUND_INTENSITY))
 				{
+					// TODO: add cutoff cvar 
 					if (struct_values.intensity > 200)
 					{
 						float light_intensity = struct_values.intensity / RT_ELIGHT_NORMALIZATION;
 
 						vec3_t color = {light_intensity, light_intensity, light_intensity};
+						// TODO: add cvar
 						VectorScale (color, CVAR_TO_FLOAT (rt_dlight_intensity), color);
 						VectorScale (color, RT_QUAKE_LIGHT_AREA_INTENSITY_FIX, color);
 
 						RgSphericalLightUploadInfo info = {
+							// TODO: make generic
 							.uniqueID = MAX_DLIGHTS + 128 + elight_index,
 							.color = {color[0], color[1], color[2]},
 							.position = {struct_values.origin[0], struct_values.origin[1], struct_values.origin[2]},
@@ -897,7 +930,7 @@ void R_DrawWorldTask (int index, void *unused)
 
 	RgResult r;
 	
-	r = rgStartNewScene (vulkan_globals.instance);
+	r = rgBeginStaticGeometries (vulkan_globals.instance);
 	RG_CHECK (r);
 
 	const int     cbx_index = index + CBX_WORLD_0;

@@ -104,7 +104,12 @@ task_handle_t prev_end_rendering_task = INVALID_TASK_HANDLE;
     \
 	CVAR_DEF_T (rt_dlight_intensity, "1.0") \
 	CVAR_DEF_T (rt_dlight_radius, "0.1") \
+	\
+	CVAR_DEF_T (rt_sun, "0") \
+	CVAR_DEF_T (rt_sun_pitch, "60") \
+	CVAR_DEF_T (rt_sun_yaw, "0") \
 	CVAR_DEF_T (rt_flashlight, "0") \
+	\
 	CVAR_DEF_T (rt_muzzleoffs_x, "0") \
 	CVAR_DEF_T (rt_muzzleoffs_y, "-20") \
 	CVAR_DEF_T (rt_muzzleoffs_z, "100") \
@@ -118,7 +123,7 @@ task_handle_t prev_end_rendering_task = INVALID_TASK_HANDLE;
 	CVAR_DEF_T (rt_model_rough, "0.9") \
     \
 	CVAR_DEF_T (rt_normalmap_stren, "1") \
-	CVAR_DEF_T (rt_emis_mapboost, "16") \
+	CVAR_DEF_T (rt_emis_mapboost, "0.5") \
 	CVAR_DEF_T (rt_emis_maxscrcolor, "125") \
 	CVAR_DEF_T (rt_emis_geomdefault, "0.01") \
     \
