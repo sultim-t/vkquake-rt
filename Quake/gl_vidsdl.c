@@ -96,66 +96,73 @@ cvar_t                          r_usesops = {"r_usesops", "1", CVAR_ARCHIVE};   
 task_handle_t prev_end_rendering_task = INVALID_TASK_HANDLE;
 
 // RT
-cvar_t rt_classic_render = {"rt_classic_render", "0", CVAR_ARCHIVE};
-cvar_t rt_enable_pvs = {"rt_enable_pvs", "0", CVAR_ARCHIVE};
-static cvar_t rt_shadowrays = {"rt_shadowrays", "2", CVAR_ARCHIVE};
+#define CVAR_DEF_LIST( CVAR_DEF_T ) \
+	\
+	CVAR_DEF_T (rt_classic_render, "0") \
+	CVAR_DEF_T (rt_enable_pvs, "0") \
+	CVAR_DEF_T (rt_shadowrays, "2") \
+    \
+	CVAR_DEF_T (rt_dlight_intensity, "1.0") \
+	CVAR_DEF_T (rt_dlight_radius, "0.1") \
+	CVAR_DEF_T (rt_flashlight, "0") \
+	CVAR_DEF_T (rt_muzzleoffs_x, "0") \
+	CVAR_DEF_T (rt_muzzleoffs_y, "-20") \
+	CVAR_DEF_T (rt_muzzleoffs_z, "100") \
+	\
+	CVAR_DEF_T (rt_sky_intensity, "0.7") \
+	CVAR_DEF_T (rt_sky_saturation, "1") \
+	\
+	CVAR_DEF_T (rt_brush_metal, "0.0") \
+	CVAR_DEF_T (rt_brush_rough, "0.9") \
+	CVAR_DEF_T (rt_model_metal, "0.0") \
+	CVAR_DEF_T (rt_model_rough, "0.9") \
+    \
+	CVAR_DEF_T (rt_normalmap_stren, "1") \
+	CVAR_DEF_T (rt_emis_mapboost, "16") \
+	CVAR_DEF_T (rt_emis_maxscrcolor, "125") \
+	CVAR_DEF_T (rt_emis_geomdefault, "0.01") \
+    \
+	CVAR_DEF_T (rt_reflrefr_depth, "2") \
+	CVAR_DEF_T (rt_reflrefr_castshadows, "0") \
+	CVAR_DEF_T (rt_reflrefr_toindir, "0") \
+	CVAR_DEF_T (rt_refr_glass, "1.52") \
+	CVAR_DEF_T (rt_refr_water, "1.33") \
+    \
+	CVAR_DEF_T (rt_water_density, "0.1") \
+	CVAR_DEF_T (rt_water_colr, "0.025") \
+	CVAR_DEF_T (rt_water_colg, "0.016") \
+	CVAR_DEF_T (rt_water_colb, "0.011") \
+	CVAR_DEF_T (rt_water_speed, "0.4") \
+	CVAR_DEF_T (rt_water_normstren, "1") \
+	CVAR_DEF_T (rt_water_normsharp, "5") \
+	CVAR_DEF_T (rt_water_scale, "1") \
+    \
+	CVAR_DEF_T (rt_sharpen, "0") \
+	CVAR_DEF_T (rt_renderscale, "100") \
+	CVAR_DEF_T (rt_upscale_fsr2, "2") \
+	CVAR_DEF_T (rt_upscale_dlss, "0") \
+	\
+	CVAR_DEF_T (rt_tnmp_minlog, "-6") \
+	CVAR_DEF_T (rt_tnmp_maxlog, "0") \
+	CVAR_DEF_T (rt_tnmp_white, "10") \
+	\
+	CVAR_DEF_T (rt_bloom_intensity, "1") \
+	CVAR_DEF_T (rt_bloom_threshold, "15") \
+	CVAR_DEF_T (rt_bloom_emis_mult, "50") \
+	CVAR_DEF_T (rt_bloom_satur_bias, "1") \
+	CVAR_DEF_T (rt_bloom_sky_mult, "0.05") \
+	\
+	CVAR_DEF_T (rt_ef_crt, "0") \
+	CVAR_DEF_T (rt_ef_interlacing, "0") \
+	CVAR_DEF_T (rt_ef_chraber, "0") \
+	\
+	CVAR_DEF_T (rt_debugflags, "0") 
 
-cvar_t rt_dlight_intensity = {"rt_dlight_intensity", "1.0", CVAR_ARCHIVE};
-cvar_t rt_dlight_radius = {"rt_dlight_radius", "0.1", CVAR_ARCHIVE};
-cvar_t rt_flashlight = {"rt_flashlight", "0", CVAR_ARCHIVE};
-cvar_t rt_muzzleoffs_x = {"rt_muzzleoffs_x", "0", CVAR_ARCHIVE};
-cvar_t rt_muzzleoffs_y = {"rt_muzzleoffs_y", "-20", CVAR_ARCHIVE};
-cvar_t rt_muzzleoffs_z = {"rt_muzzleoffs_z", "100", CVAR_ARCHIVE};
 
-static cvar_t rt_sky_intensity = {"rt_sky_intensity", "0.7", CVAR_ARCHIVE};
-static cvar_t rt_sky_saturation = {"rt_sky_saturation", "1", CVAR_ARCHIVE};
+#define CVAR_DEF_T(name, default_value) cvar_t name = {#name, default_value, CVAR_ARCHIVE};
+    CVAR_DEF_LIST (CVAR_DEF_T)
+#undef CVAR_DEF_T
 
-cvar_t rt_brush_metal = {"rt_brush_metal", "0.0", CVAR_ARCHIVE};
-cvar_t rt_brush_rough = {"rt_brush_rough", "0.9", CVAR_ARCHIVE};
-cvar_t rt_model_metal = {"rt_model_metal", "0.0", CVAR_ARCHIVE};
-cvar_t rt_model_rough = {"rt_model_rough", "0.9", CVAR_ARCHIVE};
-
-static cvar_t rt_normalmap_stren = {"rt_normalmap_stren", "1", CVAR_ARCHIVE};
-static cvar_t rt_emis_mapboost = {"rt_normalmap_stren", "16", CVAR_ARCHIVE};
-static cvar_t rt_emis_maxscrcolor = {"rt_emis_maxscrcolor", "125", CVAR_ARCHIVE};
-static cvar_t rt_emis_geomdefault = {"rt_emis_geomdefault", "0.01", CVAR_ARCHIVE};
-
-static cvar_t rt_reflrefr_depth = {"rt_reflrefr_depth", "2", CVAR_ARCHIVE};
-static cvar_t rt_reflrefr_castshadows = {"rt_reflrefr_castshadows", "0", CVAR_ARCHIVE};
-static cvar_t rt_reflrefr_toindir = {"rt_reflrefr_toindir", "0", CVAR_ARCHIVE};
-static cvar_t rt_refr_glass = {"rt_refr_glass", "1.52", CVAR_ARCHIVE};
-static cvar_t rt_refr_water = {"rt_refr_water", "1.33", CVAR_ARCHIVE};
-
-static cvar_t rt_water_density = {"rt_water_density", "0.1", CVAR_ARCHIVE};
-static cvar_t rt_water_colr = {"rt_water_colr", "0.025", CVAR_ARCHIVE};
-static cvar_t rt_water_colg = {"rt_water_colg", "0.016", CVAR_ARCHIVE};
-static cvar_t rt_water_colb = {"rt_water_colb", "0.011", CVAR_ARCHIVE};
-static cvar_t rt_water_speed = {"rt_water_speed", "0.4", CVAR_ARCHIVE};
-static cvar_t rt_water_normstren = {"rt_water_normstren", "1", CVAR_ARCHIVE};
-static cvar_t rt_water_normsharp = {"rt_water_normsharp", "5", CVAR_ARCHIVE};
-static cvar_t rt_water_scale = {"rt_water_scale", "1", CVAR_ARCHIVE};
-
-static cvar_t rt_sharpen = {"rt_sharpen", "0", CVAR_ARCHIVE};
-static cvar_t rt_renderscale = {"rt_renderscale", "100", CVAR_ARCHIVE};
-static cvar_t rt_upscale_fsr2 = {"rt_upscale_fsr2", "2", CVAR_ARCHIVE};
-static cvar_t rt_upscale_dlss = {"rt_upscale_dlss", "0", CVAR_ARCHIVE};
-
-static cvar_t rt_tnmp_minlog = {"rt_tnmp_minlog", "-6", CVAR_ARCHIVE};
-static cvar_t rt_tnmp_maxlog = {"rt_tnmp_maxlog", "0", CVAR_ARCHIVE};
-static cvar_t rt_tnmp_white = {"rt_tnmp_white", "10", CVAR_ARCHIVE};
-
-static cvar_t rt_bloom_intensity = {"rt_bloom_intensity", "1", CVAR_ARCHIVE};
-static cvar_t rt_bloom_threshold = {"rt_bloom_threshold", "15", CVAR_ARCHIVE};
-static cvar_t rt_bloom_thresholdlen = {"rt_bloom_thresholdlen", "0.25", CVAR_ARCHIVE};
-static cvar_t rt_bloom_emis_mult = {"rt_bloom_emis_mult", "50", CVAR_ARCHIVE};
-static cvar_t rt_bloom_satur_bias = {"rt_bloom_satur_bias", "1", CVAR_ARCHIVE};
-static cvar_t rt_bloom_sky_mult = {"rt_bloom_sky_mult", "0.05", CVAR_ARCHIVE};
-
-static cvar_t rt_ef_crt = {"rt_ef_crt", "0", CVAR_ARCHIVE};
-static cvar_t rt_ef_interlacing = {"rt_ef_interlacing", "0", CVAR_ARCHIVE};
-static cvar_t rt_ef_chraber = {"rt_ef_chraber", "0", CVAR_ARCHIVE};
-
-static cvar_t rt_debugflags = {"rt_debugflags", "0", CVAR_ARCHIVE};
 
 static qboolean request_shaders_reload = false;
 
@@ -852,7 +859,7 @@ static void GL_EndRenderingTask (end_rendering_parms_t *parms)
 	RgDrawFrameBloomParams bloom_params = {
 		.bloomIntensity = CVAR_TO_FLOAT (rt_bloom_intensity),
 		.inputThreshold = CVAR_TO_FLOAT (rt_bloom_threshold),
-		.inputThresholdLength = CVAR_TO_FLOAT (rt_bloom_thresholdlen),
+		.inputThresholdLength = 0.5f,
 		.upsampleRadius = 1.0f,
 		.bloomEmissionMultiplier = CVAR_TO_FLOAT (rt_bloom_emis_mult),
 		.bloomEmissionSaturationBias = CVAR_TO_FLOAT (rt_bloom_satur_bias),
@@ -1181,66 +1188,9 @@ void VID_Init (void)
 
 	// RT
 	{
-		Cvar_RegisterVariable (&rt_classic_render);
-		Cvar_RegisterVariable (&rt_enable_pvs);
-		Cvar_RegisterVariable (&rt_shadowrays);
-
-		Cvar_RegisterVariable (&rt_dlight_intensity);
-		Cvar_RegisterVariable (&rt_dlight_radius);
-		Cvar_RegisterVariable (&rt_flashlight);
-		Cvar_RegisterVariable (&rt_muzzleoffs_x);
-		Cvar_RegisterVariable (&rt_muzzleoffs_y);
-		Cvar_RegisterVariable (&rt_muzzleoffs_z);
-
-		Cvar_RegisterVariable (&rt_sky_intensity);
-		Cvar_RegisterVariable (&rt_sky_saturation);
-
-		Cvar_RegisterVariable (&rt_brush_metal);
-		Cvar_RegisterVariable (&rt_brush_rough);
-		Cvar_RegisterVariable (&rt_model_metal);
-		Cvar_RegisterVariable (&rt_model_rough);
-
-		Cvar_RegisterVariable (&rt_normalmap_stren);
-		Cvar_RegisterVariable (&rt_emis_mapboost);
-		Cvar_RegisterVariable (&rt_emis_maxscrcolor);
-		Cvar_RegisterVariable (&rt_emis_geomdefault);
-
-		Cvar_RegisterVariable (&rt_reflrefr_depth);
-		Cvar_RegisterVariable (&rt_reflrefr_castshadows);
-		Cvar_RegisterVariable (&rt_reflrefr_toindir);
-		Cvar_RegisterVariable (&rt_refr_glass);
-		Cvar_RegisterVariable (&rt_refr_water);
-
-		Cvar_RegisterVariable (&rt_water_density);
-		Cvar_RegisterVariable (&rt_water_colr);
-		Cvar_RegisterVariable (&rt_water_colg);
-		Cvar_RegisterVariable (&rt_water_colb);
-		Cvar_RegisterVariable (&rt_water_speed);
-		Cvar_RegisterVariable (&rt_water_normstren);
-		Cvar_RegisterVariable (&rt_water_normsharp);
-		Cvar_RegisterVariable (&rt_water_scale);
-
-		Cvar_RegisterVariable (&rt_sharpen);
-		Cvar_RegisterVariable (&rt_renderscale);
-		Cvar_RegisterVariable (&rt_upscale_fsr2);
-		Cvar_RegisterVariable (&rt_upscale_dlss);
-
-		Cvar_RegisterVariable (&rt_tnmp_minlog);
-		Cvar_RegisterVariable (&rt_tnmp_maxlog);
-		Cvar_RegisterVariable (&rt_tnmp_white);
-
-		Cvar_RegisterVariable (&rt_bloom_intensity);
-		Cvar_RegisterVariable (&rt_bloom_threshold);
-		Cvar_RegisterVariable (&rt_bloom_thresholdlen);
-		Cvar_RegisterVariable (&rt_bloom_emis_mult);
-		Cvar_RegisterVariable (&rt_bloom_satur_bias);
-		Cvar_RegisterVariable (&rt_bloom_sky_mult);
-
-		Cvar_RegisterVariable (&rt_ef_crt);
-		Cvar_RegisterVariable (&rt_ef_interlacing);
-		Cvar_RegisterVariable (&rt_ef_chraber);
-
-		Cvar_RegisterVariable (&rt_debugflags);
+#define CVAR_DEF_T(name, default_value) Cvar_RegisterVariable (&name);
+		CVAR_DEF_LIST (CVAR_DEF_T)
+#undef CVAR_DEF_T
 	}
 
 	Cmd_AddCommand ("vid_unlock", VID_Unlock);     // johnfitz
