@@ -105,12 +105,14 @@ task_handle_t prev_end_rendering_task = INVALID_TASK_HANDLE;
 	CVAR_DEF_T (rt_dlight_intensity, "3.0") \
 	CVAR_DEF_T (rt_dlight_radius, "0.1") \
 	\
-	CVAR_DEF_T (rt_elight_normaliz, "200") \
+	CVAR_DEF_T (rt_elight_normaliz, "100") \
 	CVAR_DEF_T (rt_elight_default, "200") \
 	CVAR_DEF_T (rt_elight_default_mdl, "1000") \
 	CVAR_DEF_T (rt_elight_threshold, "-1") \
 	CVAR_DEF_T (rt_elight_radius, "0.1") \
-	CVAR_DEF_T (rt_poi_dist_thresh, "3") \
+	\
+	CVAR_DEF_T (rt_poi_distthresh, "2") \
+	CVAR_DEF_T (rt_poi_distthresh_super, "3") \
 	CVAR_DEF_T (rt_poi_trigger, "1") \
 	CVAR_DEF_T (rt_poi_func, "1") \
 	CVAR_DEF_T (rt_poi_weapon, "1") \

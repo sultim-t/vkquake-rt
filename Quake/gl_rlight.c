@@ -379,7 +379,8 @@ int R_LightPoint (vec3_t p, lightcache_t *cache, vec3_t *lightcolor)
 
 
 extern cvar_t rt_elight_normaliz, rt_elight_default, rt_elight_default_mdl, rt_elight_radius, rt_elight_threshold;
-extern cvar_t rt_poi_trigger, rt_poi_func, rt_poi_weapon, rt_poi_pwrup, rt_poi_armor, rt_poi_key, rt_poi_health, rt_poi_ammo, rt_poi_dist_thresh;
+extern cvar_t rt_poi_trigger, rt_poi_func, rt_poi_weapon, rt_poi_pwrup, rt_poi_armor, rt_poi_key, rt_poi_health, rt_poi_ammo;
+extern cvar_t rt_poi_distthresh, rt_poi_distthresh_super;
 
 
 static qboolean StartsWith (const char *val, const char *begin)
@@ -411,12 +412,13 @@ static qboolean IsClassname_LightWithModel (const char *classname)
 	return StartsWith (classname, "light_");
 }
 
-static qboolean IsClassname_PointOfInterest (const char *classname)
+static qboolean IsClassname_PointOfInterest (const char *classname, qboolean *out_superimportant)
 {
 	if (CVAR_TO_BOOL (rt_poi_trigger))
 	{
 		if (StartsWith (classname, "trigger"))
 		{
+			*out_superimportant = true;
 			return true;
 		}
 	}
@@ -425,6 +427,7 @@ static qboolean IsClassname_PointOfInterest (const char *classname)
 	{
 		if (StartsWith (classname, "func"))
 		{
+			*out_superimportant = true;
 			return true;
 		}
 	}
@@ -461,6 +464,7 @@ static qboolean IsClassname_PointOfInterest (const char *classname)
 			if (strcmp (classname, "item_sigil") == 0 || 
 				StartsWith (classname, "item_key"))
 			{
+				*out_superimportant = true;
 				return true;
 			}
 		}
@@ -493,6 +497,7 @@ static qboolean IsClassname_PointOfInterest (const char *classname)
 typedef struct rt_poi_s
 {
 	vec3_t origin;
+	qboolean is_super_imporant;
 } rt_poi_t;
 
 rt_poi_t *rt_poi = NULL;
@@ -569,9 +574,12 @@ static void RT_ParsePointsOfInterest ()
 		
 		if (strcmp (key, "classname") == 0)
 		{
-			if (IsClassname_PointOfInterest (value))
+			qboolean is_super = 0;
+
+			if (IsClassname_PointOfInterest (value, &is_super))
 			{
 				cur_state |= CUR_IS_POI;
+				cur_values.is_super_imporant = is_super;
 			}
 		}
 		else if (strcmp (key, "origin") == 0)
@@ -593,8 +601,11 @@ static void RT_ParsePointsOfInterest ()
 
 static qboolean IsAroundPOI (vec3_t origin)
 {
-	float quake_dist_threshold = METRIC_TO_QUAKEUNIT (CVAR_TO_FLOAT (rt_poi_dist_thresh));
-	quake_dist_threshold *= quake_dist_threshold;
+	float threshold = METRIC_TO_QUAKEUNIT (CVAR_TO_FLOAT (rt_poi_distthresh));
+	float threshold_loose = METRIC_TO_QUAKEUNIT (CVAR_TO_FLOAT (rt_poi_distthresh_super));
+
+	threshold *= threshold;
+	threshold_loose *= threshold_loose;
 
 	for (int i = 0; i < rt_poi_count;i++)
 	{
@@ -603,7 +614,9 @@ static qboolean IsAroundPOI (vec3_t origin)
 		vec3_t v;
 		VectorSubtract (src->origin, origin, v);
 
-		if (DotProduct (v, v) < quake_dist_threshold)
+		float distsq_thresh = src->is_super_imporant ? threshold_loose : threshold;
+
+		if (DotProduct (v, v) < distsq_thresh)
 		{
 			return true;
 		}
