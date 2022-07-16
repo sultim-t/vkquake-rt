@@ -971,34 +971,31 @@ again:
 
 enum
 {
-	OPT_CUSTOMIZE = 0,
-	OPT_CONSOLE,  // 1
-	OPT_DEFAULTS, // 2
-	OPT_SCRSIZE,
+	OPT_VIDEO = 0, // RT: OPT_VIDEO must've been at the end, let's hope nothing breaks
+
+    OPT_SCRSIZE,
+	OPT_CROSSHAIR,
 	OPT_SCALE,
+
+	OPT_SNDVOL,
+	OPT_MUSICVOL,
+
+	OPT_INVMOUSE,
+	OPT_MOUSESPEED,
+	OPT_CUSTOMIZE,
+
+	OPT_DEFAULTS,
+	OPT_CONSOLE,
 #if !RT_RENDERER
 	OPT_GAMMA,
 	OPT_CONTRAST,
 	OPT_SBALPHA,
-#endif
-	OPT_SNDVOL,
-	OPT_MUSICVOL,
-#if !RT_RENDERER
 	OPT_MUSICEXT,
 	OPT_ALWAYRUN,
-#endif
-	OPT_INVMOUSE,
-	OPT_MOUSESPEED,
-#if !RT_RENDERER
 	OPT_ALWAYSMLOOK,
 	OPT_LOOKSPRING,
 	OPT_LOOKSTRAFE,
 #endif
-	OPT_CROSSHAIR,
-	//#ifdef _WIN32
-	//	OPT_USEMOUSE,
-	//#endif
-	OPT_VIDEO, // This is the last before OPTIONS_ITEMS
 	OPTIONS_ITEMS
 };
 
@@ -1011,6 +1008,43 @@ enum
 };
 
 #define SLIDER_SIZE 10
+
+static int GapOffset (int opt)
+{
+	const int gapsize = 8;
+
+	switch (opt)
+	{
+	case OPT_VIDEO:
+		return gapsize * 0;
+		
+	case OPT_SCRSIZE:
+	case OPT_CROSSHAIR:
+	case OPT_SCALE:
+		return gapsize * 1;
+
+	case OPT_SNDVOL:
+	case OPT_MUSICVOL:
+		return gapsize * 2;
+
+	case OPT_INVMOUSE:
+	case OPT_MOUSESPEED:
+	case OPT_CUSTOMIZE:
+		return gapsize * 3;
+
+	case OPT_DEFAULTS:
+	case OPT_CONSOLE:
+		return gapsize * 4;
+	default:
+		assert (0);
+		return 0;
+	}
+}
+
+static int GetY (int opt)
+{
+	return 32 + 8 * opt + GapOffset (opt);
+}
 
 static int options_cursor;
 
@@ -1274,111 +1308,111 @@ void M_Options_Draw (cb_context_t *cbx)
 
 	// Draw the items in the order of the enum defined above:
 	// OPT_CUSTOMIZE:
-	M_Print (cbx, 16, 32, "              Controls");
+	M_Print (cbx, 16, GetY(OPT_CUSTOMIZE), "              Controls");
 	// OPT_CONSOLE:
-	M_Print (cbx, 16, 32 + 8 * OPT_CONSOLE, "          Goto console");
+	M_Print (cbx, 16, GetY(OPT_CONSOLE), "          Goto console");
 	// OPT_DEFAULTS:
-	M_Print (cbx, 16, 32 + 8 * OPT_DEFAULTS, "          Reset config");
+	M_Print (cbx, 16, GetY(OPT_DEFAULTS), "          Reset config");
 
 	// OPT_SCALE:
-	M_Print (cbx, 16, 32 + 8 * OPT_SCALE, "             HUD Scale");
+	M_Print (cbx, 16, GetY(OPT_SCALE), "                 Scale");
 	l = scr_relativescale.value ? 2.0f : ((vid.width / 320.0) - 1);
 	r = l > 0 ? ((scr_relativescale.value ? scr_relativescale.value : scr_conscale.value) - 1) / l : 0;
-	M_DrawSlider (cbx, 220, 32 + 8 * OPT_SCALE, r);
+	M_DrawSlider (cbx, 220, GetY(OPT_SCALE), r);
 
 	// OPT_SCRSIZE:
-	M_Print (cbx, 16, 32 + 8 * OPT_SCRSIZE, "                   HUD");
+	M_Print (cbx, 16, GetY(OPT_SCRSIZE), "                   HUD");
 #if RT_RENDERER
 	if (CVAR_TO_FLOAT (scr_viewsize) < 110)
-		M_Print (cbx, 220, 32 + 8 * OPT_SCRSIZE, "classic full");
+		M_Print (cbx, 220, GetY(OPT_SCRSIZE), "classic full");
 	else if (CVAR_TO_FLOAT (scr_viewsize) < 120 && !CVAR_TO_BOOL(rt_hud_minimal))
-		M_Print (cbx, 220, 32 + 8 * OPT_SCRSIZE, "classic");
+		M_Print (cbx, 220, GetY(OPT_SCRSIZE), "classic");
 	else if (CVAR_TO_FLOAT (scr_viewsize) < 120 && CVAR_TO_BOOL (rt_hud_minimal))
-		M_Print (cbx, 220, 32 + 8 * OPT_SCRSIZE, "minimal");
+		M_Print (cbx, 220, GetY(OPT_SCRSIZE), "minimal");
 	else
-		M_Print (cbx, 220, 32 + 8 * OPT_SCRSIZE, "none");
+		M_Print (cbx, 220, GetY(OPT_SCRSIZE), "none");
 #else
 	r = (scr_viewsize.value - 30) / (120 - 30);
-    M_DrawSlider (cbx, 220, 32 + 8 * OPT_SCRSIZE, r);
+    M_DrawSlider (cbx, 220, GetY(OPT_SCRSIZE), r);
 #endif
 
 #if !RT_RENDERER
 	// OPT_GAMMA:
-	M_Print (cbx, 16, 32 + 8 * OPT_GAMMA, "            Brightness");
+	M_Print (cbx, 16, GetY(OPT_GAMMA), "            Brightness");
 	r = (1.0 - vid_gamma.value) / 0.5;
-	M_DrawSlider (cbx, 220, 32 + 8 * OPT_GAMMA, r);
+	M_DrawSlider (cbx, 220, GetY(OPT_GAMMA), r);
 
 	// OPT_CONTRAST:
-	M_Print (cbx, 16, 32 + 8 * OPT_CONTRAST, "              Contrast");
+	M_Print (cbx, 16, GetY(OPT_CONTRAST), "              Contrast");
 	r = vid_contrast.value - 1.0;
-	M_DrawSlider (cbx, 220, 32 + 8 * OPT_CONTRAST, r);
+	M_DrawSlider (cbx, 220, GetY(OPT_CONTRAST), r);
 #endif
 
 	// OPT_MOUSESPEED:
-	M_Print (cbx, 16, 32 + 8 * OPT_MOUSESPEED, "           Mouse Speed");
+	M_Print (cbx, 16, GetY(OPT_MOUSESPEED), "           Mouse Speed");
 	r = (sensitivity.value - 1) / 10;
-	M_DrawSlider (cbx, 220, 32 + 8 * OPT_MOUSESPEED, r);
+	M_DrawSlider (cbx, 220, GetY(OPT_MOUSESPEED), r);
 
 #if !RT_RENDERER
 	// OPT_SBALPHA:
-	M_Print (cbx, 16, 32 + 8 * OPT_SBALPHA, "       Statusbar alpha");
+	M_Print (cbx, 16, GetY(OPT_SBALPHA), "       Statusbar alpha");
 	r = (1.0 - scr_sbaralpha.value); // scr_sbaralpha range is 1.0 to 0.0
-	M_DrawSlider (cbx, 220, 32 + 8 * OPT_SBALPHA, r);
+	M_DrawSlider (cbx, 220, GetY(OPT_SBALPHA), r);
 #endif
 
 	// OPT_SNDVOL:
-	M_Print (cbx, 16, 32 + 8 * OPT_SNDVOL, "          Sound Volume");
+	M_Print (cbx, 16, GetY(OPT_SNDVOL), "          Sound Volume");
 	r = sfxvolume.value;
-	M_DrawSlider (cbx, 220, 32 + 8 * OPT_SNDVOL, r);
+	M_DrawSlider (cbx, 220, GetY(OPT_SNDVOL), r);
 
 	// OPT_MUSICVOL:
-	M_Print (cbx, 16, 32 + 8 * OPT_MUSICVOL, "          Music Volume");
+	M_Print (cbx, 16, GetY(OPT_MUSICVOL), "          Music Volume");
 	r = bgmvolume.value;
-	M_DrawSlider (cbx, 220, 32 + 8 * OPT_MUSICVOL, r);
+	M_DrawSlider (cbx, 220, GetY(OPT_MUSICVOL), r);
 
 #if !RT_RENDERER
 	// OPT_MUSICEXT:
-	M_Print (cbx, 16, 32 + 8 * OPT_MUSICEXT, "        External Music");
-	M_DrawCheckbox (cbx, 220, 32 + 8 * OPT_MUSICEXT, bgm_extmusic.value);
+	M_Print (cbx, 16, GetY(OPT_MUSICEXT), "        External Music");
+	M_DrawCheckbox (cbx, 220, GetY(OPT_MUSICEXT), bgm_extmusic.value);
 
 	// OPT_ALWAYRUN:
-	M_Print (cbx, 16, 32 + 8 * OPT_ALWAYRUN, "            Always Run");
+	M_Print (cbx, 16, GetY(OPT_ALWAYRUN), "            Always Run");
 	if (cl_alwaysrun.value)
-		M_Print (cbx, 220, 32 + 8 * OPT_ALWAYRUN, "quakespasm");
+		M_Print (cbx, 220, GetY(OPT_ALWAYRUN), "quakespasm");
 	else if (cl_forwardspeed.value > 200.0)
-		M_Print (cbx, 220, 32 + 8 * OPT_ALWAYRUN, "vanilla");
+		M_Print (cbx, 220, GetY(OPT_ALWAYRUN), "vanilla");
 	else
-		M_Print (cbx, 220, 32 + 8 * OPT_ALWAYRUN, "off");
+		M_Print (cbx, 220, GetY(OPT_ALWAYRUN), "off");
 #endif
 
 	// OPT_INVMOUSE:
-	M_Print (cbx, 16, 32 + 8 * OPT_INVMOUSE, "          Invert Mouse");
-	M_DrawCheckbox (cbx, 220, 32 + 8 * OPT_INVMOUSE, m_pitch.value < 0);
+	M_Print (cbx, 16, GetY(OPT_INVMOUSE), "          Invert Mouse");
+	M_DrawCheckbox (cbx, 220, GetY(OPT_INVMOUSE), m_pitch.value < 0);
 
 #if !RT_RENDERER
 	// OPT_ALWAYSMLOOK:
-	M_Print (cbx, 16, 32 + 8 * OPT_ALWAYSMLOOK, "            Mouse Look");
-	M_DrawCheckbox (cbx, 220, 32 + 8 * OPT_ALWAYSMLOOK, in_mlook.state & 1);
+	M_Print (cbx, 16, GetY(OPT_ALWAYSMLOOK), "            Mouse Look");
+	M_DrawCheckbox (cbx, 220, GetY(OPT_ALWAYSMLOOK), in_mlook.state & 1);
 
 	// OPT_LOOKSPRING:
-	M_Print (cbx, 16, 32 + 8 * OPT_LOOKSPRING, "            Lookspring");
-	M_DrawCheckbox (cbx, 220, 32 + 8 * OPT_LOOKSPRING, lookspring.value);
+	M_Print (cbx, 16, GetY(OPT_LOOKSPRING), "            Lookspring");
+	M_DrawCheckbox (cbx, 220, GetY(OPT_LOOKSPRING), lookspring.value);
 
 	// OPT_LOOKSTRAFE:
-	M_Print (cbx, 16, 32 + 8 * OPT_LOOKSTRAFE, "            Lookstrafe");
-	M_DrawCheckbox (cbx, 220, 32 + 8 * OPT_LOOKSTRAFE, lookstrafe.value);
+	M_Print (cbx, 16, GetY(OPT_LOOKSTRAFE), "            Lookstrafe");
+	M_DrawCheckbox (cbx, 220, GetY(OPT_LOOKSTRAFE), lookstrafe.value);
 #endif
 
 	// OPT_CROSSHAIR:
-	M_Print (cbx, 16, 32 + 8 * OPT_CROSSHAIR, "             Crosshair");
-	M_Print (cbx, 220, 32 + 8 * OPT_CROSSHAIR, (crosshair.value == 0.0f) ? "off" : ((crosshair.value == 1.0f) ? "cross" : "dot"));
+	M_Print (cbx, 16, GetY(OPT_CROSSHAIR), "             Crosshair");
+	M_Print (cbx, 220, GetY(OPT_CROSSHAIR), (crosshair.value == 0.0f) ? "off" : ((crosshair.value == 1.0f) ? "cross" : "dot"));
 
 	// OPT_VIDEO:
 	if (vid_menudrawfn)
-		M_Print (cbx, 16, 32 + 8 * OPT_VIDEO, "         Video Options");
+		M_Print (cbx, 16, GetY(OPT_VIDEO), "         Video Options");
 
 	// cursor
-	M_DrawCharacter (cbx, 200, 32 + options_cursor * 8, 12 + ((int)(realtime * 4) & 1));
+	M_DrawCharacter (cbx, 200, GetY(options_cursor), 12 + ((int)(realtime * 4) & 1));
 }
 
 void M_Options_Key (int k)
@@ -1445,6 +1479,11 @@ void M_Options_Key (int k)
 		break;
 	}
 
+#if RT_RENDERER
+	// with RT, vid_menudrawfn must always exist so OPT_VIDEO can be anywhere, not just last menu button
+	// if it doesn't exist somehow, user will be locked in the video menu
+	assert (vid_menudrawfn != NULL);
+#else
 	if (options_cursor == OPTIONS_ITEMS - 1 && vid_menudrawfn == NULL)
 	{
 		if (k == K_UPARROW)
@@ -1452,16 +1491,32 @@ void M_Options_Key (int k)
 		else
 			options_cursor = 0;
 	}
+#endif
 }
 
 //=============================================================================
 /* KEYS MENU */
 
 const char *bindnames[][2] = {
-	{"+attack", "attack"},        {"impulse 10", "next weapon"}, {"impulse 12", "prev weapon"}, {"+jump", "jump / swim up"}, {"+forward", "walk forward"},
-	{"+back", "backpedal"},       {"+left", "turn left"},        {"+right", "turn right"},      {"+speed", "run"},           {"+moveleft", "step left"},
-	{"+moveright", "step right"}, {"+strafe", "sidestep"},       {"+lookup", "look up"},        {"+lookdown", "look down"},  {"centerview", "center view"},
-	{"+mlook", "mouse look"},     {"+klook", "keyboard look"},   {"+moveup", "swim up"},        {"+movedown", "swim down"}};
+	{"+forward", "walk forward"},
+	{"+back", "backpedal"},
+	{"+moveleft", "step left"},
+	{"+moveright", "step right"},
+	{"+speed", "run"},
+	{"+jump", "jump / swim up"},
+	/* {"+moveup", "swim up"}, */ {"+movedown", "swim down"},
+	{"+attack", "attack"},
+	{"impulse 10", "next weapon"},
+	{"impulse 12", "prev weapon"},
+	{"+mlook", "mouse look"},
+	{"+klook", "keyboard look"},
+	{"centerview", "center view"},
+	{"+lookup", "look up"},
+	{"+lookdown", "look down"},
+	{"+left", "turn left"},
+	{"+right", "turn right"},
+	{"+strafe", "sidestep"},
+};
 
 #define NUMCOMMANDS (sizeof (bindnames) / sizeof (bindnames[0]))
 
