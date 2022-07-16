@@ -128,7 +128,7 @@ task_handle_t prev_end_rendering_task = INVALID_TASK_HANDLE;
 	CVAR_DEF_T (rt_flashlight, "0") \
 	\
 	CVAR_DEF_T (rt_muzzleoffs_x, "0") \
-	CVAR_DEF_T (rt_muzzleoffs_y, "-20") \
+	CVAR_DEF_T (rt_muzzleoffs_y, "-30") \
 	CVAR_DEF_T (rt_muzzleoffs_z, "100") \
 	\
 	CVAR_DEF_T (rt_sky_intensity, "0.7") \
