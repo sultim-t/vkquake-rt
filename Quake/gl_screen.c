@@ -304,9 +304,14 @@ static void SCR_CalcRefdef (void)
 	float size, scale; // johnfitz -- scale
 
 	// bound viewsize
+#if RT_RENDERER
+	if (scr_viewsize.value < 100)
+		Cvar_SetQuick (&scr_viewsize, "100");
+#else
 	if (scr_viewsize.value < 30)
 		Cvar_SetQuick (&scr_viewsize, "30");
-	if (scr_viewsize.value > 120)
+#endif
+    if (scr_viewsize.value > 120)
 		Cvar_SetQuick (&scr_viewsize, "120");
 
 	// bound fov

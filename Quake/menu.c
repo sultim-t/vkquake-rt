@@ -1049,9 +1049,14 @@ void M_AdjustSliders (int dir)
 		f = scr_viewsize.value + dir * 10;
 		if (f > 120)
 			f = 120;
+#if RT_RENDERER
+		else if (f < 100)
+			f = 100;
+#else
 		else if (f < 30)
 			f = 30;
-		Cvar_SetValue ("viewsize", f);
+#endif
+	    Cvar_SetValue ("viewsize", f);
 		break;
 	case OPT_GAMMA: // gamma
 		f = vid_gamma.value - dir * 0.05;
@@ -1219,8 +1224,12 @@ void M_Options_Draw (cb_context_t *cbx)
 
 	// OPT_SCRSIZE:
 	M_Print (cbx, 16, 32 + 8 * OPT_SCRSIZE, "           Screen size");
+#if RT_RENDERER
+	r = (scr_viewsize.value - 100) / (120 - 100);
+#else
 	r = (scr_viewsize.value - 30) / (120 - 30);
-	M_DrawSlider (cbx, 220, 32 + 8 * OPT_SCRSIZE, r);
+#endif
+    M_DrawSlider (cbx, 220, 32 + 8 * OPT_SCRSIZE, r);
 
 	// OPT_GAMMA:
 	M_Print (cbx, 16, 32 + 8 * OPT_GAMMA, "            Brightness");
