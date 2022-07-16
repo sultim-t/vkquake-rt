@@ -42,8 +42,7 @@ vec3_t r_pright, r_pup, r_ppn;
 
 int r_numparticles;
 
-gltexture_t *particletexture, *particletexture1, *particletexture2, *particletexture3, *particletexture4; // johnfitz
-float        texturescalefactor; // johnfitz -- compensate for apparent size of different particle textures
+gltexture_t *particletexture1, *particletexture2, *particletexture3, *particletexture4; // johnfitz
 
 cvar_t r_particles = {"r_particles", "2", CVAR_ARCHIVE};         // johnfitz
 // cvar_t r_quadparticles = {"r_quadparticles", "1", CVAR_ARCHIVE}; // johnfitz
@@ -123,10 +122,6 @@ void R_InitParticleTextures (void)
 		}
 	particletexture3 = TexMgr_LoadImage (
 		NULL, "particle3", 64, 64, SRC_RGBA, particle3_data, "", (src_offset_t)particle3_data, TEXPREF_PERSIST | TEXPREF_ALPHA | TEXPREF_LINEAR);
-
-	// set default
-	particletexture = particletexture1;
-	texturescalefactor = 1.27;
 }
 
 /*
@@ -134,22 +129,22 @@ void R_InitParticleTextures (void)
 R_SetParticleTexture_f -- johnfitz
 ===============
 */
-static void R_SetParticleTexture_f (cvar_t *var)
+static const gltexture_t *GetParticleTexture (float *out_texturescalefactor)
 {
-	switch ((int)(r_particles.value))
+	switch (CVAR_TO_INT32(r_particles))
 	{
-	case 1:
-		particletexture = particletexture1;
-		texturescalefactor = 1.27;
-		break;
+	case 0:
+		*out_texturescalefactor = 1.0f;
+		return NULL;
 	case 2:
-		particletexture = particletexture2;
-		texturescalefactor = 1.0;
-		break;
-		//	case 3:
-		//		particletexture = particletexture3;
-		//		texturescalefactor = 1.5;
-		//		break;
+		*out_texturescalefactor = 1.0f;
+		return particletexture2;
+	default:
+		*out_texturescalefactor = 1.27f;
+		return particletexture1;
+//	case 3:
+//		*out_texturescalefactor  = 1.5;
+//		return particletexture3;
 	}
 }
 
@@ -200,7 +195,6 @@ void R_InitParticles (void)
 	particles = (particle_t *)Mem_Alloc (r_numparticles * sizeof (particle_t));
 
 	Cvar_RegisterVariable (&r_particles); // johnfitz
-	Cvar_SetCallback (&r_particles, R_SetParticleTexture_f);
 	// Cvar_RegisterVariable (&r_quadparticles); // johnfitz
 
 	R_InitParticleTextures (); // johnfitz
@@ -858,18 +852,21 @@ void CL_RunParticles (void)
 R_DrawParticlesFaces
 ===============
 */
-static void R_DrawParticlesFaces (cb_context_t *cbx, gltexture_t *texture)
+static void R_DrawParticlesFaces (cb_context_t *cbx)
 {
 	particle_t   *p;
 	float         scale, texcoord_scale;
 	vec3_t        up, right, up_right, p_up, p_right, p_up_right;
+	float         texturescalefactor;
 	extern cvar_t r_particles; // johnfitz
 
-	if (!r_particles.value)
+	if (CVAR_TO_INT32(r_particles) == 0)
 		return;
 
 	if (!active_particles)
 		return;
+
+	const gltexture_t *texture = GetParticleTexture (&texturescalefactor);
 
 	if (QUAD_PARTICLES)
 	{
@@ -981,7 +978,7 @@ void R_DrawParticles (cb_context_t *cbx)
 {
 	R_BeginDebugUtilsLabel (cbx, "Particles");
 
-	R_DrawParticlesFaces (cbx, particletexture);
+	R_DrawParticlesFaces (cbx);
 	R_EndDebugUtilsLabel (cbx);
 }
 
