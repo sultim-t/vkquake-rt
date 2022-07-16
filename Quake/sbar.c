@@ -66,6 +66,8 @@ static int hudtype;
 #define hipnotic (hudtype == 1)
 #define rogue    (hudtype == 2)
 
+extern cvar_t rt_hud_minimal;
+
 void Sbar_MiniDeathmatchOverlay (cb_context_t *cbx);
 void Sbar_DeathmatchOverlay (cb_context_t *cbx);
 void M_DrawPic (cb_context_t *cbx, int x, int y, qpic_t *pic);
@@ -884,6 +886,47 @@ void Sbar_DrawFace (cb_context_t *cbx)
 	Sbar_DrawPic (cbx, 112, 0, sb_faces[f][anim]);
 }
 
+void Sbar_DrawFace_Minimal (cb_context_t *cbx, int x, int y)
+{
+	int f, anim;
+
+	if ((cl.items & (IT_INVISIBILITY | IT_INVULNERABILITY)) == (IT_INVISIBILITY | IT_INVULNERABILITY))
+	{
+		Sbar_DrawPic (cbx, x, y, sb_face_invis_invuln);
+		return;
+	}
+	if (cl.items & IT_QUAD)
+	{
+		Sbar_DrawPic (cbx, x, y, sb_face_quad);
+		return;
+	}
+	if (cl.items & IT_INVISIBILITY)
+	{
+		Sbar_DrawPic (cbx, x, y, sb_face_invis);
+		return;
+	}
+	if (cl.items & IT_INVULNERABILITY)
+	{
+		Sbar_DrawPic (cbx, x, y, sb_face_invuln);
+		return;
+	}
+
+	if (cl.stats[STAT_HEALTH] >= 100)
+		f = 4;
+	else
+		f = cl.stats[STAT_HEALTH] / 20;
+	if (f < 0) // in case we ever decide to draw when health <= 0
+		f = 0;
+
+	if (cl.time <= cl.faceanimtime)
+	{
+		anim = 1;
+	}
+	else
+		anim = 0;
+	Sbar_DrawPic (cbx, x, y, sb_faces[f][anim]);
+}
+
 /*
 ===============
 Sbar_Draw
@@ -962,11 +1005,65 @@ void Sbar_Draw (cb_context_t *cbx)
 		if (cl.maxclients != 1)
 			Sbar_DrawFrags (cbx);
 	}
+	
+	qboolean rt_minimalbar =
+		CVAR_TO_BOOL (rt_hud_minimal) && 
+		fabsf( scr_viewsize.value - 110) < 0.1f && 
+		!hipnotic &&
+		!rogue &&
+		cl.gametype != GAME_DEATHMATCH;
 
 	if (sb_showscores || cl.stats[STAT_HEALTH] <= 0)
 	{
 		Sbar_DrawPicAlpha (cbx, 0, 0, sb_scorebar, scr_sbaralpha.value); // johnfitz -- scr_sbaralpha
 		Sbar_DrawScoreboard (cbx);
+	}
+	else if (rt_minimalbar)
+	{
+		GL_SetCanvas (cbx, CANVAS_SBAR_MINIMAL_BOTTOMLEFT);
+
+
+		// armor
+		if (cl.items & IT_INVULNERABILITY)
+		{
+			Sbar_DrawNum (cbx, 24, -24, 666, 3, 1);
+			Sbar_DrawPic (cbx, 0, -24, draw_disc);
+		}
+		else
+		{
+			if (cl.stats[STAT_ARMOR] > 0)
+			{
+				Sbar_DrawNum (cbx, 24, -24, cl.stats[STAT_ARMOR], 3, cl.stats[STAT_ARMOR] <= 25);
+
+				if (cl.items & IT_ARMOR3)
+					Sbar_DrawPic (cbx, 0, -24, sb_armor[2]);
+				else if (cl.items & IT_ARMOR2)
+					Sbar_DrawPic (cbx, 0, -24, sb_armor[1]);
+				else if (cl.items & IT_ARMOR1)
+					Sbar_DrawPic (cbx, 0, -24, sb_armor[0]);
+			}
+		}
+
+		// face, health
+		Sbar_DrawFace_Minimal (cbx, 0, 0);
+		Sbar_DrawNum (cbx, 24, 0, cl.stats[STAT_HEALTH], 3, cl.stats[STAT_HEALTH] <= 25);
+
+
+		GL_SetCanvas (cbx, CANVAS_SBAR_MINIMAL_BOTTOMRIGHT);
+
+
+		// ammo icon
+		if (cl.items & IT_SHELLS)
+			Sbar_DrawPic (cbx, 296, 0, sb_ammo[0]);
+		else if (cl.items & IT_NAILS)
+			Sbar_DrawPic (cbx, 296, 0, sb_ammo[1]);
+		else if (cl.items & IT_ROCKETS)
+			Sbar_DrawPic (cbx, 296, 0, sb_ammo[2]);
+		else if (cl.items & IT_CELLS)
+			Sbar_DrawPic (cbx, 296, 0, sb_ammo[3]);
+
+		if ((cl.items & IT_SHELLS) || (cl.items & IT_NAILS) || (cl.items & IT_ROCKETS) || (cl.items & IT_CELLS))
+		    Sbar_DrawNum (cbx, 224, 0, cl.stats[STAT_AMMO], 3, cl.stats[STAT_AMMO] <= 10);
 	}
 	else if (scr_viewsize.value < 120) // johnfitz -- check viewsize instead of sb_lines
 	{
