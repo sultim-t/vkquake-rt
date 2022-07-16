@@ -1051,12 +1051,25 @@ void M_AdjustSliders (int dir)
 		break;
 	case OPT_SCRSIZE: // screen size
 #if RT_RENDERER
-		if (CVAR_TO_FLOAT (scr_viewsize) < 120 && !CVAR_TO_BOOL (rt_hud_minimal))
+		if (CVAR_TO_FLOAT (scr_viewsize) < 110)
+		{
+			if (dir < 0)
+			{
+				Cvar_SetValue ("viewsize", 110);
+				Cvar_SetValue ("rt_hud_minimal", 0);
+			}
+		}
+		else if (CVAR_TO_FLOAT (scr_viewsize) < 120 && !CVAR_TO_BOOL (rt_hud_minimal))
 		{
 			if (dir < 0)
 			{
 				Cvar_SetValue ("viewsize", 110);
 				Cvar_SetValue ("rt_hud_minimal", 1);
+			}
+			else
+			{
+				Cvar_SetValue ("viewsize", 100);
+				Cvar_SetValue ("rt_hud_minimal", 0);
 			}
 		}
 		else if (CVAR_TO_FLOAT (scr_viewsize) < 120 && CVAR_TO_BOOL (rt_hud_minimal))
@@ -1256,7 +1269,9 @@ void M_Options_Draw (cb_context_t *cbx)
 	// OPT_SCRSIZE:
 	M_Print (cbx, 16, 32 + 8 * OPT_SCRSIZE, "                   HUD");
 #if RT_RENDERER
-	if (CVAR_TO_FLOAT (scr_viewsize) < 120 && !CVAR_TO_BOOL(rt_hud_minimal))
+	if (CVAR_TO_FLOAT (scr_viewsize) < 110)
+		M_Print (cbx, 220, 32 + 8 * OPT_SCRSIZE, "classic full");
+	else if (CVAR_TO_FLOAT (scr_viewsize) < 120 && !CVAR_TO_BOOL(rt_hud_minimal))
 		M_Print (cbx, 220, 32 + 8 * OPT_SCRSIZE, "classic");
 	else if (CVAR_TO_FLOAT (scr_viewsize) < 120 && CVAR_TO_BOOL (rt_hud_minimal))
 		M_Print (cbx, 220, 32 + 8 * OPT_SCRSIZE, "minimal");
