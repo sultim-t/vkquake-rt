@@ -974,20 +974,26 @@ enum
 	OPT_CUSTOMIZE = 0,
 	OPT_CONSOLE,  // 1
 	OPT_DEFAULTS, // 2
-	OPT_SCALE,
 	OPT_SCRSIZE,
+	OPT_SCALE,
+#if !RT_RENDERER
 	OPT_GAMMA,
 	OPT_CONTRAST,
-	OPT_MOUSESPEED,
 	OPT_SBALPHA,
+#endif
 	OPT_SNDVOL,
 	OPT_MUSICVOL,
+#if !RT_RENDERER
 	OPT_MUSICEXT,
 	OPT_ALWAYRUN,
+#endif
 	OPT_INVMOUSE,
+	OPT_MOUSESPEED,
+#if !RT_RENDERER
 	OPT_ALWAYSMLOOK,
 	OPT_LOOKSPRING,
 	OPT_LOOKSTRAFE,
+#endif
 	OPT_CROSSHAIR,
 	//#ifdef _WIN32
 	//	OPT_USEMOUSE,
@@ -1018,8 +1024,10 @@ void M_Menu_Options_f (void)
 
 void M_AdjustSliders (int dir)
 {
+#if !RT_RENDERER
 	int   curr_alwaysrun, target_alwaysrun;
-	float f, l;
+#endif
+    float f, l;
 
 	S_LocalSound ("misc/menu3.wav");
 
@@ -1102,6 +1110,7 @@ void M_AdjustSliders (int dir)
 	    Cvar_SetValue ("viewsize", f);
 #endif
 		break;
+#if !RT_RENDERER
 	case OPT_GAMMA: // gamma
 		f = vid_gamma.value - dir * 0.05;
 		if (f < 0.5)
@@ -1118,6 +1127,7 @@ void M_AdjustSliders (int dir)
 			f = 2;
 		Cvar_SetValue ("contrast", f);
 		break;
+#endif
 	case OPT_MOUSESPEED: // mouse speed
 		f = sensitivity.value + dir * 0.5;
 		if (f > 11)
@@ -1126,6 +1136,7 @@ void M_AdjustSliders (int dir)
 			f = 1;
 		Cvar_SetValue ("sensitivity", f);
 		break;
+#if !RT_RENDERER
 	case OPT_SBALPHA: // statusbar alpha
 		f = scr_sbaralpha.value - dir * 0.05;
 		if (f < 0)
@@ -1134,6 +1145,7 @@ void M_AdjustSliders (int dir)
 			f = 1;
 		Cvar_SetValue ("scr_sbaralpha", f);
 		break;
+#endif
 	case OPT_MUSICVOL: // music volume
 		f = bgmvolume.value + dir * 0.1;
 		if (f < 0)
@@ -1142,9 +1154,13 @@ void M_AdjustSliders (int dir)
 			f = 1;
 		Cvar_SetValue ("bgmvolume", f);
 		break;
+
+#if !RT_RENDERER
 	case OPT_MUSICEXT: // enable external music vs cdaudio
 		Cvar_Set ("bgm_extmusic", bgm_extmusic.value ? "0" : "1");
 		break;
+#endif
+
 	case OPT_SNDVOL: // sfx volume
 		f = sfxvolume.value + dir * 0.1;
 		if (f < 0)
@@ -1154,6 +1170,7 @@ void M_AdjustSliders (int dir)
 		Cvar_SetValue ("volume", f);
 		break;
 
+#if !RT_RENDERER
 	case OPT_ALWAYRUN: // always run
 		if (cl_alwaysrun.value)
 			curr_alwaysrun = ALWAYSRUN_QUAKESPASM;
@@ -1183,11 +1200,13 @@ void M_AdjustSliders (int dir)
 			Cvar_SetValue ("cl_backspeed", 200);
 		}
 		break;
+#endif
 
 	case OPT_INVMOUSE: // invert mouse
 		Cvar_SetValue ("m_pitch", -m_pitch.value);
 		break;
 
+#if !RT_RENDERER
 	case OPT_ALWAYSMLOOK:
 		if (in_mlook.state & 1)
 			Cbuf_AddText ("-mlook");
@@ -1202,6 +1221,7 @@ void M_AdjustSliders (int dir)
 	case OPT_LOOKSTRAFE: // lookstrafe
 		Cvar_Set ("lookstrafe", lookstrafe.value ? "0" : "1");
 		break;
+#endif
 
 	case OPT_CROSSHAIR: // crosshair
 		Cvar_SetValue ("crosshair", ((int)crosshair.value + 3 + dir) % 3);
@@ -1282,6 +1302,7 @@ void M_Options_Draw (cb_context_t *cbx)
     M_DrawSlider (cbx, 220, 32 + 8 * OPT_SCRSIZE, r);
 #endif
 
+#if !RT_RENDERER
 	// OPT_GAMMA:
 	M_Print (cbx, 16, 32 + 8 * OPT_GAMMA, "            Brightness");
 	r = (1.0 - vid_gamma.value) / 0.5;
@@ -1291,16 +1312,19 @@ void M_Options_Draw (cb_context_t *cbx)
 	M_Print (cbx, 16, 32 + 8 * OPT_CONTRAST, "              Contrast");
 	r = vid_contrast.value - 1.0;
 	M_DrawSlider (cbx, 220, 32 + 8 * OPT_CONTRAST, r);
+#endif
 
 	// OPT_MOUSESPEED:
 	M_Print (cbx, 16, 32 + 8 * OPT_MOUSESPEED, "           Mouse Speed");
 	r = (sensitivity.value - 1) / 10;
 	M_DrawSlider (cbx, 220, 32 + 8 * OPT_MOUSESPEED, r);
 
+#if !RT_RENDERER
 	// OPT_SBALPHA:
 	M_Print (cbx, 16, 32 + 8 * OPT_SBALPHA, "       Statusbar alpha");
 	r = (1.0 - scr_sbaralpha.value); // scr_sbaralpha range is 1.0 to 0.0
 	M_DrawSlider (cbx, 220, 32 + 8 * OPT_SBALPHA, r);
+#endif
 
 	// OPT_SNDVOL:
 	M_Print (cbx, 16, 32 + 8 * OPT_SNDVOL, "          Sound Volume");
@@ -1312,6 +1336,7 @@ void M_Options_Draw (cb_context_t *cbx)
 	r = bgmvolume.value;
 	M_DrawSlider (cbx, 220, 32 + 8 * OPT_MUSICVOL, r);
 
+#if !RT_RENDERER
 	// OPT_MUSICEXT:
 	M_Print (cbx, 16, 32 + 8 * OPT_MUSICEXT, "        External Music");
 	M_DrawCheckbox (cbx, 220, 32 + 8 * OPT_MUSICEXT, bgm_extmusic.value);
@@ -1324,11 +1349,13 @@ void M_Options_Draw (cb_context_t *cbx)
 		M_Print (cbx, 220, 32 + 8 * OPT_ALWAYRUN, "vanilla");
 	else
 		M_Print (cbx, 220, 32 + 8 * OPT_ALWAYRUN, "off");
+#endif
 
 	// OPT_INVMOUSE:
 	M_Print (cbx, 16, 32 + 8 * OPT_INVMOUSE, "          Invert Mouse");
 	M_DrawCheckbox (cbx, 220, 32 + 8 * OPT_INVMOUSE, m_pitch.value < 0);
 
+#if !RT_RENDERER
 	// OPT_ALWAYSMLOOK:
 	M_Print (cbx, 16, 32 + 8 * OPT_ALWAYSMLOOK, "            Mouse Look");
 	M_DrawCheckbox (cbx, 220, 32 + 8 * OPT_ALWAYSMLOOK, in_mlook.state & 1);
@@ -1340,6 +1367,7 @@ void M_Options_Draw (cb_context_t *cbx)
 	// OPT_LOOKSTRAFE:
 	M_Print (cbx, 16, 32 + 8 * OPT_LOOKSTRAFE, "            Lookstrafe");
 	M_DrawCheckbox (cbx, 220, 32 + 8 * OPT_LOOKSTRAFE, lookstrafe.value);
+#endif
 
 	// OPT_CROSSHAIR:
 	M_Print (cbx, 16, 32 + 8 * OPT_CROSSHAIR, "             Crosshair");
