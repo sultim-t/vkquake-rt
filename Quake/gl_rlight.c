@@ -375,3 +375,230 @@ int R_LightPoint (vec3_t p, lightcache_t *cache, vec3_t *lightcolor)
 
 	return (((*lightcolor)[0] + (*lightcolor)[1] + (*lightcolor)[2]) * (1.0f / 3.0f));
 }
+
+static const char *rt_light_classnames[] = {
+	"light",
+	"light_fluoro",
+	"light_fluorospark",
+	"light_globe",
+	"light_torch_small_walltorch",
+	"light_flame_small_yellow",
+	"light_flame_large_yellow",
+	"light_flame_small_white",
+};
+
+static const char *rt_light_classnames_without_model[] = {
+	"light",
+};
+
+typedef struct rt_elight_s
+{
+	int    state;
+	vec3_t origin;
+	float  intensity;
+	int    lightstyle;
+} rt_elight_t;
+
+rt_elight_t *rt_elights = NULL;
+int          rt_elights_count = 0;
+int          rt_elights_allocated = 0;
+
+extern cvar_t rt_elight_normaliz, rt_elight_default, rt_elight_default_mdl, rt_elight_radius, rt_elight_threshold;
+
+/*
+================
+RT_ParseElights -- RT
+
+parse worldmodel->entities, to find static lights
+================
+*/
+void RT_ParseElights ()
+{
+	char        key[128], value[4096];
+	const char *data;
+
+	if (!cl.worldmodel)
+	{
+		return;
+	}
+
+	data = cl.worldmodel->entities;
+	if (!data)
+	{
+		return;
+	}
+	
+	rt_elight_t struct_values = {0};
+
+    #define STRUCT_STATE_STRUCT_STARTED       1
+    #define STRUCT_STATE_FOUND_LIGHTCLASSNAME 2
+    #define STRUCT_STATE_FOUND_ORIGIN         4
+    #define STRUCT_STATE_FOUND_INTENSITY      8
+    #define STRUCT_STATE_FOUND_WITH_MODEL     16
+    #define STRUCT_STATE_FOUND_LIGHTSTYLE     32
+
+    #define ELIGHT_KEY_ORIGIN     "origin"
+    #define ELIGHT_KEY_INTENSITY  "light"
+    #define ELIGHT_KEY_CLASSNAME  "classname"
+    #define ELIGHT_KEY_LIGHTSTYLE "style"
+
+	while (1)
+	{
+		data = COM_Parse (data);
+		if (!data)
+			return; // error
+
+	    if (com_token[0] == '{')
+	    {
+			memset (&struct_values, 0, sizeof (struct_values));
+			struct_values.state = STRUCT_STATE_STRUCT_STARTED;
+            continue;
+	    }
+	    else if (com_token[0] == '}')
+		{
+			if ((struct_values.state & STRUCT_STATE_STRUCT_STARTED) &&
+			    (struct_values.state & STRUCT_STATE_FOUND_LIGHTCLASSNAME) &&
+			    (struct_values.state & STRUCT_STATE_FOUND_ORIGIN))
+			{
+				if (rt_elights_count >= rt_elights_allocated)
+				{
+					rt_elights_allocated += 16;
+					rt_elights = Mem_Realloc (rt_elights, sizeof (rt_elight_t) * rt_elights_allocated);
+				}
+
+				rt_elights[rt_elights_count] = struct_values;
+				rt_elights_count++;
+			}
+
+			struct_values.state = 0; // end of struct
+			continue;
+		}
+
+		if (com_token[0] == '_')
+			q_strlcpy (key, com_token + 1, sizeof (key));
+		else
+			q_strlcpy (key, com_token, sizeof (key));
+		while (key[0] && key[strlen (key) - 1] == ' ') // remove trailing spaces
+			key[strlen (key) - 1] = 0;
+		data = COM_Parse (data);
+		if (!data)
+			return; // error
+		q_strlcpy (value, com_token, sizeof (value));
+
+		
+		if (strcmp (key, ELIGHT_KEY_CLASSNAME) == 0)
+		{
+			for (size_t i = 0; i < countof (rt_light_classnames); i++)
+			{
+				if (strcmp (value, rt_light_classnames[i]) == 0)
+				{
+					struct_values.state |= STRUCT_STATE_FOUND_LIGHTCLASSNAME;
+					struct_values.state |= STRUCT_STATE_FOUND_WITH_MODEL;
+				}
+			}
+
+			for (size_t i = 0; i < countof (rt_light_classnames_without_model); i++)
+			{
+				if (strcmp (value, rt_light_classnames_without_model[i]) == 0)
+				{
+					struct_values.state &= ~STRUCT_STATE_FOUND_WITH_MODEL;
+				}
+			}
+		}
+		else if (strcmp (key, ELIGHT_KEY_ORIGIN) == 0)
+		{
+			vec3_t tmpvec;
+			int    components = sscanf (value, "%f %f %f", &tmpvec[0], &tmpvec[1], &tmpvec[2]);
+
+			if (components == 3)
+			{
+				struct_values.origin[0] = tmpvec[0];
+				struct_values.origin[1] = tmpvec[1];
+				struct_values.origin[2] = tmpvec[2];
+				struct_values.state |= STRUCT_STATE_FOUND_ORIGIN;
+			}
+		}
+		else if (strcmp (key, ELIGHT_KEY_INTENSITY) == 0)
+		{
+			float tmpval = strtof(value, NULL);
+
+		    if (tmpval > 0.0f)
+			{
+				struct_values.intensity = tmpval;
+				struct_values.state |= STRUCT_STATE_FOUND_INTENSITY;
+			}
+		}
+		else if (strcmp (key, ELIGHT_KEY_LIGHTSTYLE) == 0)
+		{
+			int tmpval = strtol (value, NULL, 10);
+
+			if (tmpval >= 0 && tmpval < MAX_LIGHTSTYLES)
+			{
+				struct_values.lightstyle = tmpval;
+				struct_values.state |= STRUCT_STATE_FOUND_LIGHTSTYLE;
+			}
+		}
+	}
+}
+
+void RT_UploadAllElights ()
+{
+	for (int i = 0; i < rt_elights_count; i++)
+	{
+		const rt_elight_t *src = &rt_elights[i];
+
+		assert (src->state & STRUCT_STATE_STRUCT_STARTED);
+		assert (src->state & STRUCT_STATE_FOUND_LIGHTCLASSNAME);
+		assert (src->state & STRUCT_STATE_FOUND_ORIGIN);
+
+		float original_intensity;
+		if (src->state & STRUCT_STATE_FOUND_INTENSITY)
+		{
+			original_intensity = src->intensity;
+		}
+		else
+		{
+			original_intensity = src->state & STRUCT_STATE_FOUND_WITH_MODEL ? CVAR_TO_FLOAT (rt_elight_default_mdl) : CVAR_TO_FLOAT (rt_elight_default);
+		}
+
+		qboolean accept = original_intensity >= CVAR_TO_FLOAT (rt_elight_threshold);
+
+		if (src->state & STRUCT_STATE_FOUND_WITH_MODEL)
+		{
+			accept = true;
+		}
+		else if ((src->state & STRUCT_STATE_FOUND_LIGHTSTYLE) && src->lightstyle > 0)
+		{
+			accept = true;
+		}
+
+		if (CVAR_TO_FLOAT (rt_elight_normaliz) < 0.5f)
+		{
+			accept = false;
+		}
+
+		if (accept)
+		{
+			float intens = original_intensity / CVAR_TO_FLOAT (rt_elight_normaliz);
+
+			if (src->state & STRUCT_STATE_FOUND_LIGHTSTYLE)
+			{
+				intens *= (float)d_lightstylevalue[src->lightstyle] / 256.0f;
+			}
+
+			vec3_t color = {1.0f, 1.0f, 1.0f};
+			VectorScale (color, intens, color);
+			VectorScale (color, RT_QUAKE_LIGHT_AREA_INTENSITY_FIX, color);
+
+			RgSphericalLightUploadInfo info = {
+				.uniqueID = MAX_DLIGHTS + i,
+				.color = {color[0], color[1], color[2]},
+				.position = {src->origin[0], src->origin[1], src->origin[2]},
+				.radius = METRIC_TO_QUAKEUNIT (CVAR_TO_FLOAT (rt_elight_radius)),
+			};
+
+			RgResult r = rgUploadSphericalLight (vulkan_globals.instance, &info);
+			RG_CHECK (r);
+		}
+	}
+}

@@ -114,11 +114,6 @@ extern cvar_t rt_flashlight;
 extern cvar_t rt_sun;
 extern cvar_t rt_sun_pitch;
 extern cvar_t rt_sun_yaw;
-extern cvar_t rt_elight_normaliz;
-extern cvar_t rt_elight_default;
-extern cvar_t rt_elight_default_mdl;
-extern cvar_t rt_elight_radius;
-extern cvar_t rt_elight_threshold;
 
 /*
 =================
@@ -729,186 +724,6 @@ void R_ShowBoundingBoxes (cb_context_t *cbx)
 	R_EndDebugUtilsLabel (cbx);
 }
 
-static const char *rt_light_classnames_with_model[] = {
-	"light_fluoro",
-	"light_fluorospark",
-	"light_globe",
-	"light_torch_small_walltorch",
-	"light_flame_small_yellow",
-	"light_flame_large_yellow",
-	"light_flame_small_white",
-};
-
-// TODO: on newmap
-// TODO: find light styles
-/*
-================
-RT_UploadEdictLights -- RT
-
-parse worldmodel->entities, to find static lights
-================
-*/
-static void RT_UploadEdictLights ()
-{
-	char        key[128], value[4096];
-	const char *data;
-
-	if (!cl.worldmodel)
-	{
-		return;
-	}
-
-	data = cl.worldmodel->entities;
-	if (!data)
-	{
-		return;
-	}
-	
-	struct
-	{
-		vec3_t origin;
-		float  intensity;
-		int    lightstyle;
-	}
-    struct_values = {0};
-
-    #define STRUCT_STATE_STRUCT_STARTED   1
-    #define STRUCT_STATE_FOUND_ORIGIN     2
-    #define STRUCT_STATE_FOUND_INTENSITY  4
-    #define STRUCT_STATE_FOUND_WITH_MODEL 8
-    #define STRUCT_STATE_FOUND_LIGHTSTYLE 16
-	int struct_state = 0;
-
-    #define ELIGHT_KEY_ORIGIN     "origin"
-    #define ELIGHT_KEY_INTENSITY  "light"
-    #define ELIGHT_KEY_CLASSNAME  "classname"
-    #define ELIGHT_KEY_LIGHTSTYLE "style"
-
-
-	int elight_index = 0;
-
-	while (1)
-	{
-		data = COM_Parse (data);
-		if (!data)
-			return; // error
-
-	    if (com_token[0] == '{')
-	    {
-			struct_state = STRUCT_STATE_STRUCT_STARTED;
-			memset (&struct_values, 0, sizeof (struct_values));
-            continue;
-	    }
-	    else if (com_token[0] == '}')
-		{
-			if (struct_state & STRUCT_STATE_STRUCT_STARTED)
-			{
-                if (!(struct_state & STRUCT_STATE_FOUND_INTENSITY))
-				{
-					struct_values.intensity = struct_state & STRUCT_STATE_FOUND_WITH_MODEL ? 
-						CVAR_TO_FLOAT (rt_elight_default_mdl) :
-						CVAR_TO_FLOAT (rt_elight_default);
-				}
-				float intensity = struct_values.intensity / q_max (CVAR_TO_FLOAT (rt_elight_normaliz), 0.1f);
-
-			    qboolean accept = false;
-				if (struct_state & STRUCT_STATE_FOUND_ORIGIN)
-				{
-					if (struct_state & STRUCT_STATE_FOUND_WITH_MODEL)
-					{
-						accept = true;
-					}
-					else
-					{
-						accept = struct_values.intensity >= CVAR_TO_FLOAT (rt_elight_threshold);
-					}
-				}
-
-				if (accept)
-				{
-					if (struct_state & STRUCT_STATE_FOUND_LIGHTSTYLE)
-					{
-						intensity *= (float)d_lightstylevalue[struct_values.lightstyle] / 256.0f;
-					}
-									
-					vec3_t color = {intensity, intensity, intensity};
-					VectorScale (color, RT_QUAKE_LIGHT_AREA_INTENSITY_FIX, color);
-
-					RgSphericalLightUploadInfo info = {
-						.uniqueID = MAX_DLIGHTS + elight_index,
-						.color = {color[0], color[1], color[2]},
-						.position = {struct_values.origin[0], struct_values.origin[1], struct_values.origin[2]},
-						.radius = METRIC_TO_QUAKEUNIT (CVAR_TO_FLOAT (rt_elight_radius)),
-					};
-
-					RgResult r = rgUploadSphericalLight (vulkan_globals.instance, &info);
-					RG_CHECK (r);
-
-					elight_index++;
-				}
-			}
-
-			struct_state = 0; // end of struct
-			continue;
-		}
-
-		if (com_token[0] == '_')
-			q_strlcpy (key, com_token + 1, sizeof (key));
-		else
-			q_strlcpy (key, com_token, sizeof (key));
-		while (key[0] && key[strlen (key) - 1] == ' ') // remove trailing spaces
-			key[strlen (key) - 1] = 0;
-		data = COM_Parse (data);
-		if (!data)
-			return; // error
-		q_strlcpy (value, com_token, sizeof (value));
-
-		
-		if (strcmp (key, ELIGHT_KEY_CLASSNAME) == 0)
-		{
-			for (size_t i = 0; i < countof (rt_light_classnames_with_model); i++)
-			{
-				if (strcmp (value, rt_light_classnames_with_model[i]) == 0)
-				{
-					struct_state |= STRUCT_STATE_FOUND_WITH_MODEL;
-				}
-			}
-		}
-		else if (strcmp (key, ELIGHT_KEY_ORIGIN) == 0)
-		{
-			vec3_t tmpvec;
-			int    components = sscanf (value, "%f %f %f", &tmpvec[0], &tmpvec[1], &tmpvec[2]);
-
-			if (components == 3)
-			{
-				struct_values.origin[0] = tmpvec[0];
-				struct_values.origin[1] = tmpvec[1];
-				struct_values.origin[2] = tmpvec[2];
-				struct_state |= STRUCT_STATE_FOUND_ORIGIN;
-			}
-		}
-		else if (strcmp (key, ELIGHT_KEY_INTENSITY) == 0)
-		{
-			float tmpval = strtof(value, NULL);
-
-		    if (tmpval > 0.0f)
-			{
-				struct_values.intensity = tmpval;
-			    struct_state |= STRUCT_STATE_FOUND_INTENSITY;
-			}
-		}
-		else if (strcmp (key, ELIGHT_KEY_LIGHTSTYLE) == 0)
-		{
-			int tmpval = strtol (value, NULL, 10);
-
-			if (tmpval >= 0 && tmpval < MAX_LIGHTSTYLES)
-			{
-				struct_values.lightstyle = tmpval;
-				struct_state |= STRUCT_STATE_FOUND_LIGHTSTYLE;
-			}
-		}
-	}
-}
 
 /*
 ================
@@ -1070,7 +885,7 @@ static void R_DrawViewModelTask (void *unused)
 	R_DrawViewModel (&vulkan_globals.secondary_cb_contexts[CBX_VIEW_MODEL]);     // johnfitz -- moved here from R_RenderView
 	R_ShowTris (&vulkan_globals.secondary_cb_contexts[CBX_VIEW_MODEL]);          // johnfitz
 	R_ShowBoundingBoxes (&vulkan_globals.secondary_cb_contexts[CBX_VIEW_MODEL]); // johnfitz
-	RT_UploadEdictLights (); // RT
+	RT_UploadAllElights ();                                                      // RT
 }
 
 /*
