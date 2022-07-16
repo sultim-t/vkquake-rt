@@ -57,7 +57,7 @@ cvar_t v_ipitch_level = {"v_ipitch_level", "0.3", CVAR_NONE};
 
 cvar_t v_idlescale = {"v_idlescale", "0", CVAR_NONE};
 
-cvar_t crosshair = {"crosshair", "1", CVAR_ARCHIVE};
+cvar_t crosshair = {"crosshair", "0", CVAR_ARCHIVE};
 
 cvar_t gl_cshiftpercent = {"gl_cshiftpercent", "100", CVAR_NONE};
 cvar_t gl_cshiftpercent_contents = {"gl_cshiftpercent_contents", "100", CVAR_NONE}; // QuakeSpasm
@@ -65,7 +65,7 @@ cvar_t gl_cshiftpercent_damage = {"gl_cshiftpercent_damage", "100", CVAR_NONE}; 
 cvar_t gl_cshiftpercent_bonus = {"gl_cshiftpercent_bonus", "100", CVAR_NONE};       // QuakeSpasm
 cvar_t gl_cshiftpercent_powerup = {"gl_cshiftpercent_powerup", "100", CVAR_NONE};   // QuakeSpasm
 
-cvar_t r_viewmodel_quake = {"r_viewmodel_quake", "0", CVAR_ARCHIVE};
+cvar_t r_viewmodel_quake = {"r_viewmodel_quake", "1", CVAR_ARCHIVE};
 
 float v_dmg_time, v_dmg_roll, v_dmg_pitch;
 float rt_dmg_value;

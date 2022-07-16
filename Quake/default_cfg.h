@@ -3,28 +3,16 @@
 static char default_cfg[] =
 	"unbindall\n"
 
-	"bind ALT +strafe\n"
+	"bind MOUSE1 +attack\n"
 
-	"bind , +moveleft\n"
-	"bind a +moveleft\n"
-	"bind . +moveright\n"
-	"bind d +moveright\n"
-	"bind DEL +lookdown\n"
-	"bind PGDN +lookup\n"
-	"bind END centerview\n"
-
-	"bind e +moveup\n"
-	"bind c +movedown\n"
-	"bind SHIFT +speed\n"
-	"bind CTRL +attack\n"
-	"bind UPARROW +forward\n"
 	"bind w +forward\n"
-	"bind DOWNARROW +back\n"
 	"bind s +back\n"
-	"bind LEFTARROW +left\n"
-	"bind RIGHTARROW +right\n"
+	"bind a +moveleft\n"
+	"bind d +moveright\n"
 
 	"bind SPACE +jump\n"
+	"bind SHIFT +speed\n"
+	"bind CTRL +movedown\n"
 
 	"bind TAB +showscores\n"
 
@@ -57,8 +45,6 @@ static char default_cfg[] =
 	"bind F10 \"quit\"\n"
 	"bind F12 \"screenshot\"\n"
 
-	"bind \\ +mlook\n"
-
 	"bind PAUSE \"pause\"\n"
 	"bind ESCAPE \"togglemenu\"\n"
 	"bind ~ \"toggleconsole\"\n"
@@ -69,11 +55,6 @@ static char default_cfg[] =
 	"bind + \"sizeup\"\n"
 	"bind = \"sizeup\"\n"
 	"bind - \"sizedown\"\n"
-
-	"bind INS +klook\n"
-
-	"bind MOUSE1 +attack\n"
-	"bind MOUSE2 +jump\n"
 
 	"bind LSHOULDER \"impulse 12\"\n"
 	"bind RSHOULDER \"impulse 10\"\n"

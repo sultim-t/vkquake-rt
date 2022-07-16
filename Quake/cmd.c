@@ -285,7 +285,12 @@ void Cmd_Exec_f (void)
 	}
 
 	f = (char *)COM_LoadFile (Cmd_Argv (1), NULL);
+#if RT_RENDERER
+	// always use own default.cfg
+	if (strcmp (Cmd_Argv (1), "default.cfg") == 0)
+#else
 	if (!f && !strcmp (Cmd_Argv (1), "default.cfg"))
+#endif
 	{
 		f = default_cfg; /* see above.. */
 	}
