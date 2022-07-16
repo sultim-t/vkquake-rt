@@ -1719,6 +1719,9 @@ static void VID_Menu_ChooseNextRate (int dir)
 
 static void VID_Menu_ChooseNextAA (int vidopt, int dir)
 {
+	RgBool32 fsr2_ok = rgIsRenderUpscaleTechniqueAvailable (vulkan_globals.instance, RG_RENDER_UPSCALE_TECHNIQUE_AMD_FSR2);
+	RgBool32 dlss_ok = rgIsRenderUpscaleTechniqueAvailable (vulkan_globals.instance, RG_RENDER_UPSCALE_TECHNIQUE_NVIDIA_DLSS);
+
 	const int prev_fsr2 = menu_settings.rt_upscale_fsr2;
 	const int prev_dlss = menu_settings.rt_upscale_dlss;
 	const int prev_rens = menu_settings.rt_renderscale;
@@ -1736,8 +1739,8 @@ static void VID_Menu_ChooseNextAA (int vidopt, int dir)
 		menu_settings.rt_renderscale += dir < 0 ? -10 : 10;
 	}
 
-	menu_settings.rt_upscale_fsr2 = CLAMP (0, menu_settings.rt_upscale_fsr2, 4);
-	menu_settings.rt_upscale_dlss = CLAMP (0, menu_settings.rt_upscale_dlss, 4);
+	menu_settings.rt_upscale_fsr2 = CLAMP (0, menu_settings.rt_upscale_fsr2, fsr2_ok ? 4 : 0);
+	menu_settings.rt_upscale_dlss = CLAMP (0, menu_settings.rt_upscale_dlss, dlss_ok ? 4 : 0);
 	menu_settings.rt_renderscale = CLAMP (20, menu_settings.rt_renderscale, 150);
 
 	if (vidopt == VID_OPT_FSR2)
