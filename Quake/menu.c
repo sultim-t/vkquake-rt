@@ -100,6 +100,10 @@ int m_main_cursor;
 
 void M_ConfigureNetSubsystem (void);
 
+#if RT_RENDERER
+extern cvar_t rt_hud_minimal;
+#endif
+
 /*
 ================
 M_DrawCharacter
@@ -1046,17 +1050,44 @@ void M_AdjustSliders (int dir)
 		}
 		break;
 	case OPT_SCRSIZE: // screen size
+#if RT_RENDERER
+		if (CVAR_TO_FLOAT (scr_viewsize) < 120 && !CVAR_TO_BOOL (rt_hud_minimal))
+		{
+			if (dir < 0)
+			{
+				Cvar_SetValue ("viewsize", 110);
+				Cvar_SetValue ("rt_hud_minimal", 1);
+			}
+		}
+		else if (CVAR_TO_FLOAT (scr_viewsize) < 120 && CVAR_TO_BOOL (rt_hud_minimal))
+		{
+			if (dir < 0)
+			{
+				Cvar_SetValue ("viewsize", 120);
+				Cvar_SetValue ("rt_hud_minimal", 0);
+			}
+			else
+			{
+				Cvar_SetValue ("viewsize", 110);
+				Cvar_SetValue ("rt_hud_minimal", 0);
+			}
+		}
+		else
+		{
+			if (dir > 0)
+			{
+				Cvar_SetValue ("viewsize", 110);
+				Cvar_SetValue ("rt_hud_minimal", 1);
+			}
+		}
+#else
 		f = scr_viewsize.value + dir * 10;
 		if (f > 120)
 			f = 120;
-#if RT_RENDERER
-		else if (f < 100)
-			f = 100;
-#else
 		else if (f < 30)
 			f = 30;
-#endif
 	    Cvar_SetValue ("viewsize", f);
+#endif
 		break;
 	case OPT_GAMMA: // gamma
 		f = vid_gamma.value - dir * 0.05;
@@ -1217,19 +1248,24 @@ void M_Options_Draw (cb_context_t *cbx)
 	M_Print (cbx, 16, 32 + 8 * OPT_DEFAULTS, "          Reset config");
 
 	// OPT_SCALE:
-	M_Print (cbx, 16, 32 + 8 * OPT_SCALE, "                 Scale");
+	M_Print (cbx, 16, 32 + 8 * OPT_SCALE, "             HUD Scale");
 	l = scr_relativescale.value ? 2.0f : ((vid.width / 320.0) - 1);
 	r = l > 0 ? ((scr_relativescale.value ? scr_relativescale.value : scr_conscale.value) - 1) / l : 0;
 	M_DrawSlider (cbx, 220, 32 + 8 * OPT_SCALE, r);
 
 	// OPT_SCRSIZE:
-	M_Print (cbx, 16, 32 + 8 * OPT_SCRSIZE, "           Screen size");
+	M_Print (cbx, 16, 32 + 8 * OPT_SCRSIZE, "                   HUD");
 #if RT_RENDERER
-	r = (scr_viewsize.value - 100) / (120 - 100);
+	if (CVAR_TO_FLOAT (scr_viewsize) < 120 && !CVAR_TO_BOOL(rt_hud_minimal))
+		M_Print (cbx, 220, 32 + 8 * OPT_SCRSIZE, "classic");
+	else if (CVAR_TO_FLOAT (scr_viewsize) < 120 && CVAR_TO_BOOL (rt_hud_minimal))
+		M_Print (cbx, 220, 32 + 8 * OPT_SCRSIZE, "minimal");
+	else
+		M_Print (cbx, 220, 32 + 8 * OPT_SCRSIZE, "none");
 #else
 	r = (scr_viewsize.value - 30) / (120 - 30);
-#endif
     M_DrawSlider (cbx, 220, 32 + 8 * OPT_SCRSIZE, r);
+#endif
 
 	// OPT_GAMMA:
 	M_Print (cbx, 16, 32 + 8 * OPT_GAMMA, "            Brightness");

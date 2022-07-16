@@ -78,6 +78,8 @@ double v_punchangles_times[2]; // spike -- times, to avoid assumptions...
 
 extern qboolean needs_relink;
 
+extern cvar_t rt_hud_minimal;
+
 /*
 ===============
 V_CalcRoll
@@ -764,7 +766,10 @@ void V_CalcRefdef (void)
 	if (r_viewmodel_quake.value)
 	{
 		if (scr_viewsize.value == 110)
-			view->origin[2] += 1;
+		{
+			if (!CVAR_TO_BOOL(rt_hud_minimal))
+			    view->origin[2] += 1;
+		}
 		else if (scr_viewsize.value == 100)
 			view->origin[2] += 2;
 		else if (scr_viewsize.value == 90)

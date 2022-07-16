@@ -360,7 +360,9 @@ Keybinding command
 */
 void SCR_SizeUp_f (void)
 {
+#if !RT_RENDERER
 	Cvar_SetValueQuick (&scr_viewsize, scr_viewsize.value + 10);
+#endif
 }
 
 /*
@@ -372,7 +374,9 @@ Keybinding command
 */
 void SCR_SizeDown_f (void)
 {
+#if !RT_RENDERER
 	Cvar_SetValueQuick (&scr_viewsize, scr_viewsize.value - 10);
+#endif
 }
 
 static void SCR_Callback_refdef (cvar_t *var)
