@@ -1450,13 +1450,11 @@ void VID_Toggle (void)
 typedef struct
 {
 	int host_maxfps;
-	int r_waterwarp;
 	int r_particles;
 	int rt_upscale_fsr2;
 	int rt_upscale_dlss;
 	int rt_renderscale;
 	int vid_filter;
-	int vid_palettize;
 } vid_menu_settings_t;
 
 static vid_menu_settings_t menu_settings;
@@ -1482,13 +1480,11 @@ void VID_SyncCvars (void)
 	}
 
 	menu_settings.host_maxfps = CLAMP (0, host_maxfps.value, 1000);
-	menu_settings.r_waterwarp = CLAMP (0, (int)r_waterwarp.value, 2);
 	menu_settings.r_particles = CLAMP (0, (int)r_particles.value, 2);
 	menu_settings.rt_upscale_fsr2 = CLAMP (0, CVAR_TO_INT32 (rt_upscale_fsr2), 4);
 	menu_settings.rt_upscale_dlss = CLAMP (0, CVAR_TO_INT32 (rt_upscale_dlss), 4);
 	menu_settings.rt_renderscale = CLAMP (20, CVAR_TO_INT32 (rt_renderscale), 150);
 	menu_settings.vid_filter = CLAMP (0, (int)vid_filter.value, 1);
-	menu_settings.vid_palettize = CLAMP (0, (int)vid_palettize.value, 1);
 
 	vid_changed = false;
 }
@@ -1502,19 +1498,17 @@ void VID_SyncCvars (void)
 enum
 {
 	VID_OPT_MODE,
-	VID_OPT_BPP,
 	VID_OPT_REFRESHRATE,
-	VID_OPT_FULLSCREEN,
 	VID_OPT_VSYNC,
 	VID_OPT_MAX_FPS,
+
 	VID_OPT_FSR2,
 	VID_OPT_DLSS,
 	VID_OPT_RENDER_SCALE,
+
 	VID_OPT_FILTER,
-	VID_OPT_UNDERWATER,
 	VID_OPT_PARTICLES,
 
-	VID_OPT_TEST,
 	VID_OPT_APPLY,
 
 	VIDEO_OPTIONS_ITEMS
@@ -1654,32 +1648,12 @@ static void VID_Menu_ChooseNextMode (int dir)
 
 /*
 ================
-VID_Menu_ChooseNextBpp
-================
-*/
-static void VID_Menu_ChooseNextBpp (void)
-{
-	menu_settings.vid_palettize = (menu_settings.vid_palettize + 1) % 2;
-}
-
-/*
-================
 VID_Menu_ChooseNextMaxFPS
 ================
 */
 static void VID_Menu_ChooseNextMaxFPS (int dir)
 {
 	menu_settings.host_maxfps = CLAMP (0, ((menu_settings.host_maxfps + (dir * 10)) / 10) * 10, 1000);
-}
-
-/*
-================
-VID_Menu_ChooseNextWaterWarp
-================
-*/
-static void VID_Menu_ChooseNextWaterWarp (int dir)
-{
-	menu_settings.r_waterwarp = (menu_settings.r_waterwarp + 3 + dir) % 3;
 }
 
 /*
@@ -1740,16 +1714,6 @@ static void VID_Menu_ChooseNextRate (int dir)
 	}
 
 	Cvar_SetValue ("vid_refreshrate", (float)vid_menu_rates[i]);
-}
-
-/*
-================
-VID_Menu_ChooseNextFullScreenMode
-================
-*/
-static void VID_Menu_ChooseNextFullScreenMode (int dir)
-{
-	Cvar_SetValueQuick (&vid_fullscreen, (float)(((int)vid_fullscreen.value + 2 + dir) % 2));
 }
 
 
@@ -1839,14 +1803,8 @@ static void VID_MenuKey (int key)
 		case VID_OPT_MODE:
 			VID_Menu_ChooseNextMode (1);
 			break;
-		case VID_OPT_BPP:
-			VID_Menu_ChooseNextBpp ();
-			break;
 		case VID_OPT_REFRESHRATE:
 			VID_Menu_ChooseNextRate (1);
-			break;
-		case VID_OPT_FULLSCREEN:
-			VID_Menu_ChooseNextFullScreenMode (-1);
 			break;
 		case VID_OPT_VSYNC:
 			Cbuf_AddText ("toggle vid_vsync\n"); // kristian
@@ -1861,9 +1819,6 @@ static void VID_MenuKey (int key)
 			break;
 		case VID_OPT_FILTER:
 			menu_settings.vid_filter = (menu_settings.vid_filter == 0) ? 1 : 0;
-			break;
-		case VID_OPT_UNDERWATER:
-			VID_Menu_ChooseNextWaterWarp (-1);
 			break;
 		case VID_OPT_PARTICLES:
 			VID_Menu_ChooseNextParticles (-1);
@@ -1880,14 +1835,8 @@ static void VID_MenuKey (int key)
 		case VID_OPT_MODE:
 			VID_Menu_ChooseNextMode (-1);
 			break;
-		case VID_OPT_BPP:
-			VID_Menu_ChooseNextBpp ();
-			break;
 		case VID_OPT_REFRESHRATE:
 			VID_Menu_ChooseNextRate (-1);
-			break;
-		case VID_OPT_FULLSCREEN:
-			VID_Menu_ChooseNextFullScreenMode (1);
 			break;
 		case VID_OPT_VSYNC:
 			Cbuf_AddText ("toggle vid_vsync\n");
@@ -1902,9 +1851,6 @@ static void VID_MenuKey (int key)
 			break;
 		case VID_OPT_FILTER:
 			menu_settings.vid_filter = (menu_settings.vid_filter == 0) ? 1 : 0;
-			break;
-		case VID_OPT_UNDERWATER:
-			VID_Menu_ChooseNextWaterWarp (1);
 			break;
 		case VID_OPT_PARTICLES:
 			VID_Menu_ChooseNextParticles (1);
@@ -1928,40 +1874,33 @@ static void VID_MenuKey (int key)
 		//case VID_OPT_REFRESHRATE:
 		//	VID_Menu_ChooseNextRate (1);
 		//	break;
-		case VID_OPT_FULLSCREEN:
-			VID_Menu_ChooseNextFullScreenMode (1);
-			break;
 		case VID_OPT_VSYNC:
 			Cbuf_AddText ("toggle vid_vsync\n");
 			break;
-		//case VID_OPT_FSR2:
-		//case VID_OPT_DLSS:
-		//case VID_OPT_RENDER_SCALE:
-		//	VID_Menu_ChooseNextAA (video_options_cursor, 1);
-		//	break;
-		case VID_OPT_FILTER:
-			menu_settings.vid_filter = (menu_settings.vid_filter == 0) ? 1 : 0;
+		case VID_OPT_MAX_FPS:
+			Cvar_SetValueQuick (&host_maxfps, menu_settings.host_maxfps);
 			break;
-		case VID_OPT_UNDERWATER:
-			VID_Menu_ChooseNextWaterWarp (1);
+		case VID_OPT_FSR2:
+		case VID_OPT_DLSS:
+		case VID_OPT_RENDER_SCALE:
+			Cvar_SetValueQuick (&rt_upscale_fsr2, menu_settings.rt_upscale_fsr2);
+			Cvar_SetValueQuick (&rt_upscale_dlss, menu_settings.rt_upscale_dlss);
+			Cvar_SetValueQuick (&rt_renderscale, menu_settings.rt_renderscale);
+			break;
+		case VID_OPT_FILTER:
+			Cvar_SetValueQuick (&vid_filter, menu_settings.vid_filter);
 			break;
 		case VID_OPT_PARTICLES:
-			VID_Menu_ChooseNextParticles (1);
-			break;
-
-		case VID_OPT_TEST:
-			Cbuf_AddText ("vid_test\n");
+			Cvar_SetValueQuick (&r_particles, menu_settings.r_particles);
 			break;
 
 		case VID_OPT_APPLY:
 			Cvar_SetValueQuick (&host_maxfps, menu_settings.host_maxfps);
-			Cvar_SetValueQuick (&r_waterwarp, menu_settings.r_waterwarp);
 			Cvar_SetValueQuick (&r_particles, menu_settings.r_particles);
 			Cvar_SetValueQuick (&rt_upscale_fsr2, menu_settings.rt_upscale_fsr2);
 			Cvar_SetValueQuick (&rt_upscale_dlss, menu_settings.rt_upscale_dlss);
 			Cvar_SetValueQuick (&rt_renderscale, menu_settings.rt_renderscale);
 			Cvar_SetValueQuick (&vid_filter, menu_settings.vid_filter);
-			Cvar_SetValueQuick (&vid_palettize, menu_settings.vid_palettize);
 			Cbuf_AddText ("vid_restart\n");
 
 			key_dest = key_game;
@@ -2016,17 +1955,9 @@ static void VID_MenuDraw (cb_context_t *cbx)
 			M_Print (cbx, 16, y, "        Video mode");
 			M_Print (cbx, 184, y, va ("%ix%i", (int)vid_width.value, (int)vid_height.value));
 			break;
-		case VID_OPT_BPP:
-			M_Print (cbx, 16, y, "       Color depth");
-			M_Print (cbx, 184, y, (menu_settings.vid_palettize == 1) ? "classic" : "modern");
-			break;
 		case VID_OPT_REFRESHRATE:
 			M_Print (cbx, 16, y, "      Refresh rate");
 			M_Print (cbx, 184, y, va ("%i", (int)vid_refreshrate.value));
-			break;
-		case VID_OPT_FULLSCREEN:
-			M_Print (cbx, 16, y, "        Fullscreen");
-			M_Print (cbx, 184, y, ((int)vid_fullscreen.value == 0) ? "off" : (((int)vid_fullscreen.value == 1) ? "on" : "exclusive"));
 			break;
 		case VID_OPT_VSYNC:
 			M_Print (cbx, 16, y, "     Vertical sync");
@@ -2039,7 +1970,11 @@ static void VID_MenuDraw (cb_context_t *cbx)
 			else
 				M_Print (cbx, 184, y, va ("%d", menu_settings.host_maxfps));
 			break;
+
+
 		case VID_OPT_FSR2:
+			y += 8; // separate
+
 			M_Print (cbx, 16, y, "       AMD FSR 2.0");
 			M_Print (cbx, 184, y, GetUpscalerOptionName(menu_settings.rt_upscale_fsr2));
 			break;
@@ -2051,23 +1986,23 @@ static void VID_MenuDraw (cb_context_t *cbx)
 			M_Print (cbx, 16, y, "      Render Scale");
 			M_Print (cbx, 184, y, va ("%i%%", menu_settings.rt_renderscale) );
 			break;
+
+
 		case VID_OPT_FILTER:
+			y += 8; // separate
+
 			M_Print (cbx, 16, y, "          Textures");
 			M_Print (cbx, 184, y, (menu_settings.vid_filter == 0) ? "smooth" : "classic");
 			break;
-		case VID_OPT_UNDERWATER:
-			M_Print (cbx, 16, y, "     Underwater FX");
-			M_Print (cbx, 184, y, (menu_settings.r_waterwarp == 0) ? "off" : ((menu_settings.r_waterwarp == 1) ? "Classic" : "glQuake"));
-			break;
 		case VID_OPT_PARTICLES:
 			M_Print (cbx, 16, y, "         Particles");
-			M_Print (cbx, 184, y, (menu_settings.r_particles == 0) ? "off" : ((menu_settings.r_particles == 2) ? "Classic" : "glQuake"));
+			M_Print (cbx, 184, y, (menu_settings.r_particles == 0) ? "none" : ((menu_settings.r_particles == 2) ? "classic" : "circle"));
 			break;
-		case VID_OPT_TEST:
-			y += 8; // separate the test and apply items
-			M_Print (cbx, 16, y, "      Test changes");
-			break;
+
+
 		case VID_OPT_APPLY:
+			y += 8; // separate
+
 			M_Print (cbx, 16, y, "     Apply changes");
 			break;
 		}
