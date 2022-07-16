@@ -414,6 +414,8 @@ parse worldmodel->entities, to find static lights
 */
 void RT_ParseElights ()
 {
+	rt_elights_count = 0;
+
 	char        key[128], value[4096];
 	const char *data;
 
