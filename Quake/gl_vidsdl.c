@@ -177,6 +177,7 @@ task_handle_t prev_end_rendering_task = INVALID_TASK_HANDLE;
 	CVAR_DEF_T (rt_ef_crt, "0") \
 	CVAR_DEF_T (rt_ef_interlacing, "0") \
 	CVAR_DEF_T (rt_ef_chraber, "0") \
+	CVAR_DEF_T (rt_ef_waves_stren, "1") \
 	\
 	CVAR_DEF_T (rt_hud_minimal, "1") \
 	\
@@ -827,28 +828,7 @@ extern cvar_t r_fastsky;
 extern float  skyflatcolor[3];
 extern float    rt_dmg_value;
 extern qboolean rt_dmg_inthisframe;
-
-static qboolean IsCameraUnderWater ()
-{
-	if (!r_viewleaf)
-	{
-		return false;
-	}
-
-	switch (r_viewleaf->contents)
-	{
-	case CONTENTS_EMPTY:
-	case CONTENTS_SOLID:
-	case CONTENTS_SKY:
-		return false;
-	case CONTENTS_LAVA:
-		return false;
-	case CONTENTS_SLIME:
-		return false;
-	default:
-		return true;
-	}
-}
+extern qboolean rt_cameraunderwater;
 
 /*
 =================
@@ -892,7 +872,7 @@ static void GL_EndRenderingTask (end_rendering_parms_t *parms)
 
 	RgDrawFrameReflectRefractParams refl_refr_params = {
 		.maxReflectRefractDepth = CVAR_TO_UINT32 (rt_reflrefr_depth),
-		.typeOfMediaAroundCamera = IsCameraUnderWater () ? RG_MEDIA_TYPE_WATER : RG_MEDIA_TYPE_VACUUM,
+		.typeOfMediaAroundCamera = rt_cameraunderwater ? RG_MEDIA_TYPE_WATER : RG_MEDIA_TYPE_VACUUM,
 		.reflectRefractCastShadows = CVAR_TO_BOOL (rt_reflrefr_castshadows),
 		.reflectRefractToIndirect = CVAR_TO_BOOL (rt_reflrefr_toindir),
 		.indexOfRefractionGlass = CVAR_TO_FLOAT (rt_refr_glass),
@@ -979,6 +959,15 @@ static void GL_EndRenderingTask (end_rendering_parms_t *parms)
 		.transitionDurationOut = 2.0f,
 	};
 
+	RgPostEffectWaves waves_effect = {
+		.isActive = rt_cameraunderwater,
+		.transitionDurationIn = 0.1f,
+		.transitionDurationOut = 0.75f,
+		.amplitude = CVAR_TO_FLOAT (rt_ef_waves_stren) * 0.01f,
+		.speed = 1.0f,
+		.xMultiplier = 0.5f,
+	};
+
 	RgDrawFrameDebugParams debug_params = {
 		.drawFlags = CVAR_TO_UINT32 (rt_debugflags),
 	};
@@ -1009,6 +998,7 @@ static void GL_EndRenderingTask (end_rendering_parms_t *parms)
 		.postEffectParams =
 			{
 				.pChromaticAberration = &chromatic_aberration_effect,
+				.pWaves = CVAR_TO_INT32(r_waterwarp) == 1 ? &waves_effect : NULL,
 				.pColorTint = &tint_effect,
 				.pCRT = &crt_effect,
 				.pRadialBlur = &radial_effect,
