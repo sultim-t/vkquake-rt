@@ -29,6 +29,8 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 cvar_t scr_conalpha = {"scr_conalpha", "0.5", CVAR_ARCHIVE}; // johnfitz
 
+extern cvar_t rt_hud_padding;
+
 qpic_t *draw_disc;
 qpic_t *draw_backtile;
 
@@ -1042,6 +1044,8 @@ void GL_SetCanvas (cb_context_t *cbx, canvastype newcanvas)
 	if (newcanvas == cbx->current_canvas)
 		return;
 
+	float pad = CVAR_TO_INT32 (rt_hud_padding);
+
 	extern vrect_t scr_vrect;
 	float          s;
 	int            lines;
@@ -1087,13 +1091,25 @@ void GL_SetCanvas (cb_context_t *cbx, canvastype newcanvas)
 		break;
 	case CANVAS_SBAR_MINIMAL_BOTTOMLEFT:
 		s = CLAMP (1.0, scr_sbarscale.value, (float)glwidth / 320.0);
-		GL_OrthoMatrix (cbx, 0, 320, 48, 0, -99999, 99999);
-		GL_Viewport (cbx, glx, gly, 320 * s, 48 * s, 0.0f, 1.0f);
+		GL_OrthoMatrix (cbx, 
+			0 , 320 , 
+			48, -48, 
+			-99999, 99999);
+		GL_Viewport (cbx, 
+			glx + (s * pad), gly + (s * pad), 
+			s * 320, s * 96, 
+			0.0f, 1.0f);
 		break;
 	case CANVAS_SBAR_MINIMAL_BOTTOMRIGHT:
 		s = CLAMP (1.0, scr_sbarscale.value, (float)glwidth / 320.0);
-		GL_OrthoMatrix (cbx, 0, 320, 48, 0, -99999, 99999);
-		GL_Viewport (cbx, glx + glwidth - 320 * s, gly, 320 * s, 48 * s, 0.0f, 1.0f);
+		GL_OrthoMatrix (cbx, 
+			0, 320, 
+			48, -48, 
+			-99999, 99999);
+		GL_Viewport (cbx, 
+			glx + (glwidth - 320 * s) - (s * pad), gly + (s * pad),
+			s * 320, s * 96, 
+			0.0f, 1.0f);
 		break;
 	case CANVAS_WARPIMAGE:
 		GL_OrthoMatrix (cbx, 0, 128, 0, 128, -99999, 99999);

@@ -180,6 +180,7 @@ task_handle_t prev_end_rendering_task = INVALID_TASK_HANDLE;
 	CVAR_DEF_T (rt_ef_waves_stren, "1") \
 	\
 	CVAR_DEF_T (rt_hud_minimal, "1") \
+	CVAR_DEF_T (rt_hud_padding, "8") \
 	\
 	CVAR_DEF_T (rt_debugflags, "0") 
 

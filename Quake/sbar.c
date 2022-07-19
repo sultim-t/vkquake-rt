@@ -66,7 +66,7 @@ static int hudtype;
 #define hipnotic (hudtype == 1)
 #define rogue    (hudtype == 2)
 
-extern cvar_t rt_hud_minimal;
+extern cvar_t rt_hud_minimal, rt_hud_padding;
 
 void Sbar_MiniDeathmatchOverlay (cb_context_t *cbx);
 void Sbar_DeathmatchOverlay (cb_context_t *cbx);
@@ -1013,6 +1013,8 @@ void Sbar_Draw (cb_context_t *cbx)
 		!rogue &&
 		cl.gametype != GAME_DEATHMATCH;
 
+	int pad = CVAR_TO_INT32 (rt_hud_padding);
+
 	if (sb_showscores || cl.stats[STAT_HEALTH] <= 0)
 	{
 		Sbar_DrawPicAlpha (cbx, 0, 0, sb_scorebar, scr_sbaralpha.value); // johnfitz -- scr_sbaralpha
@@ -1026,21 +1028,21 @@ void Sbar_Draw (cb_context_t *cbx)
 		// armor
 		if (cl.items & IT_INVULNERABILITY)
 		{
-			Sbar_DrawNum (cbx, 24, -24, 666, 3, 1);
-			Sbar_DrawPic (cbx, 0, -24, draw_disc);
+			Sbar_DrawNum (cbx, 24, -24 - pad, 666, 3, 1);
+			Sbar_DrawPic (cbx, 0, -24 - pad, draw_disc);
 		}
 		else
 		{
 			if (cl.stats[STAT_ARMOR] > 0)
 			{
-				Sbar_DrawNum (cbx, 24, -24, cl.stats[STAT_ARMOR], 3, cl.stats[STAT_ARMOR] <= 25);
+				Sbar_DrawNum (cbx, 24, -24 - pad, cl.stats[STAT_ARMOR], 3, cl.stats[STAT_ARMOR] <= 25);
 
 				if (cl.items & IT_ARMOR3)
-					Sbar_DrawPic (cbx, 0, -24, sb_armor[2]);
+					Sbar_DrawPic (cbx, 0, -24 - pad, sb_armor[2]);
 				else if (cl.items & IT_ARMOR2)
-					Sbar_DrawPic (cbx, 0, -24, sb_armor[1]);
+					Sbar_DrawPic (cbx, 0, -24 - pad, sb_armor[1]);
 				else if (cl.items & IT_ARMOR1)
-					Sbar_DrawPic (cbx, 0, -24, sb_armor[0]);
+					Sbar_DrawPic (cbx, 0, -24 - pad, sb_armor[0]);
 			}
 		}
 
@@ -1063,7 +1065,10 @@ void Sbar_Draw (cb_context_t *cbx)
 			Sbar_DrawPic (cbx, 296, 0, sb_ammo[3]);
 
 		if ((cl.items & IT_SHELLS) || (cl.items & IT_NAILS) || (cl.items & IT_ROCKETS) || (cl.items & IT_CELLS))
-		    Sbar_DrawNum (cbx, 224, 0, cl.stats[STAT_AMMO], 3, cl.stats[STAT_AMMO] <= 10);
+			Sbar_DrawNum (cbx, 296 - 24*3 - 8, 0, cl.stats[STAT_AMMO], 3, cl.stats[STAT_AMMO] <= 10);
+
+
+		GL_SetCanvas (cbx, CANVAS_SBAR);
 	}
 	else if (scr_viewsize.value < 120) // johnfitz -- check viewsize instead of sb_lines
 	{
