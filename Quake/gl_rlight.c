@@ -822,7 +822,7 @@ void RT_UploadAllElights ()
 			VectorScale (color, RT_QUAKE_LIGHT_AREA_INTENSITY_FIX, color);
 
 			RgSphericalLightUploadInfo info = {
-				.uniqueID = MAX_DLIGHTS + i,
+				.uniqueID = (uint64_t)UINT16_MAX + i,
 				.color = {color[0], color[1], color[2]},
 				.position = {src->origin[0], src->origin[1], src->origin[2]},
 				.radius = METRIC_TO_QUAKEUNIT (CVAR_TO_FLOAT (rt_elight_radius)),
