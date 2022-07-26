@@ -26,9 +26,10 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "quakedef.h"
 
 extern cvar_t r_drawflat, gl_fullbrights, r_lerpmodels, r_lerpmove, r_showtris; // johnfitz
-extern cvar_t scr_fov, cl_gun_fovscale;
+extern cvar_t scr_fov;
 
 extern cvar_t rt_model_rough, rt_model_metal, rt_enable_pvs;
+extern cvar_t rt_viewm_fovscale, rt_viewm_wide;
 
 // up to 16 color translated skins
 gltexture_t *playertextures[MAX_SCOREBOARD]; // johnfitz -- changed to an array of pointers
@@ -76,19 +77,20 @@ static RgTransform RT_GetAliasModelTransform (const aliashdr_t *paliashdr, lerpd
 	IdentityMatrix (model_matrix);
 	R_RotateForEntity (model_matrix, lerpdata->origin, lerpdata->angles);
 
-	float fovscale = 1.0f;
-	if (isfirstperson && scr_fov.value > 90.f && cl_gun_fovscale.value)
+	float fovscalex = 1.0f;
+	float fovscaley = 1.0f;
+	if (isfirstperson && CVAR_TO_FLOAT (rt_viewm_fovscale) > 0)
 	{
-		fovscale = tan (scr_fov.value * (0.5f * M_PI / 180.f));
-		fovscale = 1.f + (fovscale - 1.f) * cl_gun_fovscale.value;
+		fovscalex = CVAR_TO_FLOAT (rt_viewm_fovscale) * CVAR_TO_FLOAT (rt_viewm_wide);
+		fovscaley = CVAR_TO_FLOAT (rt_viewm_fovscale);
 	}
 
 	float translation_matrix[16];
-	TranslationMatrix (translation_matrix, paliashdr->scale_origin[0], paliashdr->scale_origin[1] * fovscale, paliashdr->scale_origin[2] * fovscale);
+	TranslationMatrix (translation_matrix, paliashdr->scale_origin[0], paliashdr->scale_origin[1] * fovscalex, paliashdr->scale_origin[2] * fovscaley);
 	MatrixMultiply (model_matrix, translation_matrix);
 
 	float scale_matrix[16];
-	ScaleMatrix (scale_matrix, paliashdr->scale[0], paliashdr->scale[1] * fovscale, paliashdr->scale[2] * fovscale);
+	ScaleMatrix (scale_matrix, paliashdr->scale[0], paliashdr->scale[1] * fovscalex, paliashdr->scale[2] * fovscaley);
 	MatrixMultiply (model_matrix, scale_matrix);
 
 	return RT_GetModelTransform (model_matrix);

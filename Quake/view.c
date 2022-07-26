@@ -760,22 +760,20 @@ void V_CalcRefdef (void)
 	for (i = 0; i < 3; i++)
 		view->origin[i] += forward[i] * bob * 0.4;
 	view->origin[2] += bob;
-
-	// johnfitz -- removed all gun position fudging code (was used to keep gun from getting covered by sbar)
-	// MarkV -- restored this with r_viewmodel_quake cvar
-	if (r_viewmodel_quake.value)
+	
+	if (CVAR_TO_BOOL (r_viewmodel_quake))
 	{
-		if (scr_viewsize.value == 110)
+		VectorMA (view->origin, 1.5f, vup, view->origin);
+		view->origin[2] += 0.5f;
+
+		if (scr_viewsize.value == 110 && !CVAR_TO_BOOL (rt_hud_minimal))
 		{
-			if (!CVAR_TO_BOOL(rt_hud_minimal))
-			    view->origin[2] += 1;
+			view->origin[2] += 0.5f;
 		}
 		else if (scr_viewsize.value == 100)
-			view->origin[2] += 2;
-		else if (scr_viewsize.value == 90)
+		{
 			view->origin[2] += 1;
-		else if (scr_viewsize.value == 80)
-			view->origin[2] += 0.5;
+		}
 	}
 
 	view->model = cl.model_precache[cl.stats[STAT_WEAPON]];

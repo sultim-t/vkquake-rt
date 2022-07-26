@@ -101,8 +101,6 @@ cvar_t scr_showturtle = {"showturtle", "0", CVAR_NONE};
 cvar_t scr_showpause = {"showpause", "1", CVAR_NONE};
 cvar_t scr_printspeed = {"scr_printspeed", "8", CVAR_NONE};
 
-cvar_t cl_gun_fovscale = {"cl_gun_fovscale", "1", CVAR_ARCHIVE}; // Qrack
-
 // All scaling is done relative to resolution with scr_relativescale
 cvar_t scr_relativescale = {"scr_relativescale", "2", CVAR_ARCHIVE};
 cvar_t scr_relmenuscale = {"scr_relmenuscale", "1", CVAR_ARCHIVE};
@@ -495,7 +493,6 @@ void SCR_Init (void)
 	Cvar_RegisterVariable (&scr_showpause);
 	Cvar_RegisterVariable (&scr_centertime);
 	Cvar_RegisterVariable (&scr_printspeed);
-	Cvar_RegisterVariable (&cl_gun_fovscale);
 
 	Cvar_RegisterVariable (&scr_relativescale);
 	Cvar_RegisterVariable (&scr_relmenuscale);
