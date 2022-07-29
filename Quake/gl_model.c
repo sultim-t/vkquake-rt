@@ -575,8 +575,6 @@ static void Mod_LoadTextureTask (int i, load_texture_task_args_t *args)
 	char         rtname[MAX_OSPATH];
 	byte        *data = NULL;
 
-	q_snprintf (rtname, sizeof (rtname), "maps/%s", tx->name);
-
 	if (!q_strncasecmp (tx->name, "sky", 3)) // sky texture //also note -- was strncmp, changed to match qbsp
 	{
 		if (mod->bspversion == BSPVERSION_QUAKE64)
@@ -595,6 +593,8 @@ static void Mod_LoadTextureTask (int i, load_texture_task_args_t *args)
 			q_snprintf (filename, sizeof (filename), "textures/#%s", tx->name + 1);
 			data = Image_LoadImage (filename, &fwidth, &fheight);
 		}
+
+		q_snprintf (rtname, sizeof (rtname), "maps/#%s", tx->name + 1);
 
 		// now load whatever we found
 		if (data) // load external image
@@ -634,6 +634,8 @@ static void Mod_LoadTextureTask (int i, load_texture_task_args_t *args)
 			q_snprintf (filename, sizeof (filename), "textures/%s", tx->name);
 			data = Image_LoadImage (filename, &fwidth, &fheight);
 		}
+
+		q_snprintf (rtname, sizeof (rtname), "maps/%s", tx->name);
 
 		TexMgr_RT_SpecialStart (CVAR_TO_FLOAT (rt_brush_rough), CVAR_TO_FLOAT (rt_brush_metal));
 
@@ -2731,6 +2733,7 @@ static void Mod_LoadSkinTask (int i, load_skin_task_args_t *args)
 {
 	int          j, k, size, groupskins;
 	char         name[MAX_QPATH];
+	char         namenoext[MAX_QPATH];
 	char         rtname[MAX_QPATH];
 	byte        *skin, *texels;
 	byte        *pskintype = args->ppskintypes[i];
@@ -2747,6 +2750,8 @@ static void Mod_LoadSkinTask (int i, load_skin_task_args_t *args)
 	if (mod->flags & MF_HOLEY)
 		texflags |= TEXPREF_ALPHA;
 
+	COM_StripExtension (mod->name, namenoext, sizeof (namenoext));
+
 	if (ReadLongUnaligned (pskintype + offsetof (daliasskintype_t, type)) == ALIAS_SKIN_SINGLE)
 	{
 		skin = pskintype + sizeof (daliasskintype_t);
@@ -2759,7 +2764,7 @@ static void Mod_LoadSkinTask (int i, load_skin_task_args_t *args)
 
 		// johnfitz -- rewritten
 		q_snprintf (name, sizeof (name), "%s:frame%i", mod->name, i);
-		q_snprintf (rtname, sizeof (rtname), "%s/%i", mod->name, i);
+		q_snprintf (rtname, sizeof (rtname), "%s/%i", namenoext, i);
 
 		offset = (src_offset_t)(skin) - (src_offset_t)mod_base;
 		if (Mod_CheckFullbrights (skin, size))
@@ -2809,7 +2814,7 @@ static void Mod_LoadSkinTask (int i, load_skin_task_args_t *args)
 
 			// johnfitz -- rewritten
 			q_snprintf (name, sizeof (name), "%s:frame%i_%i", mod->name, i, j);
-			q_snprintf (rtname, sizeof (rtname), "%s/%i_%i", mod->name, i, j);
+			q_snprintf (rtname, sizeof (rtname), "%s/%i_%i", namenoext, i, j);
 
 			offset = (src_offset_t)(skin) - (src_offset_t)mod_base; // johnfitz
 			if (Mod_CheckFullbrights (skin, size))
