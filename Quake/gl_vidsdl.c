@@ -109,7 +109,7 @@ task_handle_t prev_end_rendering_task = INVALID_TASK_HANDLE;
 	CVAR_DEF_T (rt_elight_default, "200") \
 	CVAR_DEF_T (rt_elight_default_mdl, "1000") \
 	CVAR_DEF_T (rt_elight_threshold, "-1") \
-	CVAR_DEF_T (rt_elight_radius, "0.15") \ /* 0.15 covers whole flame model (e.g. on start level)*/ \
+	/* 0.15 covers whole flame model (e.g. on start level)*/ CVAR_DEF_T (rt_elight_radius, "0.15") \
 	\
 	CVAR_DEF_T (rt_poi_distthresh, "2") \
 	CVAR_DEF_T (rt_poi_distthresh_super, "3") \
@@ -606,13 +606,24 @@ static void GL_InitInstance (void)
 		.maxTextureCount = 4096,
 		.textureSamplerForceMinificationFilterLinear = true,
 
-		.pOverridenTexturesFolderPath = RT_OVERRIDEN_FOLDER "mat/",
+		.pOverridenTexturesFolderPath = RT_OVERRIDEN_FOLDER "mat",
+
+		.originalAlbedoAlphaTextureIsSRGB = true,
+	    .originalRoughnessMetallicEmissionTextureIsSRGB = false,
+	    .originalNormalTextureIsSRGB = false,
+
 		.overridenAlbedoAlphaTextureIsSRGB = true,
 		.overridenRoughnessMetallicEmissionTextureIsSRGB = false,
 		.overridenNormalTextureIsSRGB = false,
 
 		.pWaterNormalTexturePath = pWaterTexturePath,
 	};
+
+	if (Cmd_CheckParm ("-rtdev"))
+	{
+		info.isDeveloperMode = true;
+		info.pOverridenTexturesFolderPath = RT_OVERRIDEN_FOLDER "matdev";
+	}
 
 	RgResult r = rgCreateInstance (&info, &vulkan_globals.instance);
 	RG_CHECK (r);

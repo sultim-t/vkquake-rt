@@ -75,7 +75,7 @@ typedef struct gltexture_s
 	signed char          shirt;                  // 0-13 shirt color, or -1 if never colormapped
 	signed char          pants;                  // 0-13 pants color, or -1 if never colormapped
 
-	// used for rendering
+	char				 rtname[64];
 	RgMaterial           rtmaterial;
 } gltexture_t;
 
@@ -107,6 +107,7 @@ void         TexMgr_LoadPalette (void);
 
 // IMAGE LOADING
 gltexture_t *TexMgr_LoadImage (
+	const char *rtname,
 	qmodel_t *owner, const char *name, int width, int height, enum srcformat format, byte *data, const char *source_file, src_offset_t source_offset,
 	unsigned flags);
 void TexMgr_ReloadImage (gltexture_t *glt, int shirt, int pants);

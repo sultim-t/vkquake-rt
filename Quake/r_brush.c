@@ -689,7 +689,9 @@ void GL_BuildLightmaps (void)
 		lm->rectchange.h = 0;
 
 		sprintf (name, "lightmap%07i", i);
-		lm->texture = TexMgr_LoadImage (cl.worldmodel, 
+		lm->texture = TexMgr_LoadImage (
+			NULL, 
+			cl.worldmodel, 
 			name, LMBLOCK_WIDTH, LMBLOCK_HEIGHT, SRC_LIGHTMAP, 
 			lm->data, "", (src_offset_t)lm->data, TEXPREF_LINEAR | TEXPREF_NOPICMIP);
 	}
@@ -1119,7 +1121,7 @@ static void R_UploadLightmap (int lmap)
 		.dynamicMaterial = lm->texture->rtmaterial,
 		.textures =
 			{
-				.albedoAlpha = {lm->data, true},
+				.pDataAlbedoAlpha = lm->data,
 			},
 	};
 

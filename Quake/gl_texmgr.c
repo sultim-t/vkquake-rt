@@ -137,7 +137,7 @@ static void TexMgr_RT_SpecialSave (gltexture_t *glt, const RgStaticMaterialCreat
 		size_t sz = sizeof (uint32_t) * glt->width * glt->height;
 
 		rtspecial_info_albedoAlpha = Mem_Alloc (sz);
-		memcpy (rtspecial_info_albedoAlpha, info->textures.albedoAlpha.pData, sz);
+		memcpy (rtspecial_info_albedoAlpha, info->textures.pDataAlbedoAlpha, sz);
 	}
 
 	if (info->pRelativePath)
@@ -186,6 +186,7 @@ static void TexMgr_RT_SpecialFullbright (unsigned width, unsigned height, uint32
 	if (rtspecial_info.size.width != width || rtspecial_info.size.height != height)
 	{
 		Con_DWarning ("Ignoring fullbright of \"%s\", as it has different size with albedo", rtspecial_info_pRelativePath);
+		assert (0);
 		return;
 	}
 
@@ -193,10 +194,10 @@ static void TexMgr_RT_SpecialFullbright (unsigned width, unsigned height, uint32
 
 	FullbrightToRME (width, height, (byte *)fullbright);
 
-	rtspecial_info.textures.albedoAlpha.pData = rtspecial_info_albedoAlpha;
+	rtspecial_info.textures.pDataAlbedoAlpha = rtspecial_info_albedoAlpha;
 	rtspecial_info.pRelativePath = rtspecial_info_pRelativePath;
 
-	rtspecial_info.textures.roughnessMetallicEmission.pData = fullbright;
+	rtspecial_info.textures.pDataRoughnessMetallicEmission = fullbright;
 
     SDL_LockMutex (rtspecial_mutex);
 	RgResult r = rgCreateStaticMaterial (vulkan_globals.instance, &rtspecial_info, &rtspecial_target->rtmaterial);
@@ -211,7 +212,7 @@ void TexMgr_RT_SpecialEnd ()
 
 	if (!rtspecial_foundfullbright)
 	{
-		rtspecial_info.textures.albedoAlpha.pData = rtspecial_info_albedoAlpha;
+		rtspecial_info.textures.pDataAlbedoAlpha = rtspecial_info_albedoAlpha;
 		rtspecial_info.pRelativePath = rtspecial_info_pRelativePath;
 
 		SDL_LockMutex (rtspecial_mutex);
@@ -557,13 +558,13 @@ void TexMgr_Init (void)
 
 	// load notexture images
 	notexture = TexMgr_LoadImage (
-		NULL, "notexture", 2, 2, SRC_RGBA, notexture_data, "", (src_offset_t)notexture_data, TEXPREF_NEAREST | TEXPREF_PERSIST | TEXPREF_NOPICMIP);
+		NULL, NULL, "notexture", 2, 2, SRC_RGBA, notexture_data, "", (src_offset_t)notexture_data, TEXPREF_NEAREST | TEXPREF_PERSIST | TEXPREF_NOPICMIP);
 	nulltexture = TexMgr_LoadImage (
-		NULL, "nulltexture", 2, 2, SRC_RGBA, nulltexture_data, "", (src_offset_t)nulltexture_data, TEXPREF_NEAREST | TEXPREF_PERSIST | TEXPREF_NOPICMIP);
+		NULL, NULL, "nulltexture", 2, 2, SRC_RGBA, nulltexture_data, "", (src_offset_t)nulltexture_data, TEXPREF_NEAREST | TEXPREF_PERSIST | TEXPREF_NOPICMIP);
 	whitetexture = TexMgr_LoadImage (
-		NULL, "whitetexture", 2, 2, SRC_RGBA, whitetexture_data, "", (src_offset_t)whitetexture_data, TEXPREF_NEAREST | TEXPREF_PERSIST | TEXPREF_NOPICMIP);
+		NULL, NULL, "whitetexture", 2, 2, SRC_RGBA, whitetexture_data, "", (src_offset_t)whitetexture_data, TEXPREF_NEAREST | TEXPREF_PERSIST | TEXPREF_NOPICMIP);
 	greytexture = TexMgr_LoadImage (
-		NULL, "greytexture", 2, 2, SRC_RGBA, greytexture_data, "", (src_offset_t)greytexture_data, TEXPREF_NEAREST | TEXPREF_PERSIST | TEXPREF_NOPICMIP);
+		NULL, NULL, "greytexture", 2, 2, SRC_RGBA, greytexture_data, "", (src_offset_t)greytexture_data, TEXPREF_NEAREST | TEXPREF_PERSIST | TEXPREF_NOPICMIP);
 
 	// have to assign these here becuase Mod_Init is called before TexMgr_Init
 	r_notexture_mip->gltexture = r_notexture_mip2->gltexture = notexture;
@@ -829,11 +830,11 @@ static void TexMgr_LoadImage32 (gltexture_t *glt, unsigned *data)
 		.size = {glt->width, glt->height},
 		.textures =
 			{
-				.albedoAlpha = {.pData = data, .isSRGB = true},
-				.roughnessMetallicEmission = {0},
-				.normal = {0},
+				.pDataAlbedoAlpha = data,
+				.pDataRoughnessMetallicEmission = NULL,
+				.pDataNormal = NULL,
 			},
-		.pRelativePath = "",
+		.pRelativePath = glt->rtname,
 		.filter = TexMgr_GetFilterMode (glt),
 		.addressModeU = RG_SAMPLER_ADDRESS_MODE_REPEAT,
 		.addressModeV = RG_SAMPLER_ADDRESS_MODE_REPEAT,
@@ -950,6 +951,7 @@ TexMgr_LoadImage -- the one entry point for loading all textures
 ================
 */
 gltexture_t *TexMgr_LoadImage (
+	const char *rtname,
 	qmodel_t *owner, const char *name, int width, int height, enum srcformat format, byte *data, const char *source_file, src_offset_t source_offset,
 	unsigned flags)
 {
@@ -997,6 +999,15 @@ gltexture_t *TexMgr_LoadImage (
 	glt->source_width = width;
 	glt->source_height = height;
 	glt->source_crc = crc;
+
+	if (rtname)
+	{
+	    q_strlcpy (glt->rtname, rtname, sizeof (glt->rtname));
+	}
+	else
+	{
+		glt->rtname[0] = '\0';
+	}
 
 	// upload it
 	switch (glt->source_format)

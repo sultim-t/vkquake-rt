@@ -268,6 +268,7 @@ added bug fix from bengt jardup
 void R_TranslateNewPlayerSkin (int playernum)
 {
 	char        name[64];
+	char        rtname[64];
 	byte       *pixels;
 	aliashdr_t *paliashdr;
 	int         skinnum;
@@ -293,7 +294,10 @@ void R_TranslateNewPlayerSkin (int playernum)
 
 	// upload new image
 	q_snprintf (name, sizeof (name), "player_%i", playernum);
+	q_snprintf (rtname, sizeof (rtname), "player/%i", playernum);
+
 	playertextures[playernum] = TexMgr_LoadImage (
+		rtname,
 		currententity->model, name, paliashdr->skinwidth, paliashdr->skinheight, SRC_INDEXED, pixels, paliashdr->gltextures[skinnum][0]->source_file,
 		paliashdr->gltextures[skinnum][0]->source_offset, TEXPREF_PAD | TEXPREF_OVERWRITE);
 
