@@ -771,6 +771,11 @@ static void RT_FlushBatch (cb_context_t *cbx, const rt_uploadsurf_state_t *s, ui
 	gltexture_t *diffuse_tex = r_lightmap_cheatsafe ? NULL : s->diffuse_tex;
 	gltexture_t *lightmap_tex = r_fullbright_cheatsafe ? NULL : s->lightmap_tex;
 
+	if (s->is_teleport)
+	{
+		diffuse_tex = NULL;
+	}
+
     if (!CVAR_TO_BOOL (rt_classic_render))	
 	{
 		lightmap_tex = NULL;
@@ -826,7 +831,10 @@ static void RT_FlushBatch (cb_context_t *cbx, const rt_uploadsurf_state_t *s, ui
 			.uniqueID = RT_GetBrushSurfUniqueId (s->entuniqueid, s->model, s->surf),
 			.flags = RG_GEOMETRY_UPLOAD_GENERATE_NORMALS_BIT,
 			.geomType = is_static_geom ? RG_GEOMETRY_TYPE_STATIC : RG_GEOMETRY_TYPE_DYNAMIC,
-			.passThroughType = s->is_water ? RG_GEOMETRY_PASS_THROUGH_TYPE_WATER_REFLECT_REFRACT : RG_GEOMETRY_PASS_THROUGH_TYPE_OPAQUE,
+			.passThroughType = 
+			    s->is_water ? RG_GEOMETRY_PASS_THROUGH_TYPE_WATER_REFLECT_REFRACT :
+			    s->is_teleport ? RG_GEOMETRY_PASS_THROUGH_TYPE_PORTAL :
+		        RG_GEOMETRY_PASS_THROUGH_TYPE_OPAQUE,
 			.visibilityType = RG_GEOMETRY_VISIBILITY_TYPE_WORLD_0,
 			.vertexCount = num_surf_verts,
 			.pVertices = vertices,
@@ -1330,4 +1338,65 @@ void RT_ParseTeleports (void)
 
 	Mem_Free (r.trigs);
 	Mem_Free (r.dsts);
+}
+
+
+static float DistanceSqr (const vec3_t a, const vec3_t b)
+{
+	vec3_t delta;
+	VectorSubtract (a, b, delta);
+
+	return DotProduct (delta, delta);
+}
+
+
+void RT_GetNearestTeleportInfo (RgFloat3D *inputPosition, RgFloat3D *outputPosition, RgMatrix3D *relativeRotation)
+{
+	memset (inputPosition, 0, sizeof (*inputPosition));
+	memset (outputPosition, 0, sizeof (*outputPosition));
+	memset (relativeRotation, 0, sizeof (*relativeRotation));
+	relativeRotation->matrix[0][0] = 1;
+	relativeRotation->matrix[1][1] = 1;
+	relativeRotation->matrix[2][2] = 1;
+
+	const rt_teleport_t *nearest = NULL;
+	float                nearest_dist = FLT_MAX;
+
+	for (int i = 0; i < rt_teleports_count; i++)
+	{
+		const rt_teleport_t *t = &rt_teleports[i];
+
+		float d = DistanceSqr (t->a, r_refdef.vieworg);
+
+		if (d < nearest_dist)
+		{
+			nearest = t;
+			nearest_dist = d;
+		}
+	}
+
+	if (nearest == NULL)
+	{
+		return;
+	}
+
+	memcpy (inputPosition, nearest->a, sizeof (float) * 3);
+	memcpy (outputPosition, nearest->b, sizeof (float) * 3);
+
+	vec3_t offset = {0, 0, 64};
+	VectorAdd (outputPosition->data, offset, outputPosition->data);
+
+	// TODO: nearest->b_angle is in world space,
+	// so need to know a_angle in world space too, but triggers don't have such info
+	vec3_t angles = {0, /*nearest->b_angle*/0, 0};
+	angles[0] = -angles[0]; // stupid quake bug
+
+	vec3_t o = {0, 0, 0};
+	float model_matrix[16];
+	IdentityMatrix (model_matrix);
+	R_RotateForEntity (model_matrix, o, angles);
+
+	memcpy (relativeRotation->matrix[0], &model_matrix[0], sizeof (float) * 3);
+	memcpy (relativeRotation->matrix[1], &model_matrix[4], sizeof (float) * 3);
+	memcpy (relativeRotation->matrix[2], &model_matrix[8], sizeof (float) * 3);
 }

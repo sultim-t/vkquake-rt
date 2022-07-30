@@ -838,6 +838,8 @@ extern float    rt_dmg_value;
 extern qboolean rt_dmg_inthisframe;
 extern qboolean rt_cameraunderwater;
 
+extern void RT_GetNearestTeleportInfo (RgFloat3D *inputPosition, RgFloat3D *outputPosition, RgMatrix3D *relativeRotation);
+
 /*
 =================
 GL_EndRenderingTask
@@ -892,7 +894,8 @@ static void GL_EndRenderingTask (end_rendering_parms_t *parms)
 		.waterTextureAreaScale = METRIC_TO_QUAKEUNIT (CVAR_TO_FLOAT (rt_water_scale)),
 	};
 	VectorScale (refl_refr_params.waterExtinction.data, CVAR_TO_FLOAT (rt_water_density), refl_refr_params.waterExtinction.data);
-	
+	RT_GetNearestTeleportInfo (&refl_refr_params.portalInputPosition, &refl_refr_params.portalOutputPosition, &refl_refr_params.portalRelativeRotation);
+
 	RgDrawFrameSkyParams sky_params = {
 		.skyType = CVAR_TO_BOOL (r_fastsky) ? RG_SKY_TYPE_COLOR : RG_SKY_TYPE_RASTERIZED_GEOMETRY,
 		.skyColorDefault = {skyflatcolor[0], skyflatcolor[1], skyflatcolor[2]},
