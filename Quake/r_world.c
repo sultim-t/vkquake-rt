@@ -733,6 +733,7 @@ typedef struct rt_uploadsurf_state_t
 	qboolean     alpha_test;
 	float        alpha;
 	qboolean     use_zbias;
+	qboolean     is_warp;
 	qboolean     is_water;
 } rt_uploadsurf_state_t;
 
@@ -776,7 +777,7 @@ static void RT_FlushBatch (cb_context_t *cbx, const rt_uploadsurf_state_t *s, ui
 
 	float alpha = CLAMP (0.0f, s->alpha, 1.0f);
 
-	qboolean is_static_geom = (s->model == cl.worldmodel) && !s->is_water;
+	qboolean is_static_geom = (s->model == cl.worldmodel) && !s->is_warp;
 	qboolean rasterize = (alpha < 1.0f) && !s->is_water;
 
 	if (rasterize)
@@ -963,12 +964,13 @@ void R_DrawTextureChains_Water (cb_context_t *cbx, qmodel_t *model, entity_t *en
 				.ent = ent,
 				.model = model,
 				.surf = s,
-				.diffuse_tex = t->warpimage,
+				.diffuse_tex = t->gltexture, // t->warpimage,
 				.lightmap_tex = (s->lightmaptexturenum >= 0) ? lightmaps[s->lightmaptexturenum].texture : greytexture,
 				.alpha_test = false,
 				.alpha = GL_WaterAlphaForEntitySurface (ent, s),
 				.use_zbias = false,
-				.is_water = true,
+				.is_warp = true,
+				.is_water = (s->flags & SURF_DRAWWATER),
 			};
 
 			if (cur_state.lightmap_tex != last_state.lightmap_tex ||
@@ -1027,6 +1029,7 @@ void R_DrawTextureChains_Multitexture (
 				.alpha_test = alpha_test,
 				.alpha = alpha,
 				.use_zbias = use_zbias,
+				.is_warp = false,
 				.is_water = false,
 			};
 
