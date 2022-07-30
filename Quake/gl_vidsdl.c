@@ -140,9 +140,8 @@ task_handle_t prev_end_rendering_task = INVALID_TASK_HANDLE;
 	CVAR_DEF_T (rt_model_rough, "0.9") \
     \
 	CVAR_DEF_T (rt_normalmap_stren, "1") \
-	CVAR_DEF_T (rt_emis_mapboost, "0.5") \
-	CVAR_DEF_T (rt_emis_maxscrcolor, "125") \
-	CVAR_DEF_T (rt_emis_geomdefault, "0.01") \
+	CVAR_DEF_T (rt_emis_mapboost, "1") \
+	CVAR_DEF_T (rt_emis_maxscrcolor, "32") \
     \
 	CVAR_DEF_T (rt_reflrefr_depth, "2") \
 	CVAR_DEF_T (rt_reflrefr_castshadows, "0") \
@@ -170,7 +169,7 @@ task_handle_t prev_end_rendering_task = INVALID_TASK_HANDLE;
 	\
 	CVAR_DEF_T (rt_bloom_intensity, "1") \
 	CVAR_DEF_T (rt_bloom_threshold, "15") \
-	CVAR_DEF_T (rt_bloom_emis_mult, "20") \
+	CVAR_DEF_T (rt_bloom_emis_mult, "4") \
 	CVAR_DEF_T (rt_bloom_satur_bias, "1") \
 	CVAR_DEF_T (rt_bloom_sky_mult, "0.05") \
 	\
@@ -582,8 +581,7 @@ static void GL_InitInstance (void)
 #elif RG_USE_SURFACE_XLIB
 		.pXlibSurfaceCreateInfo = &x11Info,
 #endif
-
-		.enableValidationLayer = Cmd_CheckParm ("-rtdebug"),
+		
 		.pfnPrint = RT_PrintMessage,
 
 		.pShaderFolderPath = pShaderPath,
@@ -607,6 +605,7 @@ static void GL_InitInstance (void)
 		.textureSamplerForceMinificationFilterLinear = true,
 
 		.pOverridenTexturesFolderPath = RT_OVERRIDEN_FOLDER "mat",
+		.pOverridenTexturesFolderPathDeveloper = RT_OVERRIDEN_FOLDER "matdev",
 
 		.originalAlbedoAlphaTextureIsSRGB = true,
 	    .originalRoughnessMetallicEmissionTextureIsSRGB = false,
@@ -618,12 +617,6 @@ static void GL_InitInstance (void)
 
 		.pWaterNormalTexturePath = pWaterTexturePath,
 	};
-
-	if (Cmd_CheckParm ("-rtdev"))
-	{
-		info.isDeveloperMode = true;
-		info.pOverridenTexturesFolderPath = RT_OVERRIDEN_FOLDER "matdev";
-	}
 
 	RgResult r = rgCreateInstance (&info, &vulkan_globals.instance);
 	RG_CHECK (r);
