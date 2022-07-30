@@ -735,6 +735,7 @@ typedef struct rt_uploadsurf_state_t
 	qboolean     use_zbias;
 	qboolean     is_warp;
 	qboolean     is_water;
+	qboolean     is_teleport;
 } rt_uploadsurf_state_t;
 
 static void RT_FlushBatch (cb_context_t *cbx, const rt_uploadsurf_state_t *s, uint32_t *brushpasses)
@@ -971,6 +972,7 @@ void R_DrawTextureChains_Water (cb_context_t *cbx, qmodel_t *model, entity_t *en
 				.use_zbias = false,
 				.is_warp = true,
 				.is_water = (s->flags & SURF_DRAWWATER),
+				.is_teleport = (s->flags & SURF_DRAWTELE),
 			};
 
 			if (cur_state.lightmap_tex != last_state.lightmap_tex ||
@@ -1031,6 +1033,7 @@ void R_DrawTextureChains_Multitexture (
 				.use_zbias = use_zbias,
 				.is_warp = false,
 				.is_water = false,
+				.is_teleport = false,
 			};
 
 			if (cur_state.lightmap_tex != last_state.lightmap_tex)
@@ -1110,4 +1113,221 @@ void R_DrawWorld_ShowTris (cb_context_t *cbx)
 		return;
 
 	R_DrawTextureChains_ShowTris (cbx, cl.worldmodel, chain_world);
+}
+
+
+
+typedef struct rt_teleport_s
+{
+	vec3_t a;
+	vec3_t b;
+	float  b_angle;
+} rt_teleport_t;
+
+rt_teleport_t *rt_teleports = NULL;
+int            rt_teleports_count = 0;
+
+
+struct rt_triggerteleport_t
+{
+	char target[128];
+	char model[128];
+};
+struct rt_infoteleportdestination_t
+{
+	char   targetname[128];
+	float  angle;
+	vec3_t origin;
+};
+struct rt_parsetriggers_result_t
+{
+	struct rt_triggerteleport_t         *trigs;
+	int                                  trigs_count;
+	struct rt_infoteleportdestination_t *dsts;
+	int                                  dsts_count;
+};
+
+static struct rt_parsetriggers_result_t ParseTeleportTriggers (void)
+{
+	struct rt_parsetriggers_result_t result = {0};
+
+	if (!cl.worldmodel)
+	{
+		return result;
+	}
+
+	const char *data = cl.worldmodel->entities;
+	if (!data)
+	{
+		return result;
+	}
+
+
+	char key[128], value[4096];
+
+
+    #define STRUCT_STATE_STRUCT_STARTED			1
+    #define STRUCT_STATE_CLASSNAME_TRIGGER		2
+    #define STRUCT_STATE_CLASSNAME_DESTINATION	4
+    #define STRUCT_STATE_TARGET					8
+    #define STRUCT_STATE_TARGETNAME				16
+    #define STRUCT_STATE_MODEL					32
+    #define STRUCT_STATE_ANGLE					64
+    #define STRUCT_STATE_ORIGIN					128
+	int structstate = 0;
+
+	struct
+	{
+		struct rt_triggerteleport_t tr;
+		struct rt_infoteleportdestination_t dst;
+	} structvalues = {0};
+	
+
+	while (1)
+	{
+		data = COM_Parse (data);
+		if (!data)
+			return result; // error
+
+	    if (com_token[0] == '{')
+	    {
+			memset (&structvalues, 0, sizeof (structvalues));
+			structstate = STRUCT_STATE_STRUCT_STARTED;
+            continue;
+	    }
+	    else if (com_token[0] == '}')
+		{
+			if (structstate & STRUCT_STATE_STRUCT_STARTED)
+			{
+				if (structstate & STRUCT_STATE_CLASSNAME_TRIGGER)
+				{
+					result.trigs = Mem_Realloc (result.trigs, sizeof (*result.trigs) * (result.trigs_count + 1));
+					result.trigs[result.trigs_count] = structvalues.tr;
+					result.trigs_count++;
+				}
+				else if (structstate & STRUCT_STATE_CLASSNAME_DESTINATION)
+				{
+					result.dsts = Mem_Realloc (result.dsts, sizeof (*result.dsts) * (result.dsts_count + 1));
+					result.dsts[result.dsts_count] = structvalues.dst;
+					result.dsts_count++;
+				}
+			}
+
+			structstate = 0; // end of struct
+			continue;
+		}
+
+		if (com_token[0] == '_')
+			q_strlcpy (key, com_token + 1, sizeof (key));
+		else
+			q_strlcpy (key, com_token, sizeof (key));
+		while (key[0] && key[strlen (key) - 1] == ' ') // remove trailing spaces
+			key[strlen (key) - 1] = 0;
+		data = COM_Parse (data);
+		if (!data)
+			return result; // error
+		q_strlcpy (value, com_token, sizeof (value));
+
+		
+		if (strcmp (key, "classname") == 0)
+		{
+			if (strcmp (value, "trigger_teleport") == 0)
+			{
+				structstate |= STRUCT_STATE_CLASSNAME_TRIGGER;
+			}
+			else if (strcmp (value, "info_teleport_destination") == 0)
+			{
+				structstate |= STRUCT_STATE_CLASSNAME_DESTINATION;
+			}
+		}
+		else if (strcmp (key, "origin") == 0)
+		{
+			vec3_t tmpvec;
+			int    components = sscanf (value, "%f %f %f", &tmpvec[0], &tmpvec[1], &tmpvec[2]);
+
+			if (components == 3)
+			{
+				structvalues.dst.origin[0] = tmpvec[0];
+				structvalues.dst.origin[1] = tmpvec[1];
+				structvalues.dst.origin[2] = tmpvec[2];
+				structstate |= STRUCT_STATE_ORIGIN;
+			}
+		}
+		else if (strcmp (key, "angle") == 0)
+		{
+			float tmp;
+			int   components = sscanf (value, "%f", &tmp);
+
+			if (components ==1)
+			{
+				structvalues.dst.angle = tmp;
+				structstate |= STRUCT_STATE_ANGLE;
+			}
+		}
+		else if (strcmp (key, "model") == 0)
+		{
+			q_strlcpy (structvalues.tr.model, value, sizeof (structvalues.tr.model));
+			structstate |= STRUCT_STATE_MODEL;
+		}
+		else if (strcmp (key, "target") == 0)
+		{
+			q_strlcpy (structvalues.tr.target, value, sizeof (structvalues.tr.target));
+			structstate |= STRUCT_STATE_TARGET;
+		}
+		else if (strcmp (key, "targetname") == 0)
+		{
+			q_strlcpy (structvalues.dst.targetname, value, sizeof (structvalues.dst.targetname));
+			structstate |= STRUCT_STATE_TARGETNAME;
+		}
+	}
+}
+
+void RT_ParseTeleports (void)
+{
+	rt_teleports_count = 0;
+
+	struct rt_parsetriggers_result_t r = ParseTeleportTriggers ();
+	if (r.trigs_count == 0 || r.dsts_count == 0)
+	{
+		return;
+	}
+
+	for (int i = 0; i < r.trigs_count; i++)
+	{
+		for (int o = 0; o < r.dsts_count; o++)
+		{
+			const struct rt_triggerteleport_t         *in = &r.trigs[i];
+			const struct rt_infoteleportdestination_t *out = &r.dsts[o];
+
+			// if found a match between trigger and destination
+			if (strncmp (in->target, out->targetname, sizeof (in->target)) == 0)
+			{
+				qmodel_t *mod = Mod_ForName (in->model, false);
+
+				if (mod)
+				{
+					rt_teleport_t *entry;
+					{
+						rt_teleports = Mem_Realloc (rt_teleports, sizeof (*rt_teleports) * (rt_teleports_count + 1));
+						entry = &rt_teleports[rt_teleports_count];
+						memset (entry, 0, sizeof (*entry));
+						rt_teleports_count++;
+					}
+
+					// trigger position
+					VectorAdd (mod->mins, mod->maxs, entry->a);
+					VectorScale (entry->a, 0.5f, entry->a);
+
+					// destination position
+					VectorCopy (out->origin, entry->b);
+					entry->b_angle = out->angle;
+				}
+
+				break;
+			}
+		}
+	}
+
+	Mem_Free (r.trigs);
+	Mem_Free (r.dsts);
 }

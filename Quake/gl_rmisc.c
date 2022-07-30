@@ -416,6 +416,7 @@ void R_NewMap (void)
 	Fog_NewMap ();        // johnfitz -- global fog in worldspawn
 	R_ParseWorldspawn (); // ericw -- wateralpha, lavaalpha, telealpha, slimealpha in worldspawn
 	RT_ParseElights ();
+	RT_ParseTeleports();
 }
 
 /*
