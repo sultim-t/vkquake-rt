@@ -499,8 +499,9 @@ RgTransform RT_GetModelTransform(const float model_matrix[16])
 		fabsf (MODEL_MAT (2, 3)) < 0.001f);
 
 	RgTransform t = {
-		MODEL_MAT (0, 0), MODEL_MAT (1, 0), MODEL_MAT (2, 0), MODEL_MAT (3, 0), MODEL_MAT (0, 1), MODEL_MAT (1, 1),
-		MODEL_MAT (2, 1), MODEL_MAT (3, 1), MODEL_MAT (0, 2), MODEL_MAT (1, 2), MODEL_MAT (2, 2), MODEL_MAT (3, 2),
+		MODEL_MAT (0, 0), MODEL_MAT (1, 0), MODEL_MAT (2, 0), MODEL_MAT (3, 0),
+	    MODEL_MAT (0, 1), MODEL_MAT (1, 1), MODEL_MAT (2, 1), MODEL_MAT (3, 1),
+	    MODEL_MAT (0, 2), MODEL_MAT (1, 2), MODEL_MAT (2, 2), MODEL_MAT (3, 2),
 	};
 
 	return t;

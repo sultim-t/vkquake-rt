@@ -1350,14 +1350,13 @@ static float DistanceSqr (const vec3_t a, const vec3_t b)
 }
 
 
-void RT_GetNearestTeleportInfo (RgFloat3D *inputPosition, RgFloat3D *outputPosition, RgMatrix3D *relativeRotation)
+void RT_GetNearestTeleportInfo (RgFloat3D *out_pos, RgFloat3D *out_dir, RgFloat3D *out_up)
 {
-	memset (inputPosition, 0, sizeof (*inputPosition));
-	memset (outputPosition, 0, sizeof (*outputPosition));
-	memset (relativeRotation, 0, sizeof (*relativeRotation));
-	relativeRotation->matrix[0][0] = 1;
-	relativeRotation->matrix[1][1] = 1;
-	relativeRotation->matrix[2][2] = 1;
+	memset (out_pos, 0, sizeof (*out_pos));
+	memset (out_dir, 0, sizeof (*out_dir));
+	memset (out_up, 0, sizeof (*out_up));
+	out_dir->data[1] = 1.0f;
+	out_up->data[2] = 1.0f;
 
 	const rt_teleport_t *nearest = NULL;
 	float                nearest_dist = FLT_MAX;
@@ -1379,24 +1378,14 @@ void RT_GetNearestTeleportInfo (RgFloat3D *inputPosition, RgFloat3D *outputPosit
 	{
 		return;
 	}
+	
+	const vec3_t offset = {0, 0, 64};
+	VectorAdd (nearest->b, offset, out_pos->data);
 
-	memcpy (inputPosition, nearest->a, sizeof (float) * 3);
-	memcpy (outputPosition, nearest->b, sizeof (float) * 3);
-
-	vec3_t offset = {0, 0, 64};
-	VectorAdd (outputPosition->data, offset, outputPosition->data);
-
-	// TODO: nearest->b_angle is in world space,
-	// so need to know a_angle in world space too, but triggers don't have such info
-	vec3_t angles = {0, /*nearest->b_angle*/0, 0};
-	angles[0] = -angles[0]; // stupid quake bug
-
-	vec3_t o = {0, 0, 0};
-	float model_matrix[16];
-	IdentityMatrix (model_matrix);
-	R_RotateForEntity (model_matrix, o, angles);
-
-	memcpy (relativeRotation->matrix[0], &model_matrix[0], sizeof (float) * 3);
-	memcpy (relativeRotation->matrix[1], &model_matrix[4], sizeof (float) * 3);
-	memcpy (relativeRotation->matrix[2], &model_matrix[8], sizeof (float) * 3);
+	vec3_t f, r, u;
+	vec3_t out_angles = {0, nearest->b_angle, 0};
+	AngleVectors (out_angles, f, r, u);
+	
+	memcpy (out_dir->data, f, 3 * sizeof (float));
+	memcpy (out_up->data, u, 3 * sizeof(float));
 }
