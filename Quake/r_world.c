@@ -1350,8 +1350,9 @@ static float DistanceSqr (const vec3_t a, const vec3_t b)
 }
 
 
-void RT_GetNearestTeleportInfo (RgFloat3D *out_pos, RgFloat3D *out_dir, RgFloat3D *out_up)
+void RT_GetNearestTeleportInfo (RgFloat3D *in_pos, RgFloat3D *out_pos, RgFloat3D *out_dir, RgFloat3D *out_up)
 {
+	memset (in_pos, 0, sizeof (*in_pos));
 	memset (out_pos, 0, sizeof (*out_pos));
 	memset (out_dir, 0, sizeof (*out_dir));
 	memset (out_up, 0, sizeof (*out_up));
@@ -1378,7 +1379,9 @@ void RT_GetNearestTeleportInfo (RgFloat3D *out_pos, RgFloat3D *out_dir, RgFloat3
 	{
 		return;
 	}
-	
+
+	memcpy (in_pos->data, nearest->a, 3 * sizeof (float));
+
 	const vec3_t offset = {0, 0, 64};
 	VectorAdd (nearest->b, offset, out_pos->data);
 
