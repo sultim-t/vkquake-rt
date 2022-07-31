@@ -971,11 +971,11 @@ again:
 
 enum
 {
-	OPT_VIDEO = 0, // RT: OPT_VIDEO must've been at the end, let's hope nothing breaks
-
-    OPT_SCRSIZE,
+    OPT_SCRSIZE = 0,
 	OPT_CROSSHAIR,
 	OPT_SCALE,
+
+	OPT_VIDEO, // RT: OPT_VIDEO must've been at the end, let's hope nothing breaks
 
 	OPT_SNDVOL,
 	OPT_MUSICVOL,
@@ -1014,13 +1014,13 @@ static int GapOffset (int opt)
 	const int gapsize = 8;
 
 	switch (opt)
-	{
-	case OPT_VIDEO:
-		return gapsize * 0;
-		
+	{		
 	case OPT_SCRSIZE:
 	case OPT_CROSSHAIR:
 	case OPT_SCALE:
+		return gapsize * 0;
+
+	case OPT_VIDEO:
 		return gapsize * 1;
 
 	case OPT_SNDVOL:
