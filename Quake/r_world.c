@@ -550,7 +550,7 @@ static void R_MarkSurfacesPrepare (void *unused)
 			nearwaterportal = true;
 
 	// choose vis data
-	if (r_novis.value || r_viewleaf->contents == CONTENTS_SOLID || r_viewleaf->contents == CONTENTS_SKY)
+	if (!CVAR_TO_BOOL (rt_enable_pvs) || r_viewleaf->contents == CONTENTS_SOLID || r_viewleaf->contents == CONTENTS_SKY)
 		mark_surfaces_state.vis = Mod_NoVisPVS (cl.worldmodel);
 	else if (nearwaterportal)
 		mark_surfaces_state.vis = SV_FatPVS (r_origin, cl.worldmodel);

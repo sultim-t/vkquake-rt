@@ -238,7 +238,6 @@ extern cvar_t r_lavaalpha;
 extern cvar_t r_telealpha;
 extern cvar_t r_slimealpha;
 extern cvar_t r_dynamic;
-extern cvar_t r_novis;
 
 extern cvar_t gl_polyblend;
 extern cvar_t gl_nocolors;

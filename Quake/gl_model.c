@@ -53,6 +53,7 @@ extern cvar_t rt_brush_metal;
 extern cvar_t rt_brush_rough;
 extern cvar_t rt_model_metal;
 extern cvar_t rt_model_rough;
+extern cvar_t rt_enable_pvs;
 
 /*
 ===============
@@ -1656,7 +1657,7 @@ static void Mod_ProcessLeafs_S (qmodel_t *mod, byte *in, int filelen)
 		out->nummarksurfaces = (unsigned short)ReadShortUnaligned (in + offsetof (dsleaf_t, nummarksurfaces));   // johnfitz -- unsigned short
 
 		p = ReadLongUnaligned (in + offsetof (dsleaf_t, visofs));
-		if (p == -1)
+		if (p == -1 || !CVAR_TO_BOOL (rt_enable_pvs))
 			out->compressed_vis = NULL;
 		else
 			out->compressed_vis = (mod->visdata != NULL) ? (mod->visdata + p) : NULL;
@@ -1788,7 +1789,7 @@ static void Mod_CheckWaterVis (qmodel_t *mod)
 	int         contenttype;
 	unsigned    hascontents = 0;
 
-	if (r_novis.value)
+	if (!CVAR_TO_BOOL (rt_enable_pvs))
 	{ // all can be
 		mod->contentstransparent = (SURF_DRAWWATER | SURF_DRAWTELE | SURF_DRAWSLIME | SURF_DRAWLAVA);
 		return;

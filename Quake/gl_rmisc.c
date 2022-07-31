@@ -192,7 +192,6 @@ void R_Init (void)
 	Cvar_RegisterVariable (&r_wateralpha);
 	Cvar_SetCallback (&r_wateralpha, R_SetWateralpha_f);
 	Cvar_RegisterVariable (&r_dynamic);
-	Cvar_RegisterVariable (&r_novis);
 #if defined(USE_SIMD)
 	Cvar_RegisterVariable (&r_simd);
 	Cvar_SetCallback (&r_simd, R_SIMD_f);
@@ -500,8 +499,7 @@ RgTransform RT_GetModelTransform(const float model_matrix[16])
 
 	RgTransform t = {
 		MODEL_MAT (0, 0), MODEL_MAT (1, 0), MODEL_MAT (2, 0), MODEL_MAT (3, 0),
-	    MODEL_MAT (0, 1), MODEL_MAT (1, 1), MODEL_MAT (2, 1), MODEL_MAT (3, 1),
-	    MODEL_MAT (0, 2), MODEL_MAT (1, 2), MODEL_MAT (2, 2), MODEL_MAT (3, 2),
+	    MODEL_MAT (0, 1), MODEL_MAT (1, 1), MODEL_MAT (2, 1), MODEL_MAT (3, 1), MODEL_MAT (0, 2), MODEL_MAT (1, 2), MODEL_MAT (2, 2), MODEL_MAT (3, 2),
 	};
 
 	return t;
