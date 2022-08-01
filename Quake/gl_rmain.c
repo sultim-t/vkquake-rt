@@ -884,6 +884,7 @@ static void R_DrawViewModelTask (void *unused)
 	R_ShowTris (&vulkan_globals.secondary_cb_contexts[CBX_VIEW_MODEL]);          // johnfitz
 	R_ShowBoundingBoxes (&vulkan_globals.secondary_cb_contexts[CBX_VIEW_MODEL]); // johnfitz
 	RT_UploadAllElights ();                                                      // RT
+	RT_UploadAllTeleports ();                                                    // RT
 }
 
 /*

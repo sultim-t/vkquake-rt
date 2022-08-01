@@ -1341,54 +1341,41 @@ void RT_ParseTeleports (void)
 }
 
 
-static float DistanceSqr (const vec3_t a, const vec3_t b)
+#define RGVEC3(x) { (x)[0], (x)[1], (x)[2] }
+
+
+void RT_UploadAllTeleports ()
 {
-	vec3_t delta;
-	VectorSubtract (a, b, delta);
-
-	return DotProduct (delta, delta);
-}
-
-
-void RT_GetNearestTeleportInfo (RgFloat3D *in_pos, RgFloat3D *out_pos, RgFloat3D *out_dir, RgFloat3D *out_up)
-{
-	memset (in_pos, 0, sizeof (*in_pos));
-	memset (out_pos, 0, sizeof (*out_pos));
-	memset (out_dir, 0, sizeof (*out_dir));
-	memset (out_up, 0, sizeof (*out_up));
-	out_dir->data[1] = 1.0f;
-	out_up->data[2] = 1.0f;
-
-	const rt_teleport_t *nearest = NULL;
-	float                nearest_dist = FLT_MAX;
+	const vec3_t outoffset = {0, 0, 64};
 
 	for (int i = 0; i < rt_teleports_count; i++)
 	{
-		const rt_teleport_t *t = &rt_teleports[i];
+		const rt_teleport_t *tele = &rt_teleports[i];
 
-		float d = DistanceSqr (t->a, r_refdef.vieworg);
-
-		if (d < nearest_dist)
+		// RTGL1's limit
+		if (i >= 63)
 		{
-			nearest = t;
-			nearest_dist = d;
+			break;
 		}
+
+		vec3_t forward, right, up;
+		{
+			vec3_t out_angles = {0, tele->b_angle, 0};
+			AngleVectors (out_angles, forward, right, up);
+		}
+
+		RgPortalUploadInfo info = 
+		{
+			.portalIndex = (uint8_t)(i + 1),
+			.inPosition = RGVEC3 (tele->a),
+			.outPosition = RGVEC3 (tele->b),
+			.outDirection = RGVEC3 (forward),
+			.outUp = RGVEC3 (up),
+		};
+
+		VectorAdd (info.outPosition.data, outoffset, info.outPosition.data);
+
+		RgResult r = rgUploadPortal (vulkan_globals.instance, &info);
+		RG_CHECK (r);
 	}
-
-	if (nearest == NULL)
-	{
-		return;
-	}
-
-	memcpy (in_pos->data, nearest->a, 3 * sizeof (float));
-
-	const vec3_t offset = {0, 0, 64};
-	VectorAdd (nearest->b, offset, out_pos->data);
-
-	vec3_t f, r, u;
-	vec3_t out_angles = {0, nearest->b_angle, 0};
-	AngleVectors (out_angles, f, r, u);
-	
-	memcpy (out_dir->data, f, 3 * sizeof (float));
-	memcpy (out_up->data, u, 3 * sizeof(float));
 }

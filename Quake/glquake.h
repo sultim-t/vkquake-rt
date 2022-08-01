@@ -377,6 +377,7 @@ void R_DrawParticles_ShowTris (cb_context_t *cbx);
 void R_DrawSpriteModel_ShowTris (cb_context_t *cbx, entity_t *e);
 
 void RT_ParseTeleports (void);
+void RT_UploadAllTeleports (void);
 
 #define DRAW_GL_POLY_TYPE_SKY 1
 #define DRAW_GL_POLY_TYPE_SHOWTRI 2
