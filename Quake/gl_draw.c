@@ -1098,22 +1098,22 @@ void GL_SetCanvas (cb_context_t *cbx, canvastype newcanvas)
 		s = CLAMP (1.0, scr_sbarscale.value, (float)glwidth / 320.0);
 		GL_OrthoMatrix (cbx, 
 			0 , 320 , 
-			48, -48, 
+			48, -80, 
 			-99999, 99999);
 		GL_Viewport (cbx, 
 			glx + (s * pad), gly + (s * pad), 
-			s * 320, s * 96, 
+			s * 320, s * 128, 
 			0.0f, 1.0f);
 		break;
 	case CANVAS_SBAR_MINIMAL_BOTTOMRIGHT:
 		s = CLAMP (1.0, scr_sbarscale.value, (float)glwidth / 320.0);
 		GL_OrthoMatrix (cbx, 
 			0, 320, 
-			48, -48, 
+			48, -80, 
 			-99999, 99999);
 		GL_Viewport (cbx, 
 			glx + (glwidth - 320 * s) - (s * pad), gly + (s * pad),
-			s * 320, s * 96, 
+			s * 320, s * 128, 
 			0.0f, 1.0f);
 		break;
 	case CANVAS_WARPIMAGE:

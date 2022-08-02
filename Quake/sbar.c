@@ -1013,8 +1013,6 @@ void Sbar_Draw (cb_context_t *cbx)
 		!rogue &&
 		cl.gametype != GAME_DEATHMATCH;
 
-	int pad = CVAR_TO_INT32 (rt_hud_padding);
-
 	if (sb_showscores || cl.stats[STAT_HEALTH] <= 0)
 	{
 		Sbar_DrawPicAlpha (cbx, 0, 0, sb_scorebar, scr_sbaralpha.value); // johnfitz -- scr_sbaralpha
@@ -1026,23 +1024,25 @@ void Sbar_Draw (cb_context_t *cbx)
 
 
 		// armor
+		int hp_armor_pad = 4;
+		int armor_y = -24 - hp_armor_pad;
 		if (cl.items & IT_INVULNERABILITY)
 		{
-			Sbar_DrawNum (cbx, 24, -24 - pad, 666, 3, 1);
-			Sbar_DrawPic (cbx, 0, -24 - pad, draw_disc);
+			Sbar_DrawNum (cbx, 24, armor_y, 666, 3, 1);
+			Sbar_DrawPic (cbx, 0, armor_y, draw_disc);
 		}
 		else
 		{
 			if (cl.stats[STAT_ARMOR] > 0)
 			{
-				Sbar_DrawNum (cbx, 24, -24 - pad, cl.stats[STAT_ARMOR], 3, cl.stats[STAT_ARMOR] <= 25);
+				Sbar_DrawNum (cbx, 24, armor_y, cl.stats[STAT_ARMOR], 3, cl.stats[STAT_ARMOR] <= 25);
 
 				if (cl.items & IT_ARMOR3)
-					Sbar_DrawPic (cbx, 0, -24 - pad, sb_armor[2]);
+					Sbar_DrawPic (cbx, 0, armor_y, sb_armor[2]);
 				else if (cl.items & IT_ARMOR2)
-					Sbar_DrawPic (cbx, 0, -24 - pad, sb_armor[1]);
+					Sbar_DrawPic (cbx, 0, armor_y, sb_armor[1]);
 				else if (cl.items & IT_ARMOR1)
-					Sbar_DrawPic (cbx, 0, -24 - pad, sb_armor[0]);
+					Sbar_DrawPic (cbx, 0, armor_y, sb_armor[0]);
 			}
 		}
 
@@ -1066,6 +1066,22 @@ void Sbar_Draw (cb_context_t *cbx)
 
 		if ((cl.items & IT_SHELLS) || (cl.items & IT_NAILS) || (cl.items & IT_ROCKETS) || (cl.items & IT_CELLS))
 			Sbar_DrawNum (cbx, 296 - 24*3 - 8, 0, cl.stats[STAT_AMMO], 3, cl.stats[STAT_AMMO] <= 10);
+
+
+		// keys
+        int flashon = 0;
+		for (int i = 0; i < 6; i++)
+		{
+			if (cl.items & (1 << (17 + i)))
+			{
+				float time = cl.item_gettime[17 + i];
+				if (!time || time <= cl.time - 2 || !flashon)
+				{
+					if (!hipnotic || (i > 1))
+						Sbar_DrawPic (cbx, 304, -24*3 - i * 24, sb_items[i]);
+				}
+			}
+		}
 
 
 		GL_SetCanvas (cbx, CANVAS_SBAR);
