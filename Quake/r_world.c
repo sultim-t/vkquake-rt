@@ -692,11 +692,6 @@ static void R_TriangleIndicesForSurf (int basevert, int vertcount, uint32_t *des
 	}
 }
 
-/*
-================
-R_ClearBatch
-================
-*/
 static void RT_ClearBatch (cb_context_t *cbx)
 {
 	cbx->batch_verts_count = 0;
@@ -721,6 +716,8 @@ RgTransform RT_GetBrushModelMatrix (entity_t *e)
 
 	return RT_GetModelTransform (model_matrix);
 }
+
+static qboolean RT_FindNearestTeleport (const RgGeometryUploadInfo *info, uint8_t *result);
 
 typedef struct rt_uploadsurf_state_t
 {
@@ -782,6 +779,7 @@ static void RT_FlushBatch (cb_context_t *cbx, const rt_uploadsurf_state_t *s, ui
 	}
 
 	float alpha = CLAMP (0.0f, s->alpha, 1.0f);
+	uint8_t portalindex = 0;
 
 	qboolean is_static_geom = (s->model == cl.worldmodel) && !s->is_warp;
 	qboolean rasterize = (alpha < 1.0f) && !s->is_water;
@@ -860,6 +858,14 @@ static void RT_FlushBatch (cb_context_t *cbx, const rt_uploadsurf_state_t *s, ui
 			.defaultEmission = 0,
 			.transform = RT_GetBrushModelMatrix (s->ent),
 		};
+
+		if (s->is_teleport)
+		{
+			if (RT_FindNearestTeleport (&info, &portalindex))
+			{
+				info.pPortalIndex = &portalindex;
+			}
+		}
 
 		RgResult r = rgUploadGeometry (vulkan_globals.instance, &info);
 		RG_CHECK (r);
@@ -1290,6 +1296,8 @@ static struct rt_parsetriggers_result_t ParseTeleportTriggers (void)
 	}
 }
 
+#define RG_MAX_PORTALS 62
+
 void RT_ParseTeleports (void)
 {
 	rt_teleports_count = 0;
@@ -1336,8 +1344,88 @@ void RT_ParseTeleports (void)
 		}
 	}
 
+	// RTGL1's limit
+	if (rt_teleports_count > RG_MAX_PORTALS)
+	{
+		rt_teleports_count = RG_MAX_PORTALS;
+		Con_Warning ("Too many teleports to render, limit is 62");
+	}
+
 	Mem_Free (r.trigs);
 	Mem_Free (r.dsts);
+}
+
+
+static RgFloat3D ApplyTransform (const RgTransform *transform, const vec3_t v)
+{
+	RgFloat3D r = {0};
+	for (int i = 0; i < 3; i++)
+	{
+		r.data[i] = 
+			transform->matrix[i][0] * v[0] + 
+			transform->matrix[i][1] * v[1] + 
+			transform->matrix[i][2] * v[2] + 
+			transform->matrix[i][3];
+	}
+	return r;
+}
+
+
+static float DistanceSqr (const vec3_t a, const vec3_t b)
+{
+	vec3_t delta;
+	VectorSubtract (a, b, delta);
+
+	return DotProduct (delta, delta);
+}
+
+
+static qboolean RT_FindNearestTeleport (const RgGeometryUploadInfo *info, uint8_t *result)
+{
+	vec3_t emin = {FLT_MAX, FLT_MAX, FLT_MAX};
+	vec3_t emax = {-FLT_MAX, -FLT_MAX, -FLT_MAX};
+
+	for (uint32_t i = 0; i < info->vertexCount; i++)
+	{
+		RgFloat3D v = ApplyTransform (&info->transform, info->pVertices[i].position);
+
+		for (int k = 0; k < 3; k++)
+		{
+			emin[k] = q_min (v.data[k], emin[k]);
+			emax[k] = q_max (v.data[k], emax[k]);
+		}
+	}
+
+	vec3_t center;
+	VectorAdd (emin, emax, center);
+	VectorScale (center, 0.5f, center);
+
+	int nearest = -1;
+	float nearest_dist = FLT_MAX;
+
+	for (int i = 0; i < rt_teleports_count; i++)
+	{
+		float d = DistanceSqr (rt_teleports[i].a, center);
+
+		if (d < nearest_dist)
+		{
+			nearest = i;
+			nearest_dist = d;
+		}
+	}
+
+	float aaa = DistanceSqr (center, r_refdef.vieworg);
+	assert (aaa > -1);
+
+	if (nearest < 0)
+	{
+		return false;
+	}
+
+	assert (nearest <= RG_MAX_PORTALS);
+
+	*result = (uint8_t)nearest;
+	return true;
 }
 
 
@@ -1346,17 +1434,14 @@ void RT_ParseTeleports (void)
 
 void RT_UploadAllTeleports ()
 {
+	assert (rt_teleports_count >= 0 && rt_teleports_count <= RG_MAX_PORTALS);
+
+
 	const vec3_t outoffset = {0, 0, 64};
 
 	for (int i = 0; i < rt_teleports_count; i++)
 	{
 		const rt_teleport_t *tele = &rt_teleports[i];
-
-		// RTGL1's limit
-		if (i >= 63)
-		{
-			break;
-		}
 
 		vec3_t forward, right, up;
 		{
@@ -1366,7 +1451,7 @@ void RT_UploadAllTeleports ()
 
 		RgPortalUploadInfo info = 
 		{
-			.portalIndex = (uint8_t)(i + 1),
+			.portalIndex = (uint8_t)i,
 			.inPosition = RGVEC3 (tele->a),
 			.outPosition = RGVEC3 (tele->b),
 			.outDirection = RGVEC3 (forward),
