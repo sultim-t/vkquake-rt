@@ -814,7 +814,8 @@ void RT_UploadAllElights ()
 
 			if (src->state & STRUCT_STATE_FOUND_LIGHTSTYLE)
 			{
-				intens *= (float)d_lightstylevalue[src->lightstyle] / 256.0f;
+				float ls = (float)d_lightstylevalue[src->lightstyle] / 256.0f;
+				intens *= CLAMP (0.0f, ls, 1.0f);
 			}
 
 			vec3_t color = {1.0f, 1.0f, 1.0f};
