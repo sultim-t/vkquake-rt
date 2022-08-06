@@ -109,7 +109,7 @@ task_handle_t prev_end_rendering_task = INVALID_TASK_HANDLE;
 	CVAR_DEF_T (rt_elight_default, "200") \
 	CVAR_DEF_T (rt_elight_default_mdl, "1000") \
 	CVAR_DEF_T (rt_elight_threshold, "-1") \
-	/* 0.15 covers whole flame model (e.g. on start level)*/ CVAR_DEF_T (rt_elight_radius, "0.15") \
+	/* 0.2 covers whole flame model (e.g. on start level)*/ CVAR_DEF_T (rt_elight_radius, "0.2") \
 	\
 	CVAR_DEF_T (rt_poi_distthresh, "2") \
 	CVAR_DEF_T (rt_poi_distthresh_super, "3") \
