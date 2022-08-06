@@ -157,6 +157,8 @@ task_handle_t prev_end_rendering_task = INVALID_TASK_HANDLE;
 	CVAR_DEF_T (rt_water_normstren, "1") \
 	CVAR_DEF_T (rt_water_normsharp, "5") \
 	CVAR_DEF_T (rt_water_scale, "1") \
+	\
+	CVAR_DEF_T (rt_portal_twirl, "1") \
     \
 	CVAR_DEF_T (rt_sharpen, "0") \
 	CVAR_DEF_T (rt_renderscale, "100") \
@@ -896,6 +898,7 @@ static void GL_EndRenderingTask (end_rendering_parms_t *parms)
 		.waterExtinction = {CVAR_TO_FLOAT (rt_water_colr), CVAR_TO_FLOAT (rt_water_colg), CVAR_TO_FLOAT (rt_water_colb)},
 		.waterWaveTextureDerivativesMultiplier = CVAR_TO_FLOAT (rt_water_normsharp),
 		.waterTextureAreaScale = METRIC_TO_QUAKEUNIT (CVAR_TO_FLOAT (rt_water_scale)),
+		.portalNormalTwirl = CVAR_TO_BOOL (rt_portal_twirl),
 	};
 	VectorScale (refl_refr_params.waterExtinction.data, CVAR_TO_FLOAT (rt_water_density), refl_refr_params.waterExtinction.data);
 

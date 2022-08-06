@@ -827,7 +827,9 @@ static void RT_FlushBatch (cb_context_t *cbx, const rt_uploadsurf_state_t *s, ui
 	{
 		RgGeometryUploadInfo info = {
 			.uniqueID = RT_GetBrushSurfUniqueId (s->entuniqueid, s->model, s->surf),
-			.flags = RG_GEOMETRY_UPLOAD_GENERATE_NORMALS_BIT,
+			.flags = 
+			    RG_GEOMETRY_UPLOAD_GENERATE_NORMALS_BIT |
+			    (s->is_teleport ? RG_GEOMETRY_UPLOAD_REFL_REFR_ALBEDO_ADD_BIT : 0),
 			.geomType = is_static_geom ? RG_GEOMETRY_TYPE_STATIC : RG_GEOMETRY_TYPE_DYNAMIC,
 			.passThroughType = 
 			    s->is_water ? RG_GEOMETRY_PASS_THROUGH_TYPE_WATER_REFLECT_REFRACT :
