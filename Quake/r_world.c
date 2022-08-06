@@ -1414,9 +1414,6 @@ static qboolean RT_FindNearestTeleport (const RgGeometryUploadInfo *info, uint8_
 		}
 	}
 
-	float aaa = DistanceSqr (center, r_refdef.vieworg);
-	assert (aaa > -1);
-
 	if (nearest < 0)
 	{
 		return false;
