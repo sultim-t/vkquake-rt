@@ -801,8 +801,13 @@ static void UpscaleCvarsToRtgl (RgDrawFrameRenderResolutionParams *pDst)
 	}
 }
 
-static const char *GetUpscalerOptionName (int i)
+static const char *GetUpscalerOptionName (int i, RgRenderUpscaleTechnique technique)
 {
+	if (!rgIsRenderUpscaleTechniqueAvailable (vulkan_globals.instance, technique))
+	{
+		return "Not Available";
+	}
+
     switch (i)
     {
 	case 0:
@@ -1978,11 +1983,11 @@ static void VID_MenuDraw (cb_context_t *cbx)
 			y += 8; // separate
 
 			M_Print (cbx, 16, y, "       AMD FSR 2.0");
-			M_Print (cbx, 184, y, GetUpscalerOptionName(menu_settings.rt_upscale_fsr2));
+			M_Print (cbx, 184, y, GetUpscalerOptionName (menu_settings.rt_upscale_fsr2, RG_RENDER_UPSCALE_TECHNIQUE_AMD_FSR2));
 			break;
 		case VID_OPT_DLSS:
 			M_Print (cbx, 16, y, "       Nvidia DLSS");
-			M_Print (cbx, 184, y, GetUpscalerOptionName (menu_settings.rt_upscale_dlss));
+			M_Print (cbx, 184, y, GetUpscalerOptionName (menu_settings.rt_upscale_dlss, RG_RENDER_UPSCALE_TECHNIQUE_NVIDIA_DLSS));
 			break;
 		case VID_OPT_RENDER_SCALE:
 			M_Print (cbx, 16, y, "      Render Scale");
