@@ -77,6 +77,16 @@ typedef struct
 
 extern cvar_t rt_enable_pvs;
 
+typedef struct
+{
+	RgVertex *verts;
+	int       verts_count;
+	int       verts_allocated;
+} rt_skybatch_t;
+
+static rt_skybatch_t rt_skybatch_solid = {0};
+static rt_skybatch_t rt_skybatch_alpha = {0};
+
 //==============================================================================
 //
 //  INIT
@@ -926,7 +936,7 @@ void Sky_SetBoxVert (float s, float t, int axis, vec3_t v)
 Sky_GetTexCoord
 =============
 */
-void Sky_GetTexCoord (vec3_t v, float speed, float *s, float *t)
+void Sky_GetTexCoord (const vec3_t v, float speed, float *s, float *t)
 {
 	vec3_t dir;
 	float  length, scroll;
@@ -952,43 +962,39 @@ Sky_DrawFaceQuad
 */
 void Sky_DrawFaceQuad (cb_context_t *cbx, glpoly_t *p, float alpha)
 {
-	float *v;
-	int    i;
-
-	RgVertex vertices[4] = {0};
+	const float *src = p->verts[0];
+	
+	const uint32_t *indices = RT_GetFanIndices (4);
+	const int       indexcount = RT_GetFanIndexCount (4);
 
 	for (int alphalayer = 0; alphalayer <= 1; alphalayer++)
 	{
-		for (i = 0, v = p->verts[0]; i < 4; i++, v += VERTEXSIZE)
+		rt_skybatch_t *batch = alphalayer ? &rt_skybatch_alpha : &rt_skybatch_solid;
+
+
+		if (batch->verts_count + indexcount >= batch->verts_allocated)
 		{
-			vertices[i].position[0] = v[0];
-			vertices[i].position[1] = v[1];
-			vertices[i].position[2] = v[2];
-
-			Sky_GetTexCoord (v, alphalayer ? 16 : 8, &vertices[i].texCoord[0], &vertices[i].texCoord[1]);
-
-			vertices[i].packedColor = RT_PACKED_COLOR_WHITE;
+			batch->verts_allocated += 1024;
+			batch->verts = Mem_Realloc (batch->verts, sizeof (RgVertex) * batch->verts_allocated);
 		}
 
-		gltexture_t *texture = alphalayer ? alphaskytexture : solidskytexture;
 
-		RgRasterizedGeometryUploadInfo info = {
-			.renderType = RG_RASTERIZED_GEOMETRY_RENDER_TYPE_SKY,
-			.vertexCount = countof (vertices),
-			.pVertices = vertices,
-			.indexCount = RT_GetFanIndexCount(countof(vertices)),
-			.pIndices = RT_GetFanIndices (countof (vertices)),
-			.transform = RT_TRANSFORM_IDENTITY,
-			.color = {1.0f, 1.0f, 1.0f, alpha},
-			.material = texture ? texture->rtmaterial : RG_NO_MATERIAL,
-			.pipelineState = alphalayer ? RG_RASTERIZED_GEOMETRY_STATE_BLEND_ENABLE : 0,
-			.blendFuncSrc = alphalayer ? RG_BLEND_FACTOR_SRC_ALPHA : 0,
-			.blendFuncDst = alphalayer ? RG_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA : 0,
-		};
+		RgVertex *dst = &batch->verts[batch->verts_count];
 
-		RgResult r = rgUploadRasterizedGeometry (vulkan_globals.instance, &info, NULL, NULL);
-		RG_CHECK (r);
+		for (int i = 0; i < indexcount; i++)
+		{
+			uint32_t src_index = indices[i];
+			const float *v = src + (size_t)VERTEXSIZE * src_index;
+			
+			dst[i].position[0] = v[0];
+			dst[i].position[1] = v[1];
+			dst[i].position[2] = v[2];
+			Sky_GetTexCoord (v, alphalayer ? 16 : 8, &dst[i].texCoord[0], &dst[i].texCoord[1]);
+			dst[i].packedColor = RT_PACKED_COLOR_WHITE;
+		}
 
+
+		batch->verts_count += indexcount;
 	}
 
 	Atomic_IncrementUInt32 (&rs_skypolys);
@@ -1003,6 +1009,10 @@ Sky_DrawFace
 
 void Sky_DrawFace (cb_context_t *cbx, int axis, float alpha)
 {
+	rt_skybatch_solid.verts_count = 0;
+	rt_skybatch_alpha.verts_count = 0;
+
+
 	glpoly_t p;
 	vec3_t   verts[4];
 	int      i, j;
@@ -1047,6 +1057,30 @@ void Sky_DrawFace (cb_context_t *cbx, int axis, float alpha)
 			Sky_DrawFaceQuad (cbx, &p, alpha);
 		}
 	}
+
+
+	for (int alphalayer = 0; alphalayer <= 1; alphalayer++)
+	{
+		gltexture_t *texture = alphalayer ? alphaskytexture : solidskytexture;
+
+		RgRasterizedGeometryUploadInfo info = {
+			.renderType = RG_RASTERIZED_GEOMETRY_RENDER_TYPE_SKY,
+			.vertexCount = alphalayer ? rt_skybatch_alpha.verts_count : rt_skybatch_solid.verts_count,
+			.pVertices = alphalayer ? rt_skybatch_alpha.verts : rt_skybatch_solid.verts,
+			.transform = RT_TRANSFORM_IDENTITY,
+			.color = {1.0f, 1.0f, 1.0f, alpha},
+			.material = texture ? texture->rtmaterial : RG_NO_MATERIAL,
+			.pipelineState = alphalayer ? RG_RASTERIZED_GEOMETRY_STATE_BLEND_ENABLE : 0,
+			.blendFuncSrc = alphalayer ? RG_BLEND_FACTOR_SRC_ALPHA : 0,
+			.blendFuncDst = alphalayer ? RG_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA : 0,
+		};
+
+		RgResult r = rgUploadRasterizedGeometry (vulkan_globals.instance, &info, NULL, NULL);
+		RG_CHECK (r);
+	}
+
+	rt_skybatch_solid.verts_count = 0;
+	rt_skybatch_alpha.verts_count = 0;
 }
 
 /*
