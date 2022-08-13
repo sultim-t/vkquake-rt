@@ -71,6 +71,58 @@ static const RgVertex *GetModelVerticesForPose (const qmodel_t *m, const aliashd
 	return &m->rtvertices[(size_t)pose * hdr->numverts_vbo];
 }
 
+static size_t GetNextAllocStep (size_t x)
+{
+	const size_t step = 4096;
+
+	size_t i = (x + (step - 1)) / step;
+	return i * step;
+}
+
+static void LerpPosition (float *dst, const float *src1, const float *src2, float blend)
+{
+	for (int j = 0; j < 3; j++)
+	{
+		float d = src2[j] - src1[j];
+		dst[j] = src1[j] +d *blend;
+	}
+}
+
+static const RgVertex *InterpolatePoses (const qmodel_t *m, const aliashdr_t *hdr, int pose1, int pose2, float blend)
+{
+	const RgVertex *v_pose1 = GetModelVerticesForPose (m, hdr, pose1);
+	const RgVertex *v_pose2 = GetModelVerticesForPose (m, hdr, pose2);
+
+	static RgVertex *tempstorage = NULL;
+	static size_t    tempstorage_numverts = 0;
+
+	if (blend < FLT_EPSILON)
+	{
+		return v_pose1;
+	}
+
+	if ((size_t)hdr->numverts_vbo > tempstorage_numverts)
+	{
+		tempstorage_numverts = GetNextAllocStep (hdr->numverts_vbo);
+		Mem_Free (tempstorage);
+		tempstorage = Mem_Alloc (tempstorage_numverts * sizeof (RgVertex));
+	}
+
+	memcpy (tempstorage, v_pose1, hdr->numverts_vbo * sizeof (RgVertex));
+
+	for (int i = 0; i < hdr->numverts_vbo; i++)
+	{
+	    RgVertex *dst = &tempstorage[i];
+
+		const RgVertex *src1 = &v_pose1[i];
+		const RgVertex *src2 = &v_pose2[i];
+
+		LerpPosition (dst->position, src1->position, src2->position, blend);
+	}
+
+	return tempstorage;
+}
+
 static RgTransform RT_GetAliasModelTransform (const aliashdr_t *paliashdr, lerpdata_t *lerpdata, qboolean isfirstperson)
 {
 	float model_matrix[16];
@@ -115,8 +167,7 @@ static void GL_DrawAliasFrame (
 {
 
 	// poses the same means either 1. the entity has paused its animation, or 2. r_lerpmodels is disabled
-	// TODO RT: blending between alias poses
-    // float blend = lerpdata.pose1 != lerpdata.pose2 ? lerpdata.blend : 0;
+    float blend = lerpdata.pose1 != lerpdata.pose2 ? lerpdata.blend : 0;
 
 	qboolean rasterize = entity_alpha < 1.0f;
 	qboolean isfirstperson = (e == &cl.viewent);
@@ -137,7 +188,7 @@ static void GL_DrawAliasFrame (
 		RgRasterizedGeometryUploadInfo info = {
 			.renderType = RG_RASTERIZED_GEOMETRY_RENDER_TYPE_DEFAULT,
 			.vertexCount = paliashdr->numverts_vbo,
-			.pVertices = GetModelVerticesForPose (e->model, paliashdr, lerpdata.pose1),
+			.pVertices = InterpolatePoses (e->model, paliashdr, lerpdata.pose1, lerpdata.pose2, blend),
 			.indexCount = paliashdr->numindexes,
 			.pIndices = e->model->rtindices,
 			.transform = RT_GetAliasModelTransform (paliashdr, &lerpdata, isfirstperson),
@@ -160,7 +211,7 @@ static void GL_DrawAliasFrame (
 	{
 		RgGeometryUploadInfo info = {
 			.uniqueID = RT_GetAliasModelUniqueId (entuniqueid),
-			.flags = 0,
+			.flags = RG_GEOMETRY_UPLOAD_GENERATE_NORMALS_BIT,
 			.geomType = RG_GEOMETRY_TYPE_DYNAMIC,
 			.passThroughType = RG_GEOMETRY_PASS_THROUGH_TYPE_ALPHA_TESTED,
 			.visibilityType = 
@@ -168,7 +219,7 @@ static void GL_DrawAliasFrame (
 		        isviewer ? RG_GEOMETRY_VISIBILITY_TYPE_FIRST_PERSON_VIEWER :
 		        RG_GEOMETRY_VISIBILITY_TYPE_WORLD_0,
 			.vertexCount = paliashdr->numverts_vbo,
-			.pVertices = GetModelVerticesForPose (e->model, paliashdr, lerpdata.pose1),
+			.pVertices = InterpolatePoses (e->model, paliashdr, lerpdata.pose1, lerpdata.pose2, blend),
 			.indexCount = paliashdr->numindexes,
 			.pIndices = e->model->rtindices,
 			.layerColors = {RT_COLOR_WHITE},
