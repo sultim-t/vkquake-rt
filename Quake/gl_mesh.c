@@ -524,13 +524,10 @@ static void GLMesh_LoadVertexBuffer (qmodel_t *m, const aliashdr_t *hdr)
 			dstpose[v].position[0] = trivert.v[0];
 			dstpose[v].position[1] = trivert.v[1];
 			dstpose[v].position[2] = trivert.v[2];
-
-			// map the normal coordinates in [-1..1] to [-127..127] and store in an unsigned char.
-			// this introduces some error (less than 0.004), but the normals were very coarse
-			// to begin with
-			dstpose[v].normal[0] = 127 * r_avertexnormals[trivert.lightnormalindex][0];
-			dstpose[v].normal[1] = 127 * r_avertexnormals[trivert.lightnormalindex][1];
-			dstpose[v].normal[2] = 127 * r_avertexnormals[trivert.lightnormalindex][2];
+			
+			dstpose[v].normal[0] = r_avertexnormals[trivert.lightnormalindex][0];
+			dstpose[v].normal[1] = r_avertexnormals[trivert.lightnormalindex][1];
+			dstpose[v].normal[2] = r_avertexnormals[trivert.lightnormalindex][2];
 
 			// texCoord is same in all poses
 			dstpose[v].texCoord[0] = ((float)desc[v].st[0] + 0.5f) / (float)hdr->skinwidth;

@@ -221,7 +221,7 @@ void R_DrawSpriteModel (cb_context_t *cbx, entity_t *e, int entuniqueid)
 	{
 		RgGeometryUploadInfo info = {
 			.uniqueID = RT_GetSpriteModelUniqueId (entuniqueid),
-			.flags = 0,
+			.flags = RG_GEOMETRY_UPLOAD_GENERATE_NORMALS_BIT,
 			.geomType = RG_GEOMETRY_TYPE_DYNAMIC,
 			.passThroughType = RG_GEOMETRY_PASS_THROUGH_TYPE_ALPHA_TESTED,
 			.visibilityType = RG_GEOMETRY_VISIBILITY_TYPE_WORLD_0,
