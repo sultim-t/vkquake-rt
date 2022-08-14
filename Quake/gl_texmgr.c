@@ -110,9 +110,9 @@ static THREAD_LOCAL gltexture_t *rtspecial_target = NULL;
 static THREAD_LOCAL byte         rtspecial_default_rough;
 static THREAD_LOCAL byte         rtspecial_default_metallic;
 
-static THREAD_LOCAL RgStaticMaterialCreateInfo rtspecial_info = {0};
-static THREAD_LOCAL void                      *rtspecial_info_albedoAlpha = NULL; // to point to data from rtspecial_info
-static THREAD_LOCAL char                       rtspecial_info_pRelativePath[MAX_QPATH];
+static THREAD_LOCAL RgMaterialCreateInfo rtspecial_info = {0};
+static THREAD_LOCAL void                *rtspecial_info_albedoAlpha = NULL; // to point to data from rtspecial_info
+static THREAD_LOCAL char                 rtspecial_info_pRelativePath[MAX_QPATH];
 
 
 void TexMgr_RT_SpecialStart (float default_rough, float default_metallic)
@@ -126,7 +126,7 @@ void TexMgr_RT_SpecialStart (float default_rough, float default_metallic)
 	rtspecial_default_metallic = CLAMP (0, (int)(default_metallic * 255), 255);
 }
 
-static void TexMgr_RT_SpecialSave (gltexture_t *glt, const RgStaticMaterialCreateInfo *info)
+static void TexMgr_RT_SpecialSave (gltexture_t *glt, const RgMaterialCreateInfo *info)
 {
 	assert (rtspecial_info_albedoAlpha == NULL);
 
@@ -200,7 +200,7 @@ static void TexMgr_RT_SpecialFullbright (unsigned width, unsigned height, uint32
 	rtspecial_info.textures.pDataRoughnessMetallicEmission = fullbright;
 
     SDL_LockMutex (rtspecial_mutex);
-	RgResult r = rgCreateStaticMaterial (vulkan_globals.instance, &rtspecial_info, &rtspecial_target->rtmaterial);
+	RgResult r = rgCreateMaterial (vulkan_globals.instance, &rtspecial_info, &rtspecial_target->rtmaterial);
 	RG_CHECK (r);
 	SDL_UnlockMutex (rtspecial_mutex);
 }
@@ -216,7 +216,7 @@ void TexMgr_RT_SpecialEnd ()
 		rtspecial_info.pRelativePath = rtspecial_info_pRelativePath;
 
 		SDL_LockMutex (rtspecial_mutex);
-		RgResult r = rgCreateStaticMaterial (vulkan_globals.instance, &rtspecial_info, &rtspecial_target->rtmaterial);
+		RgResult r = rgCreateMaterial (vulkan_globals.instance, &rtspecial_info, &rtspecial_target->rtmaterial);
 		RG_CHECK (r);
 		SDL_UnlockMutex (rtspecial_mutex);
 
@@ -825,7 +825,7 @@ static void TexMgr_LoadImage32 (gltexture_t *glt, unsigned *data)
 	// const VkFormat format = !surface_indices ? VK_FORMAT_R8G8B8A8_UNORM : VK_FORMAT_R32_UINT;
 
 
-	RgStaticMaterialCreateInfo info = {
+	RgMaterialCreateInfo info = {
 		.flags = TexMgr_GetRtFlags (glt),
 		.size = {glt->width, glt->height},
 		.textures =
@@ -843,7 +843,7 @@ static void TexMgr_LoadImage32 (gltexture_t *glt, unsigned *data)
 	if (!rtspecial_started)
 	{
 		SDL_LockMutex (rtspecial_mutex);
-	    RgResult r = rgCreateStaticMaterial (vulkan_globals.instance, &info, &glt->rtmaterial);
+	    RgResult r = rgCreateMaterial (vulkan_globals.instance, &info, &glt->rtmaterial);
 	    RG_CHECK (r);
 		SDL_UnlockMutex (rtspecial_mutex);
 	}

@@ -1117,15 +1117,16 @@ static void R_UploadLightmap (int lmap)
 	// const int staging_size = LMBLOCK_WIDTH * lm->rectchange.h * 4;
 	// byte *data = lm->data + lm->rectchange.t * LMBLOCK_WIDTH * LIGHTMAP_BYTES;
 
-	RgDynamicMaterialUpdateInfo info = {
-		.dynamicMaterial = lm->texture->rtmaterial,
+	RgMaterialUpdateInfo info = 
+	{
+		.target = lm->texture->rtmaterial,
 		.textures =
 			{
 				.pDataAlbedoAlpha = lm->data,
 			},
 	};
 
-	RgResult r = rgUpdateDynamicMaterial (vulkan_globals.instance, &info);
+	RgResult r = rgUpdateMaterialContents (vulkan_globals.instance, &info);
 	RG_CHECK (r);
 
 	lm->rectchange.l = LMBLOCK_WIDTH;
