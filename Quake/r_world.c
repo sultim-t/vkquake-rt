@@ -37,6 +37,7 @@ extern cvar_t r_gpulightmapupdate;
 extern cvar_t rt_brush_metal;
 extern cvar_t rt_brush_rough;
 extern cvar_t rt_enable_pvs;
+extern cvar_t rt_reflrefr_depth;
 
 cvar_t r_parallelmark = {"r_parallelmark", "1", CVAR_NONE};
 
@@ -767,7 +768,7 @@ static void RT_FlushBatch (cb_context_t *cbx, const rt_uploadsurf_state_t *s, ui
 	gltexture_t *diffuse_tex = r_lightmap_cheatsafe ? NULL : s->diffuse_tex;
 	gltexture_t *lightmap_tex = r_fullbright_cheatsafe ? NULL : s->lightmap_tex;
 
-	if (s->is_teleport)
+	if (s->is_teleport && CVAR_TO_INT32 (rt_reflrefr_depth) > 0)
 	{
 		diffuse_tex = NULL;
 	}
