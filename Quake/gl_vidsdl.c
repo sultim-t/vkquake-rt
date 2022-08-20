@@ -877,7 +877,7 @@ static void GL_EndRenderingTask (end_rendering_parms_t *parms)
 	};
 
 	RgDrawFrameBloomParams bloom_params = {
-		.bloomIntensity = CVAR_TO_FLOAT (rt_bloom_intensity),
+		.bloomIntensity = CVAR_TO_BOOL (rt_classic_render) ? 0 : CVAR_TO_FLOAT (rt_bloom_intensity),
 		.inputThreshold = CVAR_TO_FLOAT (rt_bloom_threshold),
 		.inputThresholdLength = 0.5f,
 		.upsampleRadius = 1.0f,
@@ -920,6 +920,11 @@ static void GL_EndRenderingTask (end_rendering_parms_t *parms)
 	RgDrawFrameLensFlareParams lens_flare_params = {
 		.lensFlareBlendFuncSrc = RG_BLEND_FACTOR_SRC_ALPHA,
 		.lensFlareBlendFuncDst = RG_BLEND_FACTOR_ONE,
+	};
+
+	RgDrawFrameLightmapParams lightmap_params = {
+		.enableLightmaps = CVAR_TO_BOOL (rt_classic_render),
+		.lightmapLayerIndex = 1,
 	};
 
 	RgPostEffectCRT crt_effect = {
@@ -994,13 +999,14 @@ static void GL_EndRenderingTask (end_rendering_parms_t *parms)
 
 	RgDrawFrameInfo info = {
 		.worldUpVector = {0, 0, 1},
+		.cellWorldSize = METRIC_TO_QUAKEUNIT(2.0f),
 		.fovYRadians = DEG2RAD (r_fovy),
 		.cameraNear = cameranear,
 		.cameraFar = camerafar,
 		.rayCullMaskWorld = RG_DRAW_FRAME_RAY_CULL_WORLD_0_BIT | RG_DRAW_FRAME_RAY_CULL_WORLD_1_BIT | RG_DRAW_FRAME_RAY_CULL_SKY_BIT,
 		.rayLength = 10000.0f,
 		.primaryRayMinDist = cameranear,
-		.disableRayTracing = false,
+		.disableRayTracedGeometry = false,
 		.disableRasterization = false,
 		.currentTime = (double)SDL_GetTicks () / 1000.0,
 		.disableEyeAdaptation = false,
@@ -1012,6 +1018,7 @@ static void GL_EndRenderingTask (end_rendering_parms_t *parms)
 		.pSkyParams = &sky_params,
 		.pTexturesParams = &texture_params,
 		.pLensFlareParams = &lens_flare_params,
+		.pLightmapParams = &lightmap_params,
 		.postEffectParams =
 			{
 				.pChromaticAberration = &chromatic_aberration_effect,

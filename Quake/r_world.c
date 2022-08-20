@@ -37,7 +37,6 @@ extern cvar_t r_gpulightmapupdate;
 extern cvar_t rt_brush_metal;
 extern cvar_t rt_brush_rough;
 extern cvar_t rt_enable_pvs;
-extern cvar_t rt_classic_render;
 
 cvar_t r_parallelmark = {"r_parallelmark", "1", CVAR_NONE};
 
@@ -773,16 +772,11 @@ static void RT_FlushBatch (cb_context_t *cbx, const rt_uploadsurf_state_t *s, ui
 		diffuse_tex = NULL;
 	}
 
-    if (!CVAR_TO_BOOL (rt_classic_render))	
-	{
-		lightmap_tex = NULL;
-	}
-
 	float alpha = CLAMP (0.0f, s->alpha, 1.0f);
 	uint8_t portalindex = 0;
 
 	qboolean is_static_geom = (s->model == cl.worldmodel) && !s->is_warp;
-	qboolean rasterize = (alpha < 1.0f) && !s->is_water;
+	qboolean rasterize = (alpha < 1.0f) && !s->is_warp;
 
 	if (rasterize)
 	{

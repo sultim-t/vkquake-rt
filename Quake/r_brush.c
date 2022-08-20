@@ -1099,12 +1099,6 @@ assumes lightmap texture is already bound
 */
 static void R_UploadLightmap (int lmap)
 {
-	// RT: lightmaps only with a classic renderer
-	if (!CVAR_TO_BOOL (rt_classic_render))
-	{
-		return;
-	}
-
 	// RT TODO: lightmap update is disabled for now
 	return;
 
