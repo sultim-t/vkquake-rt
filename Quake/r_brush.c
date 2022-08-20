@@ -1099,14 +1099,17 @@ assumes lightmap texture is already bound
 */
 static void R_UploadLightmap (int lmap)
 {
-	// RT TODO: lightmap update is disabled for now
-	return;
-
 	struct lightmap_s *lm = &lightmaps[lmap];
 	if (!Atomic_LoadUInt32(&lm->modified))
 		return;
 
 	Atomic_StoreUInt32(&lm->modified, false);
+
+	if (lm->texture->rtmaterial == RG_NO_MATERIAL)
+	{
+		assert (0);
+		return;
+	}
 
 	// const int staging_size = LMBLOCK_WIDTH * lm->rectchange.h * 4;
 	// byte *data = lm->data + lm->rectchange.t * LMBLOCK_WIDTH * LIGHTMAP_BYTES;
