@@ -73,9 +73,9 @@ const uint32_t *RT_GetFanIndices (int vertexcount)
 
 		for (int i = 0; i < fan_indices_count / 3; i++)
 		{
-			fan_indices[i * 3 + 0] = 0;
+			fan_indices[i * 3 + 0] = 2 + i;
 			fan_indices[i * 3 + 1] = 1 + i;
-			fan_indices[i * 3 + 2] = 2 + i;
+			fan_indices[i * 3 + 2] = 0;
 		}
 	}
 
