@@ -358,7 +358,7 @@ void R_RenderDynamicLightmaps (msurface_t *fa)
 		if (d_lightstylevalue[fa->styles[maps]] != fa->cached_light[maps])
 			goto dynamic;
 
-	if (fa->dlightframe == r_framecount // dynamic this frame
+	if ((fa->dlightframe >= r_framecount - 1 && fa->dlightframe <= r_framecount + 1) // dynamic this frame
 	    || fa->cached_dlight)           // dynamic previously
 	{
 	dynamic:
@@ -1051,7 +1051,7 @@ void R_BuildLightMap (msurface_t *surf, byte *dest, int stride)
 	unsigned scale;
 	int      maps;
 
-	surf->cached_dlight = (surf->dlightframe == r_framecount);
+	surf->cached_dlight = (surf->dlightframe >= r_framecount - 1 && surf->dlightframe <= r_framecount + 1);
 
 	smax = (surf->extents[0] >> 4) + 1;
 	tmax = (surf->extents[1] >> 4) + 1;
@@ -1078,7 +1078,7 @@ void R_BuildLightMap (msurface_t *surf, byte *dest, int stride)
 		}
 
 		// add all the dynamic lights
-		if (surf->dlightframe == r_framecount)
+		if (surf->dlightframe >= r_framecount - 1 && surf->dlightframe <= r_framecount + 1)
 			R_AddDynamicLights (surf);
 	}
 	else
