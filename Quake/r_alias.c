@@ -30,6 +30,7 @@ extern cvar_t scr_fov;
 
 extern cvar_t rt_model_rough, rt_model_metal, rt_enable_pvs;
 extern cvar_t rt_viewm_fovscale, rt_viewm_wide;
+extern cvar_t rt_classic_render;
 
 // up to 16 color translated skins
 gltexture_t *playertextures[MAX_SCOREBOARD]; // johnfitz -- changed to an array of pointers
@@ -79,28 +80,46 @@ static size_t GetNextAllocStep (size_t x)
 	return i * step;
 }
 
+static float r_avertexnormal_dot (const vec3_t vertexnormal, const vec3_t shadevector) 
+{
+	float dot = DotProduct (vertexnormal, shadevector);
+	// wtf - this reproduces anorm_dots within as reasonable a degree of tolerance as the >= 0 case
+	if (dot < 0.0f)
+		return 1.0f + dot * (13.0f / 44.0f);
+	else
+		return 1.0f + dot;
+}
+
+static float Lerp (float a, float b, float t)
+{
+	float dt = b - a;
+	return a + dt * t;
+}
+
 static void LerpPosition (float *dst, const float *src1, const float *src2, float blend)
 {
 	for (int j = 0; j < 3; j++)
 	{
-		float d = src2[j] - src1[j];
-		dst[j] = src1[j] +d *blend;
+		dst[j] = Lerp (src1[j], src2[j], blend);
 	}
 }
 
-static const RgVertex *InterpolatePoses (const qmodel_t *m, const aliashdr_t *hdr, int pose1, int pose2, float blend)
+static const RgVertex *
+GetPoseVertices (const qmodel_t *m, const aliashdr_t *hdr, int pose1, int pose2, float blend, /* const */ vec3_t shadevector, /* const */ vec3_t lightcolor)
 {
 	const RgVertex *v_pose1 = GetModelVerticesForPose (m, hdr, pose1);
 	const RgVertex *v_pose2 = GetModelVerticesForPose (m, hdr, pose2);
 
-	static RgVertex *tempstorage = NULL;
-	static size_t    tempstorage_numverts = 0;
+	// we don't care about per-vertex colors with RT
+	const qboolean need_vertex_lighting = CVAR_TO_BOOL (rt_classic_render);
 
-	if (blend < FLT_EPSILON)
+	if (blend < FLT_EPSILON && !need_vertex_lighting)
 	{
 		return v_pose1;
 	}
 
+	static RgVertex *tempstorage = NULL;
+	static size_t    tempstorage_numverts = 0;
 	if ((size_t)hdr->numverts_vbo > tempstorage_numverts)
 	{
 		tempstorage_numverts = GetNextAllocStep (hdr->numverts_vbo);
@@ -118,6 +137,17 @@ static const RgVertex *InterpolatePoses (const qmodel_t *m, const aliashdr_t *hd
 		const RgVertex *src2 = &v_pose2[i];
 
 		LerpPosition (dst->position, src1->position, src2->position, blend);
+
+		if (need_vertex_lighting)
+		{
+			float dot1 = r_avertexnormal_dot (src1->normal, shadevector);
+			float dot2 = r_avertexnormal_dot (src2->normal, shadevector);
+
+			vec3_t vertcolor;
+			VectorScale (lightcolor, Lerp (dot1, dot2, blend), vertcolor);
+
+			dst->packedColor = RT_PackColorToUint32_FromFloat01 (vertcolor[0], vertcolor[1], vertcolor[2], 1.0f);
+		}
 	}
 
 	return tempstorage;
@@ -188,7 +218,7 @@ static void GL_DrawAliasFrame (
 		RgRasterizedGeometryUploadInfo info = {
 			.renderType = RG_RASTERIZED_GEOMETRY_RENDER_TYPE_DEFAULT,
 			.vertexCount = paliashdr->numverts_vbo,
-			.pVertices = InterpolatePoses (e->model, paliashdr, lerpdata.pose1, lerpdata.pose2, blend),
+			.pVertices = GetPoseVertices (e->model, paliashdr, lerpdata.pose1, lerpdata.pose2, blend, shadevector, lightcolor),
 			.indexCount = paliashdr->numindexes,
 			.pIndices = e->model->rtindices,
 			.transform = RT_GetAliasModelTransform (paliashdr, &lerpdata, isfirstperson),
@@ -219,7 +249,7 @@ static void GL_DrawAliasFrame (
 		        isviewer ? RG_GEOMETRY_VISIBILITY_TYPE_FIRST_PERSON_VIEWER :
 		        RG_GEOMETRY_VISIBILITY_TYPE_WORLD_0,
 			.vertexCount = paliashdr->numverts_vbo,
-			.pVertices = InterpolatePoses (e->model, paliashdr, lerpdata.pose1, lerpdata.pose2, blend),
+			.pVertices = GetPoseVertices (e->model, paliashdr, lerpdata.pose1, lerpdata.pose2, blend, shadevector, lightcolor),
 			.indexCount = paliashdr->numindexes,
 			.pIndices = e->model->rtindices,
 			.layerColors = {RT_COLOR_WHITE},
