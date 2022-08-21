@@ -177,7 +177,7 @@ task_handle_t prev_end_rendering_task = INVALID_TASK_HANDLE;
 	\
 	CVAR_DEF_T (rt_ef_crt, "0") \
 	CVAR_DEF_T (rt_ef_interlacing, "0") \
-	CVAR_DEF_T (rt_ef_chraber, "0") \
+	CVAR_DEF_T (rt_ef_chraber, "0.3") \
 	CVAR_DEF_T (rt_ef_waves_stren, "1") \
 	\
 	CVAR_DEF_T (rt_viewm_fovscale, "1.2") \
