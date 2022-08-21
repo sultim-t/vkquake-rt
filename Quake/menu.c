@@ -1498,6 +1498,7 @@ void M_Options_Key (int k)
 /* KEYS MENU */
 
 const char *bindnames[][2] = {
+	{"rt_pfnswitch", "switch renderer"},
 	{"+forward", "walk forward"},
 	{"+back", "backpedal"},
 	{"+moveleft", "step left"},

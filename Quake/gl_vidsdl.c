@@ -553,6 +553,12 @@ static void RT_ReloadShaders (void)
 	request_shaders_reload = true;
 }
 
+static void RT_SwitchRenderer (void)
+{
+	qboolean newval = !CVAR_TO_BOOL (rt_classic_render);
+	Cvar_SetQuick (&rt_classic_render, newval ? "1" : "0");
+}
+
 /*
 ===============
 GL_InitInstance
@@ -624,7 +630,8 @@ static void GL_InitInstance (void)
 	RG_CHECK (r);
 
 
-	Cmd_AddCommand ("rt_pfnreloadshaders", &RT_ReloadShaders);
+	Cmd_AddCommand ("rt_pfnreloadshaders", RT_ReloadShaders);
+	Cmd_AddCommand ("rt_pfnswitch", RT_SwitchRenderer);
 
 
     vulkan_globals.primary_cb_context.batch_indices = Mem_Alloc (sizeof (uint32_t) * MAX_BATCH_INDICES);

@@ -16,6 +16,8 @@ static char default_cfg[] =
 
 	"bind TAB +showscores\n"
 
+    "bind ALT rt_pfnswitch\n"
+
 	"bind 1 \"impulse 1\"\n"
 	"bind 2 \"impulse 2\"\n"
 	"bind 3 \"impulse 3\"\n"
@@ -42,8 +44,6 @@ static char default_cfg[] =
 	"bind F5 \"menu_multiplayer\"\n"
 	"bind F6 \"echo Quicksaving...; wait; save quick\"\n"
 	"bind F9 \"echo Quickloading...; wait; load quick\"\n"
-	"bind F10 \"quit\"\n"
-	"bind F12 \"screenshot\"\n"
 
 	"bind PAUSE \"pause\"\n"
 	"bind ESCAPE \"togglemenu\"\n"
