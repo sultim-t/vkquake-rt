@@ -1523,6 +1523,8 @@ enum
 	VID_OPT_VSYNC,
 	VID_OPT_MAX_FPS,
 
+	VID_OPT_RENDERER,
+
 	VID_OPT_FSR2,
 	VID_OPT_DLSS,
 	VID_OPT_RENDER_SCALE,
@@ -1836,6 +1838,9 @@ static void VID_MenuKey (int key)
 		case VID_OPT_MAX_FPS:
 			VID_Menu_ChooseNextMaxFPS (-1);
 			break;
+		case VID_OPT_RENDERER:
+			RT_SwitchRenderer ();
+			break;
 		case VID_OPT_FSR2:
 		case VID_OPT_DLSS:
 		case VID_OPT_RENDER_SCALE:
@@ -1867,6 +1872,9 @@ static void VID_MenuKey (int key)
 			break;
 		case VID_OPT_MAX_FPS:
 			VID_Menu_ChooseNextMaxFPS (1);
+			break;
+		case VID_OPT_RENDERER:
+			RT_SwitchRenderer ();
 			break;
 		case VID_OPT_FSR2:
 		case VID_OPT_DLSS:
@@ -1903,6 +1911,9 @@ static void VID_MenuKey (int key)
 			break;
 		case VID_OPT_MAX_FPS:
 			Cvar_SetValueQuick (&host_maxfps, menu_settings.host_maxfps);
+			break;
+		case VID_OPT_RENDERER:
+			RT_SwitchRenderer ();
 			break;
 		case VID_OPT_FSR2:
 		case VID_OPT_DLSS:
@@ -1993,6 +2004,14 @@ static void VID_MenuDraw (cb_context_t *cbx)
 				M_Print (cbx, 184, y, "no limit");
 			else
 				M_Print (cbx, 184, y, va ("%d", menu_settings.host_maxfps));
+			break;
+
+
+		case VID_OPT_RENDERER:
+			y += 8; // separate
+
+			M_Print (cbx, 16, y, "          Renderer");
+			M_Print (cbx, 184, y, CVAR_TO_BOOL (rt_classic_render) ? "Classic" : "Ray Traced");
 			break;
 
 
