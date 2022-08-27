@@ -124,7 +124,7 @@ task_handle_t prev_end_rendering_task = INVALID_TASK_HANDLE;
 	\
 	CVAR_DEF_T (rt_sun, "0") \
 	CVAR_DEF_T (rt_sun_pitch, "60") \
-	CVAR_DEF_T (rt_sun_yaw, "0") \
+	CVAR_DEF_T (rt_sun_yaw, "-40") \
 	CVAR_DEF_T (rt_flashlight, "0") \
 	\
 	CVAR_DEF_T (rt_muzzleoffs_x, "0") \
@@ -870,8 +870,12 @@ static void GL_EndRenderingTask (end_rendering_parms_t *parms)
 	};
 	UpscaleCvarsToRtgl (&resolution_params);
 
-	RgDrawFrameShadowParams shadow_params = {
-		.maxBounceShadows = CVAR_TO_UINT32 (rt_shadowrays),
+	RgDrawFrameIlluminationParams illum_params = {
+	    .maxBounceShadows = CVAR_TO_UINT32 (rt_shadowrays),
+		.cellWorldSize = METRIC_TO_QUAKEUNIT(2.0f),
+		.directDiffuseSensitivityToChange = 0.4f,
+		.indirectDiffuseSensitivityToChange = 0.1f,
+		.specularSensitivityToChange = 0.4f,
 		.polygonalLightSpotlightFactor = 2.0f,
 		.sphericalPolygonalLightsFirefliesClamp = 3.0f,
 		.lightUniqueIdIgnoreFirstPersonViewerShadows = NULL,
@@ -922,6 +926,7 @@ static void GL_EndRenderingTask (end_rendering_parms_t *parms)
 		.normalMapStrength = CVAR_TO_FLOAT (rt_normalmap_stren),
 		.emissionMapBoost = CVAR_TO_FLOAT (rt_emis_mapboost),
 		.emissionMaxScreenColor = CVAR_TO_FLOAT (rt_emis_maxscrcolor),
+		.minRoughness = 0.02f,
 	};
 
 	RgDrawFrameLensFlareParams lens_flare_params = {
@@ -1006,7 +1011,6 @@ static void GL_EndRenderingTask (end_rendering_parms_t *parms)
 
 	RgDrawFrameInfo info = {
 		.worldUpVector = {0, 0, 1},
-		.cellWorldSize = METRIC_TO_QUAKEUNIT(2.0f),
 		.fovYRadians = DEG2RAD (r_fovy),
 		.cameraNear = cameranear,
 		.cameraFar = camerafar,
@@ -1018,7 +1022,7 @@ static void GL_EndRenderingTask (end_rendering_parms_t *parms)
 		.currentTime = (double)SDL_GetTicks () / 1000.0,
 		.disableEyeAdaptation = false,
 		.pRenderResolutionParams = &resolution_params,
-		.pShadowParams = &shadow_params,
+		.pIlluminationParams = &illum_params,
 		.pTonemappingParams = &tm_params,
 		.pBloomParams = &bloom_params,
 		.pReflectRefractParams = &refl_refr_params,
