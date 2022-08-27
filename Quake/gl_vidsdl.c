@@ -863,12 +863,14 @@ static void GL_EndRenderingTask (end_rendering_parms_t *parms)
 	rscl = CLAMP (rscl, 0.2f, 1.5f);
 
 	RgDrawFrameRenderResolutionParams resolution_params = {
-		.sharpenTechnique = GetSharpenTechniqueFromCvar (),
 		.renderSize.width = (uint32_t)(rscl * parms->vid_width),
 		.renderSize.height = (uint32_t)(rscl * parms->vid_height),
 		.interlacing = CVAR_TO_BOOL (rt_ef_interlacing),
 	};
 	UpscaleCvarsToRtgl (&resolution_params);
+	resolution_params.sharpenTechnique = resolution_params.upscaleTechnique == RG_RENDER_UPSCALE_TECHNIQUE_AMD_FSR2 ?
+		RG_RENDER_SHARPEN_TECHNIQUE_AMD_CAS :
+        GetSharpenTechniqueFromCvar ();
 
 	RgDrawFrameIlluminationParams illum_params = {
 	    .maxBounceShadows = CVAR_TO_UINT32 (rt_shadowrays),
