@@ -562,8 +562,8 @@ void R_DrawViewModel (cb_context_t *cbx)
 {
 	if (!r_drawviewmodel.value || !r_drawentities.value || chase_active.value)
 		return;
-
-	if (cl.items & IT_INVISIBILITY || cl.stats[STAT_HEALTH] <= 0)
+	
+	if (cl.stats[STAT_HEALTH] <= 0)
 		return;
 
 	entity_t *currententity = &cl.viewent;

@@ -239,11 +239,17 @@ static void GL_DrawAliasFrame (
 	}
 	else
 	{
+		qboolean is_glass = (isfirstperson || isviewer) && (cl.items & IT_INVISIBILITY);
+
 		RgGeometryUploadInfo info = {
 			.uniqueID = RT_GetAliasModelUniqueId (entuniqueid),
-			.flags = RG_GEOMETRY_UPLOAD_GENERATE_NORMALS_BIT,
+			.flags = 
+			    (is_glass ? RG_GEOMETRY_UPLOAD_IGNORE_REFL_REFR_AFTER_ONE_REFL_REFR_BIT : 0) |
+			    RG_GEOMETRY_UPLOAD_GENERATE_NORMALS_BIT, 
 			.geomType = RG_GEOMETRY_TYPE_DYNAMIC,
-			.passThroughType = RG_GEOMETRY_PASS_THROUGH_TYPE_ALPHA_TESTED,
+			.passThroughType = 
+			    is_glass ? RG_GEOMETRY_PASS_THROUGH_TYPE_GLASS_REFLECT_REFRACT :
+		        RG_GEOMETRY_PASS_THROUGH_TYPE_ALPHA_TESTED,
 			.visibilityType = 
 			    isfirstperson ? RG_GEOMETRY_VISIBILITY_TYPE_FIRST_PERSON :
 		        isviewer ? RG_GEOMETRY_VISIBILITY_TYPE_FIRST_PERSON_VIEWER :
