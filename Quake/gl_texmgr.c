@@ -69,6 +69,21 @@ unsigned int d_8to24table_pants[256];
 SDL_mutex *texmgr_mutex;
 
 
+#define RT_CUSTOMTEXTUREINFO_PATH RT_OVERRIDEN_FOLDER"texture_custom_info.txt"
+#define RT_CUSTOMTEXTUREINFO_VERSION 1
+struct rt_texturecustominfo_s
+{
+	char   rtname[64];
+	vec3_t color;
+	int    type;
+};
+static struct rt_texturecustominfo_s *rt_texturecustominfos = NULL;
+static int rt_texturecustominfos_count = 0; // -1: there are no infos, 0: uninitialized
+
+static void RT_FillWithTextureCustomInfo (gltexture_t *dst);
+static void RT_ParseTextureCustomInfos (void);
+
+
 static RgMaterialCreateFlags TexMgr_GetRtFlags (gltexture_t *glt)
 {
 	RgMaterialCreateFlags fs = 0;
@@ -961,6 +976,8 @@ gltexture_t *TexMgr_LoadImage (
 	if (isDedicated)
 		return NULL;
 
+	RT_ParseTextureCustomInfos ();
+
 	// cache check
 	if (flags & TEXPREF_OVERWRITE)
 		switch (format)
@@ -1023,6 +1040,8 @@ gltexture_t *TexMgr_LoadImage (
 		TexMgr_LoadImage32 (glt, (unsigned *)data);
 		break;
 	}
+
+	RT_FillWithTextureCustomInfo (glt);
 
 	return glt;
 }
@@ -1207,4 +1226,158 @@ static void GL_DeleteTexture (gltexture_t *texture)
 	}
 
 	SDL_UnlockMutex (texmgr_mutex);
+}
+
+
+static void RT_ParseTextureCustomInfos (void)
+{
+	if (rt_texturecustominfos_count != 0)
+	{
+		return;
+	}
+
+	rt_texturecustominfos_count = 0;
+
+	FILE *f = fopen (RT_CUSTOMTEXTUREINFO_PATH, "r");
+
+    if (f == NULL)
+	{
+		Con_Printf ("Couldn't open %s\n", RT_CUSTOMTEXTUREINFO_PATH);
+		return;
+	}
+
+	int alloccount = 1;
+	{
+		int ch = 0;
+		do
+		{
+			ch = fgetc (f);
+			if (ch == '\n')
+			{
+				alloccount++;
+			}
+		} while (ch != EOF);
+	}
+
+	rt_texturecustominfos = malloc (sizeof (struct rt_texturecustominfo_s) * alloccount);
+	rewind (f);
+
+	qboolean foundend = false;
+	char     curline[256];
+	int      curstate = RT_CUSTOMTEXTUREINFO_TYPE_NONE;
+
+	while (!foundend)
+	{
+		{
+			int i = 0;
+
+			while (true)
+			{
+				int ch = fgetc (f);
+
+				if (ch == '\n' || ch == '\r' || ch == '\0' || ch == EOF)
+				{
+					foundend = (ch == '\0' || ch == EOF);
+					break;
+				}
+
+				if (i >= (int)sizeof (curline))
+				{
+					Sys_Error (RT_CUSTOMTEXTUREINFO_PATH ": line must be < 256 characters");
+				}
+
+				curline[i] = (char)ch;
+				i++;
+			}
+
+			curline[i] = '\0';
+		}
+
+		if (curline[0] == '\0' || curline[0] == '#')
+		{
+		    continue;
+		}
+
+		if (strncmp (curline, "@VERSION", sizeof ("@VERSION") - 1) == 0)
+		{
+			int version;
+			int c = sscanf (curline + (sizeof ("@VERSION") - 1), "%d", &version);
+
+			if (c != 1 || version != RT_CUSTOMTEXTUREINFO_VERSION)
+			{
+			    Con_Printf (RT_CUSTOMTEXTUREINFO_PATH ": incompatible version");
+				rt_texturecustominfos_count = -1;
+				fclose (f);
+
+			    return;
+			}
+		}
+		else if (strcmp (curline, "@POLY_LIGHT") == 0)
+		{
+			curstate = RT_CUSTOMTEXTUREINFO_TYPE_POLY_LIGHT;   
+		}
+		else if (strcmp (curline, "@RASTER_LIGHT") == 0)
+		{
+			curstate = RT_CUSTOMTEXTUREINFO_TYPE_RASTER_LIGHT;
+		}
+		else
+		{
+			char texname[64];
+
+			char str_hexcolor[8];
+			int  c = sscanf (curline, "%s %6s", texname, str_hexcolor);
+			if (c == 2)
+			{
+				const char red[] = {str_hexcolor[0], str_hexcolor[1], '\0'};
+				uint32_t   ir = strtoul (red, NULL, 16);
+
+				const char green[] = {str_hexcolor[2], str_hexcolor[3], '\0'};
+				uint32_t   ig = strtoul (green, NULL, 16);
+
+				const char blue[] = {str_hexcolor[4], str_hexcolor[5], '\0'};
+				uint32_t   ib = strtoul (blue, NULL, 16);
+
+			    texname[sizeof texname - 1] = '\0';
+
+				
+				struct rt_texturecustominfo_s *dst = &rt_texturecustominfos[rt_texturecustominfos_count];
+				rt_texturecustominfos_count++;
+				{
+					memset (dst, 0, sizeof (*dst));
+
+					dst->color[0] = (float)ir / 255.0f;
+					dst->color[1] = (float)ig / 255.0f;
+					dst->color[2] = (float)ib / 255.0f;
+
+					strncpy (dst->rtname, texname, sizeof (dst->rtname));
+					dst->rtname[sizeof (dst->rtname) - 1] = '\0';
+
+					dst->type = curstate;
+				}
+			}
+		}
+	}
+
+	if (rt_texturecustominfos_count == 0)
+	{
+		rt_texturecustominfos_count = -1;
+	}
+
+	fclose (f);
+}
+
+static void RT_FillWithTextureCustomInfo (gltexture_t *dst)
+{
+	for (int i = 0; i < rt_texturecustominfos_count; i++)
+	{
+		if (strcmp (dst->rtname, rt_texturecustominfos[i].rtname) == 0)
+		{
+			memcpy (dst->rtlightcolor, rt_texturecustominfos[i].color, sizeof (vec3_t));
+			dst->rtcustomtextype = rt_texturecustominfos[i].type;
+
+		    return;
+		}
+	}
+
+	dst->rtcustomtextype = RT_CUSTOMTEXTUREINFO_TYPE_NONE;
 }

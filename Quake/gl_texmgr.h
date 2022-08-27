@@ -56,6 +56,13 @@ enum srcformat
 
 typedef uintptr_t src_offset_t;
 
+enum
+{
+	RT_CUSTOMTEXTUREINFO_TYPE_NONE,
+	RT_CUSTOMTEXTUREINFO_TYPE_POLY_LIGHT,
+	RT_CUSTOMTEXTUREINFO_TYPE_RASTER_LIGHT,
+};
+
 typedef struct gltexture_s
 {
 	// managed by texture manager
@@ -75,8 +82,10 @@ typedef struct gltexture_s
 	signed char          shirt;                  // 0-13 shirt color, or -1 if never colormapped
 	signed char          pants;                  // 0-13 pants color, or -1 if never colormapped
 
-	char				 rtname[64];
+	char                 rtname[64];
 	RgMaterial           rtmaterial;
+	vec3_t	             rtlightcolor;
+	int                  rtcustomtextype;        // RT_CUSTOMTEXTUREINFO_*
 } gltexture_t;
 
 extern gltexture_t *notexture;
