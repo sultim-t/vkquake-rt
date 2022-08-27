@@ -829,6 +829,12 @@ void RT_UploadAllElights ()
 				.radius = METRIC_TO_QUAKEUNIT (CVAR_TO_FLOAT (rt_elight_radius)),
 			};
 
+			// offset up a bit, so light is not inside the model itself
+			if (src->state & STRUCT_STATE_FOUND_WITH_MODEL)
+			{
+				info.position.data[2] += METRIC_TO_QUAKEUNIT (0.75f);
+			}
+
 			RgResult r = rgUploadSphericalLight (vulkan_globals.instance, &info);
 			RG_CHECK (r);
 		}
