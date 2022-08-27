@@ -983,14 +983,17 @@ static void GL_EndRenderingTask (end_rendering_parms_t *parms)
 
 	static RgPostEffectColorTint tint_effect = {0}; // static, so prev state's transition durations are preserved
 	tint_effect.isActive = false;
-	if (cl.items & IT_QUAD) tint_effect = tint_quad;
-	else if (cl.items & IT_SUIT) tint_effect = tint_radsuit;
-	else if (rt_dmg_inthisframe) tint_effect = tint_damage;
-	else if (cl.cshifts[CSHIFT_BONUS].percent > 0) tint_effect = tint_bonus;
+	if (cl.stats[STAT_HEALTH] > 0)
+	{
+	    if (cl.items & IT_QUAD) tint_effect = tint_quad;
+	    else if (cl.items & IT_SUIT) tint_effect = tint_radsuit;
+	    else if (rt_dmg_inthisframe) tint_effect = tint_damage;
+	    else if (cl.cshifts[CSHIFT_BONUS].percent > 0) tint_effect = tint_bonus;
+	}
 	rt_dmg_inthisframe = false;
 
     RgPostEffectRadialBlur radial_effect = {
-		.isActive = cl.items & IT_QUAD,
+		.isActive = (cl.items & IT_QUAD) && cl.stats[STAT_HEALTH] > 0,
 		.transitionDurationIn = 1.0f,
 		.transitionDurationOut = 2.0f,
 	};
