@@ -717,7 +717,7 @@ RgTransform RT_GetBrushModelMatrix (entity_t *e)
 	return RT_GetModelTransform (model_matrix);
 }
 
-static qboolean RT_FindNearestTeleport (const RgGeometryUploadInfo *info, uint8_t *result);
+static qboolean RT_FindNearestTeleport (const RgGeometryUploadInfo *info, uint8_t *result, qboolean *potentially_mirror);
 
 typedef struct rt_uploadsurf_state_t
 {
@@ -775,6 +775,7 @@ static void RT_FlushBatch (cb_context_t *cbx, const rt_uploadsurf_state_t *s, ui
 
 	float alpha = CLAMP (0.0f, s->alpha, 1.0f);
 	uint8_t portalindex = 0;
+	qboolean potentially_mirror = false;
 
 	qboolean is_static_geom = (s->model == cl.worldmodel) && !s->is_warp;
 	qboolean rasterize = (alpha < 1.0f) && !s->is_warp;
@@ -858,9 +859,16 @@ static void RT_FlushBatch (cb_context_t *cbx, const rt_uploadsurf_state_t *s, ui
 
 		if (s->is_teleport)
 		{
-			if (RT_FindNearestTeleport (&info, &portalindex))
+			if (RT_FindNearestTeleport (&info, &portalindex, &potentially_mirror))
 			{
-				info.pPortalIndex = &portalindex;
+				if (potentially_mirror)
+				{
+					info.passThroughType = RG_GEOMETRY_PASS_THROUGH_TYPE_MIRROR;
+				}
+				else
+				{
+				    info.pPortalIndex = &portalindex;
+				}
 			}
 		}
 
@@ -1130,9 +1138,10 @@ void R_DrawWorld_ShowTris (cb_context_t *cbx)
 
 typedef struct rt_teleport_s
 {
-	vec3_t a;
-	vec3_t b;
-	float  b_angle;
+	vec3_t   a;
+	vec3_t   b;
+	float    b_angle;
+	qboolean potentially_mirror;
 } rt_teleport_t;
 
 rt_teleport_t *rt_teleports = NULL;
@@ -1148,6 +1157,7 @@ struct rt_infoteleportdestination_t
 {
 	char   targetname[128];
 	float  angle;
+	qboolean angle_exists;
 	vec3_t origin;
 };
 struct rt_parsetriggers_result_t
@@ -1272,6 +1282,7 @@ static struct rt_parsetriggers_result_t ParseTeleportTriggers (void)
 			if (components ==1)
 			{
 				structvalues.dst.angle = tmp;
+				structvalues.dst.angle_exists = true;
 				structstate |= STRUCT_STATE_ANGLE;
 			}
 		}
@@ -1327,13 +1338,29 @@ void RT_ParseTeleports (void)
 						rt_teleports_count++;
 					}
 
+
 					// trigger position
 					VectorAdd (mod->mins, mod->maxs, entry->a);
 					VectorScale (entry->a, 0.5f, entry->a);
 
+
 					// destination position
 					VectorCopy (out->origin, entry->b);
 					entry->b_angle = out->angle;
+
+
+					// if angle wasn't specified and entrance/exit are close
+					// example: 2 such portals exist in Haunted Halls
+					if (!out->angle_exists)
+					{
+						vec3_t delta;
+						VectorSubtract (entry->a, entry->b, delta);
+
+						if (VectorLength (delta) < METRIC_TO_QUAKEUNIT(8.0f))
+						{
+							entry->potentially_mirror = true;
+						}
+					}
 				}
 
 				break;
@@ -1377,7 +1404,7 @@ static float DistanceSqr (const vec3_t a, const vec3_t b)
 }
 
 
-static qboolean RT_FindNearestTeleport (const RgGeometryUploadInfo *info, uint8_t *result)
+static qboolean RT_FindNearestTeleport (const RgGeometryUploadInfo *info, uint8_t *result, qboolean *potentially_mirror)
 {
 	vec3_t emin = {FLT_MAX, FLT_MAX, FLT_MAX};
 	vec3_t emax = {-FLT_MAX, -FLT_MAX, -FLT_MAX};
@@ -1419,6 +1446,7 @@ static qboolean RT_FindNearestTeleport (const RgGeometryUploadInfo *info, uint8_
 	assert (nearest <= RG_MAX_PORTALS);
 
 	*result = (uint8_t)nearest;
+	*potentially_mirror = rt_teleports[nearest].potentially_mirror;
 	return true;
 }
 
