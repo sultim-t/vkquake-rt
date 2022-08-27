@@ -1036,9 +1036,9 @@ static void GL_EndRenderingTask (end_rendering_parms_t *parms)
 			{
 				.pChromaticAberration = &chromatic_aberration_effect,
 				.pWaves = CVAR_TO_INT32(r_waterwarp) == 1 ? &waves_effect : NULL,
-				.pColorTint = &tint_effect,
+				.pColorTint = cl.intermission ? NULL : &tint_effect ,
 				.pCRT = &crt_effect,
-				.pRadialBlur = &radial_effect,
+				.pRadialBlur = cl.intermission ? NULL : &radial_effect,
 			},
 		.pDebugParams = &debug_params,
 	};
