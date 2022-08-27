@@ -31,6 +31,7 @@ extern cvar_t scr_fov;
 extern cvar_t rt_model_rough, rt_model_metal, rt_enable_pvs;
 extern cvar_t rt_viewm_fovscale, rt_viewm_wide;
 extern cvar_t rt_classic_render;
+extern cvar_t rt_dlight_intensity, rt_dlight_radius;
 
 // up to 16 color translated skins
 gltexture_t *playertextures[MAX_SCOREBOARD]; // johnfitz -- changed to an array of pointers
@@ -202,6 +203,28 @@ static void GL_DrawAliasFrame (
 	qboolean rasterize = entity_alpha < 1.0f;
 	qboolean isfirstperson = (e == &cl.viewent);
 	qboolean isviewer = (e == &cl.entities[cl.viewentity]);
+
+	if (tx->rtcustomtextype == RT_CUSTOMTEXTUREINFO_TYPE_RASTER_LIGHT)
+	{
+		rasterize = true;
+
+		float falloff_mult = 1.0f;
+
+		vec3_t color = {tx->rtlightcolor[0], tx->rtlightcolor[1], tx->rtlightcolor[2]};
+		VectorScale (color, CVAR_TO_FLOAT (rt_dlight_intensity), color);
+		VectorScale (color, RT_QUAKE_LIGHT_AREA_INTENSITY_FIX, color);
+		VectorScale (color, falloff_mult, color);
+
+		RgSphericalLightUploadInfo light_info = {
+			.uniqueID = RT_GetAliasModelUniqueId (entuniqueid),
+			.color = {color[0], color[1], color[2]},
+			.position = {lerpdata.origin[0], lerpdata.origin[1], lerpdata.origin[2]},
+			.radius = METRIC_TO_QUAKEUNIT (CVAR_TO_FLOAT (rt_dlight_radius)),
+		};
+
+		RgResult r = rgUploadSphericalLight (vulkan_globals.instance, &light_info);
+		RG_CHECK (r);
+	}
 
 	assert (
 		(!isviewer && !isfirstperson) || 
