@@ -807,9 +807,9 @@ static void RT_FlushBatch (cb_context_t *cbx, const rt_uploadsurf_state_t *s, ui
 
 	float alpha = CLAMP (0.0f, s->alpha, 1.0f);
 	uint8_t portalindex = 0;
-	qboolean potentially_mirror = false;
 
 	qboolean is_static_geom = (s->model == cl.worldmodel) && !s->is_warp;
+	qboolean is_mirror = diffuse_tex && diffuse_tex->rtcustomtextype == RT_CUSTOMTEXTUREINFO_TYPE_MIRROR;
 	qboolean rasterize = (alpha < 1.0f) && !s->is_warp;
 
 	if (rasterize)
@@ -856,10 +856,12 @@ static void RT_FlushBatch (cb_context_t *cbx, const rt_uploadsurf_state_t *s, ui
 		RgGeometryUploadInfo info = {
 			.uniqueID = RT_GetBrushSurfUniqueId (s->entuniqueid, s->model, s->surf, 0),
 			.flags = 
-			    RG_GEOMETRY_UPLOAD_GENERATE_NORMALS_BIT |
-			    (s->is_teleport ? RG_GEOMETRY_UPLOAD_REFL_REFR_ALBEDO_ADD_BIT : 0),
+			    (is_mirror ? RG_GEOMETRY_UPLOAD_REFL_REFR_ALBEDO_MULTIPLY_BIT : 0) |
+			    (s->is_teleport ? RG_GEOMETRY_UPLOAD_REFL_REFR_ALBEDO_ADD_BIT : 0) |
+                RG_GEOMETRY_UPLOAD_GENERATE_NORMALS_BIT,
 			.geomType = is_static_geom ? RG_GEOMETRY_TYPE_STATIC : RG_GEOMETRY_TYPE_DYNAMIC,
 			.passThroughType = 
+			    is_mirror ? RG_GEOMETRY_PASS_THROUGH_TYPE_MIRROR :
 			    s->is_water ? RG_GEOMETRY_PASS_THROUGH_TYPE_WATER_REFLECT_REFRACT :
 			    s->is_teleport ? RG_GEOMETRY_PASS_THROUGH_TYPE_PORTAL :
 		        RG_GEOMETRY_PASS_THROUGH_TYPE_OPAQUE,
@@ -891,9 +893,11 @@ static void RT_FlushBatch (cb_context_t *cbx, const rt_uploadsurf_state_t *s, ui
 
 		if (s->is_teleport)
 		{
-			if (RT_FindNearestTeleport (&info, &portalindex, &potentially_mirror))
+			qboolean portal_is_mirror = false;
+
+			if (RT_FindNearestTeleport (&info, &portalindex, &portal_is_mirror))
 			{
-				if (potentially_mirror)
+				if (portal_is_mirror)
 				{
 					info.passThroughType = RG_GEOMETRY_PASS_THROUGH_TYPE_MIRROR;
 				}

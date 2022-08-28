@@ -1229,6 +1229,23 @@ static void GL_DeleteTexture (gltexture_t *texture)
 }
 
 
+static struct rt_texturecustominfo_s *RT_PushTexCustom (const char *texname, int type)
+{
+	struct rt_texturecustominfo_s *dst = &rt_texturecustominfos[rt_texturecustominfos_count];
+	rt_texturecustominfos_count++;
+
+	memset (dst, 0, sizeof (*dst));
+	{
+		strncpy (dst->rtname, texname, sizeof (dst->rtname));
+		dst->rtname[sizeof (dst->rtname) - 1] = '\0';
+
+		dst->type = type;
+	}
+
+	return dst;
+}
+
+
 static void RT_ParseTextureCustomInfos (void)
 {
 	if (rt_texturecustominfos_count != 0)
@@ -1320,43 +1337,50 @@ static void RT_ParseTextureCustomInfos (void)
 		{
 			curstate = RT_CUSTOMTEXTUREINFO_TYPE_RASTER_LIGHT;
 		}
+		else if (strcmp (curline, "@MIRROR") == 0)
+		{
+			curstate = RT_CUSTOMTEXTUREINFO_TYPE_MIRROR;
+		}
 		else
 		{
 			char texname[64];
 			char str_hexcolor[8];
 			float mult;
 
-			int c = sscanf (curline, "%s %6s %f", texname, str_hexcolor, &mult);
-			if (c >= 2)
+			if (curstate == RT_CUSTOMTEXTUREINFO_TYPE_MIRROR)
 			{
-				const char red[] = {str_hexcolor[0], str_hexcolor[1], '\0'};
-				uint32_t   ir = strtoul (red, NULL, 16);
-
-				const char green[] = {str_hexcolor[2], str_hexcolor[3], '\0'};
-				uint32_t   ig = strtoul (green, NULL, 16);
-
-				const char blue[] = {str_hexcolor[4], str_hexcolor[5], '\0'};
-				uint32_t   ib = strtoul (blue, NULL, 16);
-
-			    texname[sizeof texname - 1] = '\0';
-
-				mult = c >= 3 ? mult : 1.0f;
-
-				
-				struct rt_texturecustominfo_s *dst = &rt_texturecustominfos[rt_texturecustominfos_count];
-				rt_texturecustominfos_count++;
+				int c = sscanf (curline, "%s", texname);
+				if (c >= 1)
 				{
-					memset (dst, 0, sizeof (*dst));
-
-					dst->color[0] = (float)ir / 255.0f * mult;
-					dst->color[1] = (float)ig / 255.0f * mult;
-					dst->color[2] = (float)ib / 255.0f * mult;
-
-					strncpy (dst->rtname, texname, sizeof (dst->rtname));
-					dst->rtname[sizeof (dst->rtname) - 1] = '\0';
-
-					dst->type = curstate;
+					RT_PushTexCustom (texname, curstate);
 				}
+			}
+			else
+			{
+			    int c = sscanf (curline, "%s %6s %f", texname, str_hexcolor, &mult);
+			    if (c >= 2)
+			    {
+				    const char red[] = {str_hexcolor[0], str_hexcolor[1], '\0'};
+				    uint32_t   ir = strtoul (red, NULL, 16);
+
+				    const char green[] = {str_hexcolor[2], str_hexcolor[3], '\0'};
+				    uint32_t   ig = strtoul (green, NULL, 16);
+
+				    const char blue[] = {str_hexcolor[4], str_hexcolor[5], '\0'};
+				    uint32_t   ib = strtoul (blue, NULL, 16);
+
+			        texname[sizeof texname - 1] = '\0';
+
+				    mult = c >= 3 ? mult : 1.0f;
+
+				    
+				    struct rt_texturecustominfo_s *dst = RT_PushTexCustom (texname, curstate);
+				    {
+					    dst->color[0] = (float)ir / 255.0f * mult;
+					    dst->color[1] = (float)ig / 255.0f * mult;
+					    dst->color[2] = (float)ib / 255.0f * mult;
+				    }
+			    }
 			}
 		}
 	}

@@ -685,7 +685,7 @@ void Sky_ProcessTextureChains (cb_context_t *cbx, float color[3])
 
 		for (s = t->texturechains[chain_world]; s; s = s->texturechains[chain_world])
 		{
-			Sky_ProcessPoly (cbx, s->polys, color, RT_GetBrushSurfUniqueId (ENT_UNIQUEID_WORLD, cl.worldmodel, s));
+			Sky_ProcessPoly (cbx, s->polys, color, RT_GetBrushSurfUniqueId (ENT_UNIQUEID_WORLD, cl.worldmodel, s, 0));
 		}
 	}
 }
@@ -717,7 +717,7 @@ static void Sky_DrawSkySurface (cb_context_t *cbx, float color[3], int entunique
 		}
 	}
 
-	Sky_ProcessPoly (cbx, p, color, RT_GetBrushSurfUniqueId (entuniqueid, model, s));
+	Sky_ProcessPoly (cbx, p, color, RT_GetBrushSurfUniqueId (entuniqueid, model, s, 0));
 	TEMP_FREE (p);
 }
 
