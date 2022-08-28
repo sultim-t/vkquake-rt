@@ -416,7 +416,7 @@ static qboolean IsClassname_PointOfInterest (const char *classname, qboolean *ou
 {
 	if (CVAR_TO_BOOL (rt_poi_trigger))
 	{
-		if (StartsWith (classname, "trigger"))
+		if (StartsWith (classname, "trigger") || strcmp (classname, "info_teleport_destination") == 0)
 		{
 			*out_superimportant = true;
 			return true;
