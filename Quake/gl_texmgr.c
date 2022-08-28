@@ -1323,10 +1323,11 @@ static void RT_ParseTextureCustomInfos (void)
 		else
 		{
 			char texname[64];
-
 			char str_hexcolor[8];
-			int  c = sscanf (curline, "%s %6s", texname, str_hexcolor);
-			if (c == 2)
+			float mult;
+
+			int c = sscanf (curline, "%s %6s %f", texname, str_hexcolor, &mult);
+			if (c >= 2)
 			{
 				const char red[] = {str_hexcolor[0], str_hexcolor[1], '\0'};
 				uint32_t   ir = strtoul (red, NULL, 16);
@@ -1339,15 +1340,17 @@ static void RT_ParseTextureCustomInfos (void)
 
 			    texname[sizeof texname - 1] = '\0';
 
+				mult = c >= 3 ? mult : 1.0f;
+
 				
 				struct rt_texturecustominfo_s *dst = &rt_texturecustominfos[rt_texturecustominfos_count];
 				rt_texturecustominfos_count++;
 				{
 					memset (dst, 0, sizeof (*dst));
 
-					dst->color[0] = (float)ir / 255.0f;
-					dst->color[1] = (float)ig / 255.0f;
-					dst->color[2] = (float)ib / 255.0f;
+					dst->color[0] = (float)ir / 255.0f * mult;
+					dst->color[1] = (float)ig / 255.0f * mult;
+					dst->color[2] = (float)ib / 255.0f * mult;
 
 					strncpy (dst->rtname, texname, sizeof (dst->rtname));
 					dst->rtname[sizeof (dst->rtname) - 1] = '\0';

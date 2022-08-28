@@ -25,8 +25,8 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "quakedef.h"
 #include "gl_heap.h"
 
-extern cvar_t rt_model_metal;
-extern cvar_t rt_model_rough;
+extern cvar_t rt_model_metal, rt_model_rough;
+extern cvar_t rt_dlight_intensity, rt_dlight_radius;
 
 /*
 ================
@@ -187,6 +187,7 @@ void R_DrawSpriteModel (cb_context_t *cbx, entity_t *e, int entuniqueid)
 {
 	msprite_t      *psprite = (msprite_t *)e->model->extradata;
 	mspriteframe_t *frame = R_GetSpriteFrame (e);
+	gltexture_t    *tx = frame->gltexture;
 
 
     RgVertex vertices[4] = {0};
@@ -194,6 +195,28 @@ void R_DrawSpriteModel (cb_context_t *cbx, entity_t *e, int entuniqueid)
 
 	qboolean is_decal = psprite->type == SPR_ORIENTED;
 	qboolean is_rasterized = is_decal;
+
+	if (tx && tx->rtcustomtextype == RT_CUSTOMTEXTUREINFO_TYPE_RASTER_LIGHT)
+	{
+		is_rasterized = true;
+
+		float falloff_mult = 1.0f;
+
+		vec3_t color = {tx->rtlightcolor[0], tx->rtlightcolor[1], tx->rtlightcolor[2]};
+		VectorScale (color, CVAR_TO_FLOAT (rt_dlight_intensity), color);
+		VectorScale (color, RT_QUAKE_LIGHT_AREA_INTENSITY_FIX, color);
+		VectorScale (color, falloff_mult, color);
+
+		RgSphericalLightUploadInfo light_info = {
+			.uniqueID = RT_GetAliasModelUniqueId (entuniqueid),
+			.color = {color[0], color[1], color[2]},
+			.position = {e->origin[0], e->origin[1], e->origin[2]},
+			.radius = METRIC_TO_QUAKEUNIT (CVAR_TO_FLOAT (rt_dlight_radius)),
+		};
+
+		RgResult r = rgUploadSphericalLight (vulkan_globals.instance, &light_info);
+		RG_CHECK (r);
+	}
 
 	if (is_rasterized)
 	{
@@ -205,7 +228,7 @@ void R_DrawSpriteModel (cb_context_t *cbx, entity_t *e, int entuniqueid)
 			.pIndices = RT_GetFanIndices (countof (vertices)),
 			.transform = RT_TRANSFORM_IDENTITY,
 			.color = RT_COLOR_WHITE,
-			.material = frame->gltexture ? frame->gltexture->rtmaterial : RG_NO_MATERIAL,
+			.material = tx ? tx->rtmaterial : RG_NO_MATERIAL,
 			.pipelineState = 
 			    RG_RASTERIZED_GEOMETRY_STATE_DEPTH_TEST | 
 			    RG_RASTERIZED_GEOMETRY_STATE_DEPTH_WRITE | 
@@ -234,7 +257,7 @@ void R_DrawSpriteModel (cb_context_t *cbx, entity_t *e, int entuniqueid)
 			.defaultRoughness = CVAR_TO_FLOAT (rt_model_rough),
 			.defaultMetallicity = CVAR_TO_FLOAT (rt_model_metal),
 			.defaultEmission = 0,
-			.geomMaterial = {frame->gltexture ? frame->gltexture->rtmaterial : RG_NO_MATERIAL},
+			.geomMaterial = {tx ? tx->rtmaterial : RG_NO_MATERIAL},
 			.transform = RT_TRANSFORM_IDENTITY,
 		};
 

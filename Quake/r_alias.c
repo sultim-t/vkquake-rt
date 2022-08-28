@@ -204,7 +204,7 @@ static void GL_DrawAliasFrame (
 	qboolean isfirstperson = (e == &cl.viewent);
 	qboolean isviewer = (e == &cl.entities[cl.viewentity]) && !CVAR_TO_BOOL (chase_active);
 
-	if (tx->rtcustomtextype == RT_CUSTOMTEXTUREINFO_TYPE_RASTER_LIGHT)
+	if (tx && tx->rtcustomtextype == RT_CUSTOMTEXTUREINFO_TYPE_RASTER_LIGHT)
 	{
 		rasterize = true;
 
