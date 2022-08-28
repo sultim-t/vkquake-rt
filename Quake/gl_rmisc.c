@@ -455,9 +455,9 @@ void R_TimeRefresh_f (void)
 
 
 
-uint64_t RT_GetBrushSurfUniqueId (int entuniqueid, const qmodel_t *model, const msurface_t *surf)
+uint64_t RT_GetBrushSurfUniqueId (int entuniqueid, const qmodel_t *model, const msurface_t *surf, uint64_t triangle /* = 0 */)
 {
-	size_t surfindex = surf - model->surfaces;
+	uint64_t surfindex = surf - model->surfaces;
 
 	// look gl_model.c line 1327
     if (surfindex > 32767)
@@ -467,6 +467,7 @@ uint64_t RT_GetBrushSurfUniqueId (int entuniqueid, const qmodel_t *model, const 
 
 	return
         1ull << 60 |		// brush type
+	    triangle << 48 |	// triangle
 		surfindex << 32 |	// surface
 	    entuniqueid;		// entity
 }

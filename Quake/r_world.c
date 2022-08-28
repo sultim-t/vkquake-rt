@@ -38,6 +38,7 @@ extern cvar_t rt_brush_metal;
 extern cvar_t rt_brush_rough;
 extern cvar_t rt_enable_pvs;
 extern cvar_t rt_reflrefr_depth;
+extern cvar_t rt_dlight_intensity;
 
 cvar_t r_parallelmark = {"r_parallelmark", "1", CVAR_NONE};
 
@@ -718,6 +719,7 @@ RgTransform RT_GetBrushModelMatrix (entity_t *e)
 }
 
 static qboolean RT_FindNearestTeleport (const RgGeometryUploadInfo *info, uint8_t *result, qboolean *potentially_mirror);
+static RgFloat3D ApplyTransform (const RgTransform *transform, const vec3_t v);
 
 typedef struct rt_uploadsurf_state_t
 {
@@ -767,6 +769,36 @@ static void RT_FlushBatch (cb_context_t *cbx, const rt_uploadsurf_state_t *s, ui
 
 	gltexture_t *diffuse_tex = r_lightmap_cheatsafe ? NULL : s->diffuse_tex;
 	gltexture_t *lightmap_tex = r_fullbright_cheatsafe ? NULL : s->lightmap_tex;
+
+	if (diffuse_tex && diffuse_tex->rtcustomtextype == RT_CUSTOMTEXTUREINFO_TYPE_POLY_LIGHT)
+	{
+		RgTransform transf = RT_GetBrushModelMatrix (s->ent);
+
+		for (int tri = 0; tri < num_surf_indices / 3; tri++)
+		{
+			const vec_t *a0 = vertices[indices[tri * 3 + 0]].position;
+			const vec_t *a1 = vertices[indices[tri * 3 + 1]].position;
+			const vec_t *a2 = vertices[indices[tri * 3 + 2]].position;
+			
+			vec3_t color = RT_VEC3 (diffuse_tex->rtlightcolor);
+			VectorScale (color, CVAR_TO_FLOAT (rt_dlight_intensity), color);
+			VectorScale (color, RT_QUAKE_LIGHT_AREA_INTENSITY_FIX, color);
+			
+			RgPolygonalLightUploadInfo light_info = {
+				.uniqueID = RT_GetBrushSurfUniqueId (s->entuniqueid, s->model, s->surf, tri),
+				.color = RT_VEC3(color),
+				.positions =
+					{
+						ApplyTransform (&transf, a0),
+						ApplyTransform (&transf, a1),
+						ApplyTransform (&transf, a2),
+					},
+			};
+
+			RgResult r = rgUploadPolygonalLight (vulkan_globals.instance, &light_info);
+			RG_CHECK (r);
+		}
+	}
 
 	if (s->is_teleport && CVAR_TO_INT32 (rt_reflrefr_depth) > 0)
 	{
@@ -822,7 +854,7 @@ static void RT_FlushBatch (cb_context_t *cbx, const rt_uploadsurf_state_t *s, ui
 	else
 	{
 		RgGeometryUploadInfo info = {
-			.uniqueID = RT_GetBrushSurfUniqueId (s->entuniqueid, s->model, s->surf),
+			.uniqueID = RT_GetBrushSurfUniqueId (s->entuniqueid, s->model, s->surf, 0),
 			.flags = 
 			    RG_GEOMETRY_UPLOAD_GENERATE_NORMALS_BIT |
 			    (s->is_teleport ? RG_GEOMETRY_UPLOAD_REFL_REFR_ALBEDO_ADD_BIT : 0),
@@ -1451,9 +1483,6 @@ static qboolean RT_FindNearestTeleport (const RgGeometryUploadInfo *info, uint8_
 }
 
 
-#define RGVEC3(x) { (x)[0], (x)[1], (x)[2] }
-
-
 void RT_UploadAllTeleports ()
 {
 	assert (rt_teleports_count >= 0 && rt_teleports_count <= RG_MAX_PORTALS);
@@ -1474,10 +1503,10 @@ void RT_UploadAllTeleports ()
 		RgPortalUploadInfo info = 
 		{
 			.portalIndex = (uint8_t)i,
-			.inPosition = RGVEC3 (tele->a),
-			.outPosition = RGVEC3 (tele->b),
-			.outDirection = RGVEC3 (forward),
-			.outUp = RGVEC3 (up),
+			.inPosition = RT_VEC3 (tele->a),
+			.outPosition = RT_VEC3 (tele->b),
+			.outDirection = RT_VEC3 (forward),
+			.outUp = RT_VEC3 (up),
 		};
 
 		VectorAdd (info.outPosition.data, outoffset, info.outPosition.data);
