@@ -1151,7 +1151,12 @@ void R_UpdateLightmaps (void *unused)
 
 void R_UploadLightmaps (void)
 {
-	int lmap;
+	if (!CVAR_TO_BOOL(rt_classic_render))
+	{
+		return;
+	}
+
+    int lmap;
 
 	for (lmap = 0; lmap < lightmap_count; lmap++)
 	{
