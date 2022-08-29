@@ -99,6 +99,11 @@ static RgMaterialCreateFlags TexMgr_GetRtFlags (gltexture_t *glt)
 		fs |= RG_MATERIAL_CREATE_DYNAMIC_SAMPLER_FILTER_BIT;
 	}
 
+	if (glt->source_format == SRC_LIGHTMAP)
+	{
+		fs |= RG_MATERIAL_CREATE_UPDATEABLE_BIT;
+	}
+
 	return fs;
 }
 
