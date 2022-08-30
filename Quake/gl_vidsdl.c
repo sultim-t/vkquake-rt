@@ -131,7 +131,7 @@ task_handle_t prev_end_rendering_task = INVALID_TASK_HANDLE;
 	CVAR_DEF_T (rt_muzzleoffs_y, "-30") \
 	CVAR_DEF_T (rt_muzzleoffs_z, "100") \
 	\
-	CVAR_DEF_T (rt_sky_intensity, "0.7") \
+	CVAR_DEF_T (rt_sky_intensity, "1.0") \
 	CVAR_DEF_T (rt_sky_saturation, "1") \
 	\
 	CVAR_DEF_T (rt_brush_metal, "0.0") \
@@ -142,6 +142,7 @@ task_handle_t prev_end_rendering_task = INVALID_TASK_HANDLE;
 	CVAR_DEF_T (rt_normalmap_stren, "1") \
 	CVAR_DEF_T (rt_emis_mapboost, "1") \
 	CVAR_DEF_T (rt_emis_maxscrcolor, "32") \
+	CVAR_DEF_T (rt_emis_fullbright_dflt, "32") \
     \
 	CVAR_DEF_T (rt_reflrefr_depth, "2") \
 	CVAR_DEF_T (rt_reflrefr_castshadows, "0") \

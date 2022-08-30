@@ -49,6 +49,8 @@ static cvar_t gl_picmip = {"gl_picmip", "0", CVAR_NONE};
 extern cvar_t vid_filter;
 extern cvar_t vid_anisotropic;
 
+extern cvar_t rt_emis_fullbright_dflt;
+
 #define MAX_MIPS 16
 static int          numgltextures;
 static gltexture_t *active_gltextures, *free_gltextures;
@@ -185,6 +187,15 @@ static void FullbrightToRME (unsigned width, unsigned height, byte *fullbright)
 	while (pixels-- > 0)
 	{
 		byte lum = Luminance (fullbright[0], fullbright[1], fullbright[2]);
+
+		if (lum > 0)
+		{
+			lum = CLAMP (0, CVAR_TO_UINT32 (rt_emis_fullbright_dflt), 255);
+		}
+		else
+		{
+			lum = 0;
+		}
 
 		// rough
 		fullbright[0] = rtspecial_default_rough;
