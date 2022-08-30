@@ -615,6 +615,40 @@ static void CL_RocketTrail (entity_t *ent, int type)
 	VectorCopy (ent->origin, ent->trailorg);
 }
 
+static void RT_OffsetFromCamera (vec3_t out_position, float offset_right, float offset_up, float offset_forward)
+{
+	// start with camera position
+	VectorCopy (r_origin, out_position);
+
+	// set desired position
+	VectorMA (out_position, offset_right, vright, out_position);
+	VectorMA (out_position, offset_up, vup, out_position);
+	VectorMA (out_position, offset_forward, vpn, out_position);
+
+	vec3_t tolight;
+	VectorSubtract (out_position, r_origin, tolight);
+	const float len = VectorLength (tolight);
+	VectorScale (tolight, 1.0f / len, tolight);
+
+	if (len > 0.01f)
+	{
+		const float fraction = 0.7f;
+
+		vec3_t end;
+		VectorMA (r_origin, len / fraction, tolight, end);
+
+		// trace line, if hit something, smoothly offset to camera
+		vec3_t hitpoint;
+		TraceLine (r_origin, end, hitpoint);
+
+		vec3_t delta;
+		VectorSubtract (hitpoint, r_origin, delta);
+		float disttoend = CLAMP (0.0f, VectorLength (delta), len / fraction);
+
+		VectorMA (r_origin, fraction * disttoend, tolight, out_position);
+	}
+}
+
 /*
 ===============
 CL_RelinkEntities
@@ -725,34 +759,10 @@ void CL_RelinkEntities (void)
 #if RT_RENDERER
 			if (ent == &cl.entities[cl.viewentity])
 			{
-			    // offset first-person muzzle flash relative to the camera
-				VectorCopy (r_origin, dl->origin);
-
-				VectorMA (dl->origin, (CVAR_TO_FLOAT (rt_muzzleoffs_x)), vright, dl->origin);
-				VectorMA (dl->origin, (CVAR_TO_FLOAT (rt_muzzleoffs_y)), vup, dl->origin);
-				VectorMA (dl->origin, (CVAR_TO_FLOAT (rt_muzzleoffs_z)), vpn, dl->origin);
-
-				vec3_t tolight;
-				VectorSubtract (dl->origin, r_origin, tolight);
-				const float len = VectorLength (tolight);
-				VectorScale (tolight, 1.0f / len, tolight);
-
-				if (len > 0.01f)
-				{
-					const float fraction = 0.7f;
-					
-					vec3_t end;
-					VectorMA (r_origin, len / fraction, tolight, end);
-
-					vec3_t hitpoint;
-					TraceLine (r_origin, end, hitpoint);
-
-					vec3_t delta;
-					VectorSubtract (hitpoint, r_origin, delta);
-					float disttoend = CLAMP (0.0f, VectorLength (delta), len / fraction);
-					
-					VectorMA (r_origin, fraction * disttoend, tolight, dl->origin);
-				}
+				RT_OffsetFromCamera (dl->origin, 
+					CVAR_TO_FLOAT (rt_muzzleoffs_x), 
+					CVAR_TO_FLOAT (rt_muzzleoffs_y), 
+					CVAR_TO_FLOAT (rt_muzzleoffs_z));
 			}
 			else
 #endif
@@ -780,6 +790,17 @@ void CL_RelinkEntities (void)
 			}
 			// johnfitz
 		}
+
+        #define RT_OFFSET_LIGHT(dlightdst)			\
+	        if (ent == &cl.entities[cl.viewentity])	\
+	        {										\
+		        RT_OffsetFromCamera (				\
+	                (dlightdst)->origin,			\
+	                METRIC_TO_QUAKEUNIT (-0.25f),	\
+	                METRIC_TO_QUAKEUNIT (-0.4f),	\
+	                METRIC_TO_QUAKEUNIT (2.0f));	\
+	        }
+
 		if (ent->effects & EF_BRIGHTLIGHT)
 		{
 			dl = CL_AllocDlight (i);
@@ -787,6 +808,8 @@ void CL_RelinkEntities (void)
 			dl->origin[2] += 16;
 			dl->radius = 400 + (rand () & 31);
 			dl->die = cl.time + 0.001;
+
+			RT_OFFSET_LIGHT (dl)
 		}
 		if (ent->effects & EF_DIMLIGHT)
 		{
@@ -794,6 +817,8 @@ void CL_RelinkEntities (void)
 			VectorCopy (ent->origin, dl->origin);
 			dl->radius = 200 + (rand () & 31);
 			dl->die = cl.time + 0.001;
+
+			RT_OFFSET_LIGHT (dl)
 		}
 		if (ent->effects & EF_QEX_QUADLIGHT)
 		{
@@ -804,6 +829,8 @@ void CL_RelinkEntities (void)
 			dl->color[0] = 0.25f;
 			dl->color[1] = 0.25f;
 			dl->color[2] = 1.0f;
+
+			RT_OFFSET_LIGHT (dl)
 		}
 		if (ent->effects & EF_QEX_PENTALIGHT)
 		{
@@ -814,6 +841,8 @@ void CL_RelinkEntities (void)
 			dl->color[0] = 1.0f;
 			dl->color[1] = 0.25f;
 			dl->color[2] = 0.25f;
+
+			RT_OFFSET_LIGHT (dl)
 		}
 
 #ifdef PSET_SCRIPT
