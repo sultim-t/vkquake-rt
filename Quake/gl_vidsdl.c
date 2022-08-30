@@ -165,6 +165,10 @@ task_handle_t prev_end_rendering_task = INVALID_TASK_HANDLE;
 	CVAR_DEF_T (rt_upscale_fsr2, "2") \
 	CVAR_DEF_T (rt_upscale_dlss, "0") \
 	\
+	CVAR_DEF_T (rt_sensit_dir, "0.4") \
+	CVAR_DEF_T (rt_sensit_indir, "0.4") \
+	CVAR_DEF_T (rt_sensit_spec, "0.4") \
+	\
 	CVAR_DEF_T (rt_tnmp_minlog, "-6") \
 	CVAR_DEF_T (rt_tnmp_maxlog, "0") \
 	CVAR_DEF_T (rt_tnmp_white, "10") \
@@ -875,9 +879,9 @@ static void GL_EndRenderingTask (end_rendering_parms_t *parms)
 	RgDrawFrameIlluminationParams illum_params = {
 	    .maxBounceShadows = CVAR_TO_UINT32 (rt_shadowrays),
 		.cellWorldSize = METRIC_TO_QUAKEUNIT(2.0f),
-		.directDiffuseSensitivityToChange = 0.4f,
-		.indirectDiffuseSensitivityToChange = 0.1f,
-		.specularSensitivityToChange = 0.4f,
+		.directDiffuseSensitivityToChange = CVAR_TO_FLOAT (rt_sensit_dir),
+		.indirectDiffuseSensitivityToChange = CVAR_TO_FLOAT (rt_sensit_indir),
+		.specularSensitivityToChange = CVAR_TO_FLOAT (rt_sensit_spec),
 		.polygonalLightSpotlightFactor = 2.0f,
 		.sphericalPolygonalLightsFirefliesClamp = 3.0f,
 		.lightUniqueIdIgnoreFirstPersonViewerShadows = NULL,
