@@ -177,8 +177,9 @@ task_handle_t prev_end_rendering_task = INVALID_TASK_HANDLE;
 	CVAR_DEF_T (rt_bloom_intensity, "1") \
 	CVAR_DEF_T (rt_bloom_threshold, "30") \
 	CVAR_DEF_T (rt_bloom_emis_mult, "4") \
-	CVAR_DEF_T (rt_bloom_satur_bias, "1") \
+	CVAR_DEF_T (rt_bloom_satur_bias, "0") \
 	CVAR_DEF_T (rt_bloom_sky_mult, "0.05") \
+	CVAR_DEF_T (rt_bloom_raster_mult, "10") \
 	\
 	CVAR_DEF_T (rt_ef_crt, "0") \
 	CVAR_DEF_T (rt_ef_interlacing, "0") \
@@ -902,6 +903,7 @@ static void GL_EndRenderingTask (end_rendering_parms_t *parms)
 		.bloomEmissionMultiplier = CVAR_TO_FLOAT (rt_bloom_emis_mult),
 		.bloomEmissionSaturationBias = CVAR_TO_FLOAT (rt_bloom_satur_bias),
 		.bloomSkyMultiplier = CVAR_TO_FLOAT (rt_bloom_sky_mult),
+		.bloomRasterMultiplier = CVAR_TO_FLOAT (rt_bloom_raster_mult),
 	};
 
 	RgDrawFrameReflectRefractParams refl_refr_params = {
