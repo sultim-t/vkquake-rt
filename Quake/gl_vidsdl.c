@@ -175,7 +175,7 @@ task_handle_t prev_end_rendering_task = INVALID_TASK_HANDLE;
 	CVAR_DEF_T (rt_tnmp_white, "10") \
 	\
 	CVAR_DEF_T (rt_bloom_intensity, "1") \
-	CVAR_DEF_T (rt_bloom_threshold, "15") \
+	CVAR_DEF_T (rt_bloom_threshold, "30") \
 	CVAR_DEF_T (rt_bloom_emis_mult, "4") \
 	CVAR_DEF_T (rt_bloom_satur_bias, "1") \
 	CVAR_DEF_T (rt_bloom_sky_mult, "0.05") \
