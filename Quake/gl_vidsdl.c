@@ -81,8 +81,8 @@ extern cvar_t   r_particles, host_maxfps, r_gpulightmapupdate;
 
 // johnfitz -- new cvars
 static cvar_t                   vid_fullscreen = {"vid_fullscreen", "0", CVAR_ARCHIVE}; // QuakeSpasm, was "1"
-static cvar_t                   vid_width = {"vid_width", "800", CVAR_ARCHIVE};         // QuakeSpasm, was 640
-static cvar_t                   vid_height = {"vid_height", "600", CVAR_ARCHIVE};       // QuakeSpasm, was 480
+static cvar_t                   vid_width = {"vid_width", "-1", CVAR_ARCHIVE};         // RT: set to "-1", so we have 
+static cvar_t                   vid_height = {"vid_height", "-1", CVAR_ARCHIVE};       //     desktop resolution at the first time
 static cvar_t                   vid_refreshrate = {"vid_refreshrate", "60", CVAR_ARCHIVE};
 static cvar_t                   vid_vsync = {"vid_vsync", "0", CVAR_ARCHIVE};
 static cvar_t                   vid_desktopfullscreen = {"vid_desktopfullscreen", "0", CVAR_ARCHIVE}; // QuakeSpasm
@@ -1326,6 +1326,14 @@ void VID_Init (void)
 			fullscreen = false;
 		else if (COM_CheckParm ("-fullscreen") || COM_CheckParm ("-f"))
 			fullscreen = true;
+	}
+
+	if (width <= 0 || height <= 0)
+	{
+		width = display_width;
+		height = display_height;
+		refreshrate = display_refreshrate;
+		fullscreen = false;
 	}
 
 	if (!VID_ValidMode (width, height, refreshrate, fullscreen))
