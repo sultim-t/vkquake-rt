@@ -260,24 +260,16 @@ void M_Menu_Main_f (void)
 	m_entersound = true;
 }
 
-static qpic_t *Get_Menu2 ()
-{
-	qboolean base_game = COM_GetGameNames (false)[0] == 0;
-	// Check if user has actually installed vkquake.pak, otherwise fall back to old menu
-	return base_game ? Draw_TryCachePic ("gfx/mainmenu2.lmp", TEXPREF_ALPHA | TEXPREF_PAD | TEXPREF_NOPICMIP) : NULL;
-}
-
 void M_Main_Draw (cb_context_t *cbx)
 {
 	int     f;
 	qpic_t *p;
-	qpic_t *menu2 = Get_Menu2 ();
 
 	M_DrawTransPic (cbx, 16, 4, Draw_CachePic ("gfx/qplaque.lmp"));
 	p = Draw_CachePic ("gfx/ttl_main.lmp");
 	M_DrawPic (cbx, (320 - p->width) / 2, 4, p);
 
-	M_DrawTransPic (cbx, 72, 32, menu2 ? menu2 : Draw_CachePic ("gfx/mainmenu.lmp"));
+	M_DrawTransPic (cbx, 72, 32, Draw_CachePic ("gfx/mainmenu.lmp"));
 
 	f = (int)(realtime * 10) % 6;
 
@@ -286,8 +278,6 @@ void M_Main_Draw (cb_context_t *cbx)
 
 void M_Main_Key (int key)
 {
-	qpic_t *menu2 = Get_Menu2 ();
-
 	switch (key)
 	{
 	case K_ESCAPE:
@@ -304,14 +294,14 @@ void M_Main_Key (int key)
 
 	case K_DOWNARROW:
 		S_LocalSound ("misc/menu1.wav");
-		if (++m_main_cursor >= (MAIN_ITEMS + (menu2 ? 1 : 0)))
+		if (++m_main_cursor >= MAIN_ITEMS)
 			m_main_cursor = 0;
 		break;
 
 	case K_UPARROW:
 		S_LocalSound ("misc/menu1.wav");
 		if (--m_main_cursor < 0)
-			m_main_cursor = (MAIN_ITEMS + (menu2 ? 1 : 0)) - 1;
+			m_main_cursor = MAIN_ITEMS - 1;
 		break;
 
 	case K_ENTER:
@@ -334,16 +324,12 @@ void M_Main_Key (int key)
 			break;
 
 		case 3:
-			M_Menu_Help_f ();
+			// RT: assuming that we always have
+			// an overridden gfx/mainmenu.lmp with 'Mods' button
+			M_Menu_Mods_f ();
 			break;
 
 		case 4:
-			if (menu2)
-				M_Menu_Mods_f ();
-			else
-				M_Menu_Quit_f ();
-			break;
-		case 5:
 			M_Menu_Quit_f ();
 			break;
 		}
@@ -1781,8 +1767,12 @@ void M_Menu_Mods_f (void)
 void M_Mods_Draw (cb_context_t *cbx)
 {
 	M_DrawTransPic (cbx, 16, 4, Draw_CachePic ("gfx/qplaque.lmp"));
-	qpic_t *p = Draw_CachePic ("gfx/p_mods.lmp");
-	M_DrawPic (cbx, (320 - p->width) / 2, 4, p);
+	// should be: Draw_CachePic ("gfx/p_mods.lmp");
+	qpic_t *p = Draw_TryCachePic ("gfx/p_mods.lmp", TEXPREF_ALPHA | TEXPREF_PAD | TEXPREF_NOPICMIP);
+	if (p)
+	{
+	    M_DrawPic (cbx, (320 - p->width) / 2, 4, p);
+	}
 	int mod_index = -first_mod;
 
 	for (filelist_item_t *item = modlist; item; item = item->next)
