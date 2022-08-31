@@ -412,6 +412,12 @@ static qboolean IsClassname_LightWithModel (const char *classname)
 	return StartsWith (classname, "light_");
 }
 
+static qboolean IsClassname_Offsetted (const char *classname)
+{
+	// to prevent light source being inside the flame model
+	return strcmp (classname, "light_torch_small_walltorch") == 0;
+}
+
 static qboolean IsClassname_PointOfInterest (const char *classname, qboolean *out_superimportant)
 {
 	if (CVAR_TO_BOOL (rt_poi_trigger))
@@ -669,6 +675,7 @@ void RT_ParseElights ()
     #define STRUCT_STATE_FOUND_INTENSITY      8
     #define STRUCT_STATE_FOUND_WITH_MODEL     16
     #define STRUCT_STATE_FOUND_LIGHTSTYLE     32
+    #define STRUCT_STATE_FOUND_APPLY_OFFSET   64
 	
 	while (1)
 	{
@@ -726,6 +733,11 @@ void RT_ParseElights ()
 			if (IsClassname_LightWithModel (value))
 			{
 				struct_values.state |= STRUCT_STATE_FOUND_WITH_MODEL;
+
+				if (IsClassname_Offsetted (value))
+				{
+					struct_values.state |= STRUCT_STATE_FOUND_APPLY_OFFSET;
+				}
 			}
 		}
 		else if (strcmp (key, "origin") == 0)
@@ -830,7 +842,7 @@ void RT_UploadAllElights ()
 			};
 
 			// offset up a bit, so light is not inside the model itself
-			if (src->state & STRUCT_STATE_FOUND_WITH_MODEL)
+			if (src->state & STRUCT_STATE_FOUND_APPLY_OFFSET)
 			{
 				info.position.data[2] += METRIC_TO_QUAKEUNIT (0.75f);
 			}
