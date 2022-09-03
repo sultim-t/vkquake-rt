@@ -1753,11 +1753,7 @@ static void VID_Menu_ChooseNextMode (int dir)
 		}
 		else
 		{
-			i += dir;
-			if (i >= vid_menu_nummodes)
-				i = 0;
-			else if (i < 0)
-				i = vid_menu_nummodes - 1;
+			i = CLAMP (0, i + dir, vid_menu_nummodes - 1);
 		}
 
 		Cvar_SetValueQuick (&vid_width, (float)vid_menu_modes[i].width);
