@@ -1552,12 +1552,13 @@ enum
 {
 	VID_OPT_MODE,
 	VID_OPT_REFRESHRATE,
+	VID_OPT_APPLY,
 
 
+	VID_OPT_RENDERER,
 	VID_OPT_VSYNC,
 	VID_OPT_MAX_FPS,
 
-	VID_OPT_RENDERER,
 
 	VID_OPT_FSR2,
 	VID_OPT_DLSS,
@@ -1973,6 +1974,9 @@ static void VID_MenuKey (int key)
 		//case VID_OPT_REFRESHRATE:
 		//	VID_Menu_ChooseNextRate (1);
 		//	break;
+		case VID_OPT_APPLY:
+			Cbuf_AddText ("vid_restart\n");
+			break;
 		case VID_OPT_RENDERER:
 			RT_SwitchRenderer ();
 			break;
@@ -2029,6 +2033,17 @@ static void VID_MenuDraw (cb_context_t *cbx)
 			M_Print (cbx, 16, y, "      Refresh rate");
 			M_Print (cbx, 184, y, va ("%i", (int)vid_refreshrate.value));
 			break;
+		case VID_OPT_APPLY:
+			M_Print (cbx, 16, y, "             Apply");
+			break;
+
+
+		case VID_OPT_RENDERER:
+			y += 8; // separate
+
+			M_Print (cbx, 16, y, "          Renderer");
+			M_Print (cbx, 184, y, CVAR_TO_BOOL (rt_classic_render) ? "Classic" : "Ray Traced");
+			break;
 		case VID_OPT_VSYNC:
 			M_Print (cbx, 16, y, "     Vertical sync");
 			M_DrawCheckbox (cbx, 184, y, (int)vid_vsync.value);
@@ -2039,14 +2054,6 @@ static void VID_MenuDraw (cb_context_t *cbx)
 				M_Print (cbx, 184, y, "no limit");
 			else
 				M_Print (cbx, 184, y, va ("%d", menu_settings.host_maxfps));
-			break;
-
-
-		case VID_OPT_RENDERER:
-			y += 8; // separate
-
-			M_Print (cbx, 16, y, "          Renderer");
-			M_Print (cbx, 184, y, CVAR_TO_BOOL (rt_classic_render) ? "Classic" : "Ray Traced");
 			break;
 
 
