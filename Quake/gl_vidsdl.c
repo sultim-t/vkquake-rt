@@ -2030,6 +2030,7 @@ static void VID_MenuKey (int key)
 		//case VID_OPT_REFRESHRATE:
 		//	VID_Menu_ChooseNextRate (1);
 		//	break;
+		case VID_OPT_MODE:
 		case VID_OPT_APPLY:
 			Cbuf_AddText ("vid_restart\n");
 			break;
