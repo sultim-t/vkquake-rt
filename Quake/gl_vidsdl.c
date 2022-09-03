@@ -101,6 +101,7 @@ task_handle_t prev_end_rendering_task = INVALID_TASK_HANDLE;
 	CVAR_DEF_T (rt_classic_render, "0") \
 	CVAR_DEF_T (rt_enable_pvs, "0") \
 	CVAR_DEF_T (rt_shadowrays, "2") \
+	CVAR_DEF_T (rt_antifirefly, "0") \
     \
 	CVAR_DEF_T (rt_dlight_intensity, "3.0") \
 	CVAR_DEF_T (rt_dlight_radius, "0.02") \
@@ -140,7 +141,7 @@ task_handle_t prev_end_rendering_task = INVALID_TASK_HANDLE;
 	CVAR_DEF_T (rt_model_rough, "0.9") \
     \
 	CVAR_DEF_T (rt_normalmap_stren, "1") \
-	CVAR_DEF_T (rt_emis_mapboost, "1") \
+	CVAR_DEF_T (rt_emis_mapboost, "2") \
 	CVAR_DEF_T (rt_emis_maxscrcolor, "32") \
 	CVAR_DEF_T (rt_emis_fullbright_dflt, "32") \
     \
@@ -149,6 +150,8 @@ task_handle_t prev_end_rendering_task = INVALID_TASK_HANDLE;
 	CVAR_DEF_T (rt_reflrefr_toindir, "0") \
 	CVAR_DEF_T (rt_refr_glass, "1.52") \
 	CVAR_DEF_T (rt_refr_water, "1.33") \
+	\
+	CVAR_DEF_T (rt_volumetric_far, "800") \
     \
 	CVAR_DEF_T (rt_water_density, "0.1") \
 	CVAR_DEF_T (rt_water_colr, "0.025") \
@@ -606,12 +609,12 @@ static void GL_InitInstance (void)
 		.rayCullBackFacingTriangles = 1,
 		.allowGeometryWithSkyFlag = 1,
 
-		.rasterizedMaxVertexCount = 1 << 20,
-		.rasterizedMaxIndexCount = 1 << 21,
+		.rasterizedMaxVertexCount = 1 << 16,
+		.rasterizedMaxIndexCount = 1 << 17,
 
 		.rasterizedVertexColorGamma = true,
 		.rasterizedSkyMaxVertexCount = 1 << 16,
-		.rasterizedSkyMaxIndexCount = 1 << 16,
+		.rasterizedSkyMaxIndexCount = 1 << 17,
 
 		.rasterizedSkyCubemapSize = 256,
 
@@ -1026,13 +1029,14 @@ static void GL_EndRenderingTask (end_rendering_parms_t *parms)
 		.fovYRadians = DEG2RAD (r_fovy),
 		.cameraNear = cameranear,
 		.cameraFar = camerafar,
-		.rayCullMaskWorld = RG_DRAW_FRAME_RAY_CULL_WORLD_0_BIT | RG_DRAW_FRAME_RAY_CULL_WORLD_1_BIT | RG_DRAW_FRAME_RAY_CULL_SKY_BIT,
 		.rayLength = 10000.0f,
-		.primaryRayMinDist = cameranear,
+		.volumetricFar = CVAR_TO_FLOAT (rt_volumetric_far),
+		.rayCullMaskWorld = RG_DRAW_FRAME_RAY_CULL_WORLD_0_BIT | RG_DRAW_FRAME_RAY_CULL_WORLD_1_BIT | RG_DRAW_FRAME_RAY_CULL_SKY_BIT,
 		.disableRayTracedGeometry = false,
 		.disableRasterization = false,
 		.currentTime = (double)SDL_GetTicks () / 1000.0,
 		.disableEyeAdaptation = false,
+		.forceAntiFirefly = CVAR_TO_BOOL (rt_antifirefly),
 		.pRenderResolutionParams = &resolution_params,
 		.pIlluminationParams = &illum_params,
 		.pTonemappingParams = &tm_params,
@@ -1053,7 +1057,6 @@ static void GL_EndRenderingTask (end_rendering_parms_t *parms)
 		.pDebugParams = &debug_params,
 	};
 	memcpy (info.view, vulkan_globals.view_matrix, 16 * sizeof(float));
-	memcpy (info.projection, vulkan_globals.projection_matrix, 16 * sizeof(float));
 
 	RgResult r = rgDrawFrame (vulkan_globals.instance, &info);
 	RG_CHECK (r);
