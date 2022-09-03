@@ -186,7 +186,6 @@ task_handle_t prev_end_rendering_task = INVALID_TASK_HANDLE;
 	CVAR_DEF_T (rt_bloom_raster_mult, "10") \
 	\
 	CVAR_DEF_T (rt_ef_crt, "0") \
-	CVAR_DEF_T (rt_ef_interlacing, "0") \
 	CVAR_DEF_T (rt_ef_chraber, "0.3") \
 	CVAR_DEF_T (rt_ef_waves_stren, "1") \
 	\
@@ -941,7 +940,6 @@ static void GL_EndRenderingTask (end_rendering_parms_t *parms)
 
 	RgDrawFrameRenderResolutionParams resolution_params = {
 		.renderSize = size,
-		.interlacing = CVAR_TO_BOOL (rt_ef_interlacing),
 	};
 	UpscaleCvarsToRtgl (&resolution_params);
 	resolution_params.sharpenTechnique = resolution_params.upscaleTechnique == RG_RENDER_UPSCALE_TECHNIQUE_AMD_FSR2 ?
