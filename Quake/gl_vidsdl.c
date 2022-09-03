@@ -165,7 +165,7 @@ task_handle_t prev_end_rendering_task = INVALID_TASK_HANDLE;
 	CVAR_DEF_T (rt_portal_twirl, "1") \
     \
 	CVAR_DEF_T (rt_sharpen, "0") \
-	CVAR_DEF_T (rt_renderscale, "100") \
+	CVAR_DEF_T (rt_renderscale, "0") \
 	CVAR_DEF_T (rt_upscale_fsr2, "2") \
 	CVAR_DEF_T (rt_upscale_dlss, "0") \
 	\
@@ -564,8 +564,8 @@ static void RT_ReloadShaders (void)
 
 static void RT_SwitchRenderer (void)
 {
-	qboolean newval = !CVAR_TO_BOOL (rt_classic_render);
-	Cvar_SetQuick (&rt_classic_render, newval ? "1" : "0");
+	int newval = !CVAR_TO_BOOL (rt_classic_render);
+	Cvar_SetValueQuick (&rt_classic_render, newval);
 }
 
 /*
@@ -868,8 +868,13 @@ GL_EndRenderingTask
 */
 static void GL_EndRenderingTask (end_rendering_parms_t *parms)
 {
-	float rscl = CVAR_TO_FLOAT (rt_renderscale) / 100.0f;
-	rscl = CLAMP (rscl, 0.2f, 1.5f);
+	float rscl = 1.0f;
+
+	if (CVAR_TO_INT32 (rt_renderscale) > 0 && CVAR_TO_INT32 (rt_renderscale) < 100)
+	{
+		rscl = (float)CVAR_TO_INT32 (rt_renderscale) / 100.0f;
+		rscl = CLAMP (rscl, 0.2f, 1.0f);
+	}
 
 	RgDrawFrameRenderResolutionParams resolution_params = {
 		.renderSize.width = (uint32_t)(rscl * parms->vid_width),
@@ -1547,6 +1552,8 @@ enum
 {
 	VID_OPT_MODE,
 	VID_OPT_REFRESHRATE,
+
+
 	VID_OPT_VSYNC,
 	VID_OPT_MAX_FPS,
 
@@ -1559,7 +1566,7 @@ enum
 	VID_OPT_FILTER,
 	VID_OPT_PARTICLES,
 
-	VID_OPT_APPLY,
+	VID_OPT_BACK,
 
 	VIDEO_OPTIONS_ITEMS
 };
@@ -1827,14 +1834,35 @@ VID_MenuKey
 */
 static void VID_MenuKey (int key)
 {
+	{
+		qboolean leave = false;
+
+		if (key == K_ESCAPE || key == K_BACKSPACE)
+		{
+			leave = true;
+		}
+
+		if (key == K_ENTER || key == K_KP_ENTER)
+		{
+			if (video_options_cursor == VID_OPT_BACK)
+			{
+				m_entersound = true;
+				leave = true;
+			}
+		}
+
+		if (leave)
+		{
+			VID_SyncCvars (); // sync cvars before leaving menu. FIXME: there are other ways to leave menu
+			S_LocalSound ("misc/menu1.wav");
+			M_Menu_Options_f ();
+
+			return;
+		}
+	}
+
 	switch (key)
 	{
-	case K_ESCAPE:
-		VID_SyncCvars (); // sync cvars before leaving menu. FIXME: there are other ways to leave menu
-		S_LocalSound ("misc/menu1.wav");
-		M_Menu_Options_f ();
-		break;
-
 	case K_UPARROW:
 		S_LocalSound ("misc/menu1.wav");
 		video_options_cursor--;
@@ -1864,6 +1892,7 @@ static void VID_MenuKey (int key)
 			break;
 		case VID_OPT_MAX_FPS:
 			VID_Menu_ChooseNextMaxFPS (-1);
+			Cvar_SetValueQuick (&host_maxfps, menu_settings.host_maxfps);
 			break;
 		case VID_OPT_RENDERER:
 			RT_SwitchRenderer ();
@@ -1871,13 +1900,18 @@ static void VID_MenuKey (int key)
 		case VID_OPT_FSR2:
 		case VID_OPT_DLSS:
 		case VID_OPT_RENDER_SCALE:
-			VID_Menu_ChooseNextAA (video_options_cursor , - 1);
+			VID_Menu_ChooseNextAA (video_options_cursor, -1);
+			Cvar_SetValueQuick (&rt_upscale_fsr2, menu_settings.rt_upscale_fsr2);
+			Cvar_SetValueQuick (&rt_upscale_dlss, menu_settings.rt_upscale_dlss);
+			Cvar_SetValueQuick (&rt_renderscale, menu_settings.rt_renderscale);
 			break;
 		case VID_OPT_FILTER:
 			menu_settings.vid_filter = (menu_settings.vid_filter == 0) ? 1 : 0;
+			Cvar_SetValueQuick (&vid_filter, menu_settings.vid_filter);
 			break;
 		case VID_OPT_PARTICLES:
 			VID_Menu_ChooseNextParticles (-1);
+			Cvar_SetValueQuick (&r_particles, menu_settings.r_particles);
 			break;
 		default:
 			break;
@@ -1899,6 +1933,7 @@ static void VID_MenuKey (int key)
 			break;
 		case VID_OPT_MAX_FPS:
 			VID_Menu_ChooseNextMaxFPS (1);
+			Cvar_SetValueQuick (&host_maxfps, menu_settings.host_maxfps);
 			break;
 		case VID_OPT_RENDERER:
 			RT_SwitchRenderer ();
@@ -1907,12 +1942,17 @@ static void VID_MenuKey (int key)
 		case VID_OPT_DLSS:
 		case VID_OPT_RENDER_SCALE:
 			VID_Menu_ChooseNextAA (video_options_cursor, 1);
+			Cvar_SetValueQuick (&rt_upscale_fsr2, menu_settings.rt_upscale_fsr2);
+			Cvar_SetValueQuick (&rt_upscale_dlss, menu_settings.rt_upscale_dlss);
+			Cvar_SetValueQuick (&rt_renderscale, menu_settings.rt_renderscale);
 			break;
 		case VID_OPT_FILTER:
 			menu_settings.vid_filter = (menu_settings.vid_filter == 0) ? 1 : 0;
+			Cvar_SetValueQuick (&vid_filter, menu_settings.vid_filter);
 			break;
 		case VID_OPT_PARTICLES:
 			VID_Menu_ChooseNextParticles (1);
+			Cvar_SetValueQuick (&r_particles, menu_settings.r_particles);
 			break;
 		default:
 			break;
@@ -1933,43 +1973,11 @@ static void VID_MenuKey (int key)
 		//case VID_OPT_REFRESHRATE:
 		//	VID_Menu_ChooseNextRate (1);
 		//	break;
-		case VID_OPT_VSYNC:
-			Cbuf_AddText ("toggle vid_vsync\n");
-			break;
-		case VID_OPT_MAX_FPS:
-			Cvar_SetValueQuick (&host_maxfps, menu_settings.host_maxfps);
-			break;
 		case VID_OPT_RENDERER:
 			RT_SwitchRenderer ();
 			break;
-		case VID_OPT_FSR2:
-		case VID_OPT_DLSS:
-		case VID_OPT_RENDER_SCALE:
-			Cvar_SetValueQuick (&rt_upscale_fsr2, menu_settings.rt_upscale_fsr2);
-			Cvar_SetValueQuick (&rt_upscale_dlss, menu_settings.rt_upscale_dlss);
-			Cvar_SetValueQuick (&rt_renderscale, menu_settings.rt_renderscale);
-			break;
-		case VID_OPT_FILTER:
-			Cvar_SetValueQuick (&vid_filter, menu_settings.vid_filter);
-			break;
-		case VID_OPT_PARTICLES:
-			Cvar_SetValueQuick (&r_particles, menu_settings.r_particles);
-			break;
-
-		case VID_OPT_APPLY:
-			Cvar_SetValueQuick (&host_maxfps, menu_settings.host_maxfps);
-			Cvar_SetValueQuick (&r_particles, menu_settings.r_particles);
-			Cvar_SetValueQuick (&rt_upscale_fsr2, menu_settings.rt_upscale_fsr2);
-			Cvar_SetValueQuick (&rt_upscale_dlss, menu_settings.rt_upscale_dlss);
-			Cvar_SetValueQuick (&rt_renderscale, menu_settings.rt_renderscale);
-			Cvar_SetValueQuick (&vid_filter, menu_settings.vid_filter);
-			Cbuf_AddText ("vid_restart\n");
-
-			key_dest = key_game;
-			m_state = m_none;
-			IN_Activate ();
-			break;
-		default:
+		case VID_OPT_VSYNC:
+			Cbuf_AddText ("toggle vid_vsync\n");
 			break;
 		}
 		break;
@@ -2070,10 +2078,10 @@ static void VID_MenuDraw (cb_context_t *cbx)
 			break;
 
 
-		case VID_OPT_APPLY:
+		case VID_OPT_BACK:
 			y += 8; // separate
 
-			M_Print (cbx, 16, y, "     Apply changes");
+			M_Print (cbx, 16, y, "              Back");
 			break;
 		}
 
