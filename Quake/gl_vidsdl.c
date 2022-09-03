@@ -166,6 +166,7 @@ task_handle_t prev_end_rendering_task = INVALID_TASK_HANDLE;
     \
 	CVAR_DEF_T (rt_sharpen, "0") \
 	CVAR_DEF_T (rt_renderscale, "0") \
+	CVAR_DEF_T (rt_vintage, "0") \
 	CVAR_DEF_T (rt_upscale_fsr2, "2") \
 	CVAR_DEF_T (rt_upscale_dlss, "0") \
 	\
@@ -201,6 +202,18 @@ task_handle_t prev_end_rendering_task = INVALID_TASK_HANDLE;
 #define CVAR_DEF_T(name, default_value) cvar_t name = {#name, default_value, CVAR_ARCHIVE};
     CVAR_DEF_LIST (CVAR_DEF_T)
 #undef CVAR_DEF_T
+
+
+enum
+{
+	RT_VINTAGE_OFF,
+	RT_VINTAGE_CRT,
+	RT_VINTAGE_200,
+	RT_VINTAGE_480,
+	RT_VINTAGE_720,
+
+	RT_VINTAGE__COUNT
+};
 
 
 static qboolean request_shaders_reload = false;
@@ -843,6 +856,25 @@ static const char *GetUpscalerOptionName (int i, RgRenderUpscaleTechnique techni
     }
 }
 
+static const char* GetVintageOptionName(int vintage)
+{
+	switch (vintage)
+	{
+	case RT_VINTAGE_OFF:
+		return "Off";
+	case RT_VINTAGE_CRT:
+		return "CRT";
+	case RT_VINTAGE_200:
+		return "320x200";
+	case RT_VINTAGE_480:
+		return "640x480";
+	case RT_VINTAGE_720:
+		return "1024x768";
+	default:
+		return "Custom";
+	}
+}
+
 typedef struct end_rendering_parms_s
 {
 	float   vid_width;
@@ -868,17 +900,47 @@ GL_EndRenderingTask
 */
 static void GL_EndRenderingTask (end_rendering_parms_t *parms)
 {
-	float rscl = 1.0f;
+	RgExtent2D size = {.width = parms->vid_width, .height = parms->vid_height};
+	float      aspect = (float)size.width / (float)size.height;
 
-	if (CVAR_TO_INT32 (rt_renderscale) > 0 && CVAR_TO_INT32 (rt_renderscale) < 100)
+	if (CVAR_TO_INT32 (rt_vintage) != RT_VINTAGE_OFF)
 	{
-		rscl = (float)CVAR_TO_INT32 (rt_renderscale) / 100.0f;
+		uint32_t h = size.height;
+
+		switch (CVAR_TO_INT32 (rt_vintage))
+		{
+		case RT_VINTAGE_200:
+			h = 200;
+			break;
+		case RT_VINTAGE_480:
+			h = 480;
+			break;
+		case RT_VINTAGE_CRT:
+			h = 480;
+			break;
+		case RT_VINTAGE_720:
+			h = 720;
+			break;
+
+		default:
+			Cvar_SetValueQuick (&rt_vintage, 0);
+			break;
+		}
+
+		size.height = h;
+		size.width = (uint32_t)(h * aspect);
+	}
+	else if (CVAR_TO_INT32 (rt_renderscale) > 0)
+	{
+		float rscl = (float)CVAR_TO_INT32 (rt_renderscale) / 100.0f;
 		rscl = CLAMP (rscl, 0.2f, 1.0f);
+
+		size.width = (uint32_t)(rscl * size.width);
+		size.height = (uint32_t)(rscl * size.height);
 	}
 
 	RgDrawFrameRenderResolutionParams resolution_params = {
-		.renderSize.width = (uint32_t)(rscl * parms->vid_width),
-		.renderSize.height = (uint32_t)(rscl * parms->vid_height),
+		.renderSize = size,
 		.interlacing = CVAR_TO_BOOL (rt_ef_interlacing),
 	};
 	UpscaleCvarsToRtgl (&resolution_params);
@@ -957,7 +1019,7 @@ static void GL_EndRenderingTask (end_rendering_parms_t *parms)
 	};
 
 	RgPostEffectCRT crt_effect = {
-		.isActive = CVAR_TO_BOOL (rt_ef_crt),
+		.isActive = CVAR_TO_BOOL (rt_ef_crt) || CVAR_TO_INT32 (rt_vintage) == RT_VINTAGE_CRT,
 	};
 
 	RgPostEffectChromaticAberration chromatic_aberration_effect = {
@@ -1504,10 +1566,10 @@ typedef struct
 {
 	int host_maxfps;
 	int r_particles;
+	int vid_filter;
 	int rt_upscale_fsr2;
 	int rt_upscale_dlss;
-	int rt_renderscale;
-	int vid_filter;
+	int rt_vintage;
 } vid_menu_settings_t;
 
 static vid_menu_settings_t menu_settings;
@@ -1536,7 +1598,7 @@ void VID_SyncCvars (void)
 	menu_settings.r_particles = CLAMP (0, (int)r_particles.value, 2);
 	menu_settings.rt_upscale_fsr2 = CLAMP (0, CVAR_TO_INT32 (rt_upscale_fsr2), 4);
 	menu_settings.rt_upscale_dlss = CLAMP (0, CVAR_TO_INT32 (rt_upscale_dlss), 4);
-	menu_settings.rt_renderscale = CLAMP (20, CVAR_TO_INT32 (rt_renderscale), 150);
+	menu_settings.rt_vintage = CLAMP (0, CVAR_TO_INT32 (rt_vintage), RT_VINTAGE__COUNT - 1);
 	menu_settings.vid_filter = CLAMP (0, (int)vid_filter.value, 1);
 
 	vid_changed = false;
@@ -1782,7 +1844,7 @@ static void VID_Menu_ChooseNextAA (int vidopt, int dir)
 
 	const int prev_fsr2 = menu_settings.rt_upscale_fsr2;
 	const int prev_dlss = menu_settings.rt_upscale_dlss;
-	const int prev_rens = menu_settings.rt_renderscale;
+	const int prev_vint = menu_settings.rt_vintage;
 
 	if (vidopt == VID_OPT_FSR2)
 	{
@@ -1794,19 +1856,19 @@ static void VID_Menu_ChooseNextAA (int vidopt, int dir)
 	}
 	else if (vidopt == VID_OPT_RENDER_SCALE)
 	{
-		menu_settings.rt_renderscale += dir < 0 ? -10 : 10;
+		menu_settings.rt_vintage += dir < 0 ? -1 : 1;
 	}
 
 	menu_settings.rt_upscale_fsr2 = CLAMP (0, menu_settings.rt_upscale_fsr2, fsr2_ok ? 4 : 0);
 	menu_settings.rt_upscale_dlss = CLAMP (0, menu_settings.rt_upscale_dlss, dlss_ok ? 4 : 0);
-	menu_settings.rt_renderscale = CLAMP (20, menu_settings.rt_renderscale, 150);
+	menu_settings.rt_vintage = CLAMP (0, menu_settings.rt_vintage, RT_VINTAGE__COUNT - 1);
 
 	if (vidopt == VID_OPT_FSR2)
 	{
 		if (menu_settings.rt_upscale_fsr2 != prev_fsr2)
 		{
 			menu_settings.rt_upscale_dlss = 0;
-			menu_settings.rt_renderscale = 100;
+			menu_settings.rt_vintage = 0;
 		}
 	}
 	else if (vidopt == VID_OPT_DLSS)
@@ -1814,12 +1876,12 @@ static void VID_Menu_ChooseNextAA (int vidopt, int dir)
 		if (menu_settings.rt_upscale_dlss != prev_dlss)
 		{
 			menu_settings.rt_upscale_fsr2 = 0;
-			menu_settings.rt_renderscale = 100;
+			menu_settings.rt_vintage = 0;
 		}
 	}
 	else if (vidopt == VID_OPT_RENDER_SCALE)
 	{
-		if (menu_settings.rt_renderscale != prev_rens)
+		if (menu_settings.rt_vintage != prev_vint)
 		{
 			menu_settings.rt_upscale_fsr2 = 0;
 			menu_settings.rt_upscale_dlss = 0;
@@ -1904,7 +1966,7 @@ static void VID_MenuKey (int key)
 			VID_Menu_ChooseNextAA (video_options_cursor, -1);
 			Cvar_SetValueQuick (&rt_upscale_fsr2, menu_settings.rt_upscale_fsr2);
 			Cvar_SetValueQuick (&rt_upscale_dlss, menu_settings.rt_upscale_dlss);
-			Cvar_SetValueQuick (&rt_renderscale, menu_settings.rt_renderscale);
+			Cvar_SetValueQuick (&rt_vintage, menu_settings.rt_vintage);
 			break;
 		case VID_OPT_FILTER:
 			menu_settings.vid_filter = (menu_settings.vid_filter == 0) ? 1 : 0;
@@ -1945,7 +2007,7 @@ static void VID_MenuKey (int key)
 			VID_Menu_ChooseNextAA (video_options_cursor, 1);
 			Cvar_SetValueQuick (&rt_upscale_fsr2, menu_settings.rt_upscale_fsr2);
 			Cvar_SetValueQuick (&rt_upscale_dlss, menu_settings.rt_upscale_dlss);
-			Cvar_SetValueQuick (&rt_renderscale, menu_settings.rt_renderscale);
+			Cvar_SetValueQuick (&rt_vintage, menu_settings.rt_vintage);
 			break;
 		case VID_OPT_FILTER:
 			menu_settings.vid_filter = (menu_settings.vid_filter == 0) ? 1 : 0;
@@ -2039,7 +2101,7 @@ static void VID_MenuDraw (cb_context_t *cbx)
 
 
 		case VID_OPT_RENDERER:
-			y += 8; // separate
+			y += 16; // separate x2
 
 			M_Print (cbx, 16, y, "          Renderer");
 			M_Print (cbx, 184, y, CVAR_TO_BOOL (rt_classic_render) ? "Classic" : "Ray Traced");
@@ -2068,8 +2130,8 @@ static void VID_MenuDraw (cb_context_t *cbx)
 			M_Print (cbx, 184, y, GetUpscalerOptionName (menu_settings.rt_upscale_dlss, RG_RENDER_UPSCALE_TECHNIQUE_NVIDIA_DLSS));
 			break;
 		case VID_OPT_RENDER_SCALE:
-			M_Print (cbx, 16, y, "      Render Scale");
-			M_Print (cbx, 184, y, va ("%i%%", menu_settings.rt_renderscale) );
+			M_Print (cbx, 16, y, "           Vintage");
+			M_Print (cbx, 184, y, GetVintageOptionName (menu_settings.rt_vintage));
 			break;
 
 
