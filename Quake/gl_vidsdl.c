@@ -829,6 +829,15 @@ static void UpscaleCvarsToRtgl (RgDrawFrameRenderResolutionParams *pDst)
 		pDst->upscaleTechnique = RG_RENDER_UPSCALE_TECHNIQUE_NEAREST;
 		pDst->resolutionMode = RG_RENDER_RESOLUTION_MODE_CUSTOM;
 	}
+
+	if (amdFsr)
+	{
+		pDst->sharpenTechnique = RG_RENDER_SHARPEN_TECHNIQUE_AMD_CAS;
+	}
+	else
+	{
+		pDst->sharpenTechnique = GetSharpenTechniqueFromCvar ();
+	}
 }
 
 static const char *GetUpscalerOptionName (int i, RgRenderUpscaleTechnique technique)
@@ -892,6 +901,73 @@ extern float    rt_dmg_value;
 extern qboolean rt_dmg_inthisframe;
 extern qboolean rt_cameraunderwater;
 
+static void ResolutionToRtgl (RgDrawFrameRenderResolutionParams *dst, const RgExtent2D winsize, RgExtent2D *storage)
+{
+	const float aspect = (float)winsize.width / (float)winsize.height;
+
+	if (CVAR_TO_INT32 (rt_renderscale) > 0)
+	{
+		float scale = (float)CVAR_TO_INT32 (rt_renderscale) / 100.0f;
+		scale = CLAMP (scale, 0.2f, 1.0f);
+
+		dst->customRenderSize.width = (uint32_t)(scale * winsize.width);
+		dst->customRenderSize.height = (uint32_t)(scale * winsize.height);
+		dst->pPixelizedRenderSize = NULL;
+
+		return;
+	}
+	else
+	{
+		if (CVAR_TO_INT32 (rt_vintage) != RT_VINTAGE_OFF)
+		{
+			uint32_t h_pixelized = 0;
+			uint32_t h_render = 0;
+
+			switch (CVAR_TO_INT32 (rt_vintage))
+			{
+			case RT_VINTAGE_200:
+				h_pixelized = 200;
+				h_render = 400;
+				break;
+
+			case RT_VINTAGE_480:
+				h_pixelized = 480;
+				h_render = 600;
+				break;
+
+			case RT_VINTAGE_CRT:
+				h_pixelized = 480;
+				h_render = 480;
+				break;
+
+			case RT_VINTAGE_720:
+				h_pixelized = 720;
+				h_render = 720;
+				break;
+
+			default:
+				Cvar_SetValueQuick (&rt_vintage, 0);
+				dst->customRenderSize = winsize;
+				dst->pPixelizedRenderSize = NULL;
+				return;
+			}
+
+			assert (h_render > 0 && h_pixelized > 0);
+			
+			storage->height = h_pixelized;
+			storage->width = (uint32_t)(h_pixelized * aspect);
+			dst->pPixelizedRenderSize = storage;
+			dst->customRenderSize.height = h_render;
+			dst->customRenderSize.width = (uint32_t)(h_render * aspect);
+
+			return;
+		}
+	}
+
+	dst->customRenderSize = winsize;
+	dst->pPixelizedRenderSize = NULL;
+}
+
 /*
 =================
 GL_EndRenderingTask
@@ -899,52 +975,12 @@ GL_EndRenderingTask
 */
 static void GL_EndRenderingTask (end_rendering_parms_t *parms)
 {
-	RgExtent2D size = {.width = parms->vid_width, .height = parms->vid_height};
-	float      aspect = (float)size.width / (float)size.height;
+	RgExtent2D       pixstorage = {0};
+	const RgExtent2D winsize = {.width = parms->vid_width, .height = parms->vid_height};
 
-	if (CVAR_TO_INT32 (rt_vintage) != RT_VINTAGE_OFF)
-	{
-		uint32_t h = size.height;
-
-		switch (CVAR_TO_INT32 (rt_vintage))
-		{
-		case RT_VINTAGE_200:
-			h = 200;
-			break;
-		case RT_VINTAGE_480:
-			h = 480;
-			break;
-		case RT_VINTAGE_CRT:
-			h = 480;
-			break;
-		case RT_VINTAGE_720:
-			h = 720;
-			break;
-
-		default:
-			Cvar_SetValueQuick (&rt_vintage, 0);
-			break;
-		}
-
-		size.height = h;
-		size.width = (uint32_t)(h * aspect);
-	}
-	else if (CVAR_TO_INT32 (rt_renderscale) > 0)
-	{
-		float rscl = (float)CVAR_TO_INT32 (rt_renderscale) / 100.0f;
-		rscl = CLAMP (rscl, 0.2f, 1.0f);
-
-		size.width = (uint32_t)(rscl * size.width);
-		size.height = (uint32_t)(rscl * size.height);
-	}
-
-	RgDrawFrameRenderResolutionParams resolution_params = {
-		.renderSize = size,
-	};
+	RgDrawFrameRenderResolutionParams resolution_params = {0};
+	ResolutionToRtgl (&resolution_params, winsize, &pixstorage);
 	UpscaleCvarsToRtgl (&resolution_params);
-	resolution_params.sharpenTechnique = resolution_params.upscaleTechnique == RG_RENDER_UPSCALE_TECHNIQUE_AMD_FSR2 ?
-		RG_RENDER_SHARPEN_TECHNIQUE_AMD_CAS :
-        GetSharpenTechniqueFromCvar ();
 
 	RgDrawFrameIlluminationParams illum_params = {
 	    .maxBounceShadows = CVAR_TO_UINT32 (rt_shadowrays),
