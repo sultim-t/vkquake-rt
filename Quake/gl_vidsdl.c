@@ -1613,7 +1613,7 @@ void VID_SyncCvars (void)
 enum
 {
 	VID_OPT_MODE,
-	VID_OPT_REFRESHRATE,
+	// VID_OPT_REFRESHRATE,
 	VID_OPT_APPLY,
 
 
@@ -1947,9 +1947,9 @@ static void VID_MenuKey (int key)
 		case VID_OPT_MODE:
 			VID_Menu_ChooseNextMode (1);
 			break;
-		case VID_OPT_REFRESHRATE:
-			VID_Menu_ChooseNextRate (1);
-			break;
+		//case VID_OPT_REFRESHRATE:
+		//	VID_Menu_ChooseNextRate (1);
+		//	break;
 		case VID_OPT_VSYNC:
 			Cbuf_AddText ("toggle vid_vsync\n"); // kristian
 			break;
@@ -1988,9 +1988,9 @@ static void VID_MenuKey (int key)
 		case VID_OPT_MODE:
 			VID_Menu_ChooseNextMode (-1);
 			break;
-		case VID_OPT_REFRESHRATE:
-			VID_Menu_ChooseNextRate (-1);
-			break;
+		//case VID_OPT_REFRESHRATE:
+		//	VID_Menu_ChooseNextRate (-1);
+		//	break;
 		case VID_OPT_VSYNC:
 			Cbuf_AddText ("toggle vid_vsync\n");
 			break;
@@ -2091,10 +2091,10 @@ static void VID_MenuDraw (cb_context_t *cbx)
 			M_Print (cbx, 16, y, "        Video mode");
 			M_Print (cbx, 184, y, va ("%ix%i", (int)vid_width.value, (int)vid_height.value));
 			break;
-		case VID_OPT_REFRESHRATE:
-			M_Print (cbx, 16, y, "      Refresh rate");
-			M_Print (cbx, 184, y, va ("%i", (int)vid_refreshrate.value));
-			break;
+		//case VID_OPT_REFRESHRATE:
+		//	M_Print (cbx, 16, y, "      Refresh rate");
+		//	M_Print (cbx, 184, y, va ("%i", (int)vid_refreshrate.value));
+		//	break;
 		case VID_OPT_APPLY:
 			M_Print (cbx, 16, y, "             Apply");
 			break;
