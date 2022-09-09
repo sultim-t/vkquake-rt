@@ -133,7 +133,7 @@ task_handle_t prev_end_rendering_task = INVALID_TASK_HANDLE;
 	CVAR_DEF_T (rt_muzzleoffs_y, "-30") \
 	CVAR_DEF_T (rt_muzzleoffs_z, "100") \
 	\
-	CVAR_DEF_T (rt_sky_intensity, "1.0") \
+	CVAR_DEF_T (rt_sky_intensity, "50") \
 	CVAR_DEF_T (rt_sky_saturation, "1") \
 	\
 	CVAR_DEF_T (rt_brush_metal, "0.0") \
@@ -142,7 +142,7 @@ task_handle_t prev_end_rendering_task = INVALID_TASK_HANDLE;
 	CVAR_DEF_T (rt_model_rough, "0.9") \
     \
 	CVAR_DEF_T (rt_normalmap_stren, "1") \
-	CVAR_DEF_T (rt_emis_mapboost, "2") \
+	CVAR_DEF_T (rt_emis_mapboost, "30") \
 	CVAR_DEF_T (rt_emis_maxscrcolor, "32") \
 	CVAR_DEF_T (rt_emis_fullbright_dflt, "32") \
     \
@@ -152,7 +152,7 @@ task_handle_t prev_end_rendering_task = INVALID_TASK_HANDLE;
 	CVAR_DEF_T (rt_refr_glass, "1.52") \
 	CVAR_DEF_T (rt_refr_water, "1.33") \
 	\
-	CVAR_DEF_T (rt_volumetric_far, "800") \
+	CVAR_DEF_T (rt_volumetric_far, "1000") \
     \
 	CVAR_DEF_T (rt_water_density, "0.1") \
 	CVAR_DEF_T (rt_water_colr, "0.025") \
@@ -175,14 +175,10 @@ task_handle_t prev_end_rendering_task = INVALID_TASK_HANDLE;
 	CVAR_DEF_T (rt_sensit_indir, "0.4") \
 	CVAR_DEF_T (rt_sensit_spec, "0.4") \
 	\
-	CVAR_DEF_T (rt_tnmp_minlog, "-6") \
-	CVAR_DEF_T (rt_tnmp_maxlog, "0") \
-	CVAR_DEF_T (rt_tnmp_white, "10") \
 	CVAR_DEF_T (rt_globallightmult, "1") \
 	\
 	CVAR_DEF_T (rt_bloom_intensity, "1") \
-	CVAR_DEF_T (rt_bloom_threshold, "30") \
-	CVAR_DEF_T (rt_bloom_emis_mult, "4") \
+	CVAR_DEF_T (rt_bloom_emis_mult, "50") \
 	CVAR_DEF_T (rt_bloom_satur_bias, "0") \
 	CVAR_DEF_T (rt_bloom_sky_mult, "0.05") \
 	CVAR_DEF_T (rt_bloom_raster_mult, "10") \
@@ -992,15 +988,9 @@ static void GL_EndRenderingTask (end_rendering_parms_t *parms)
 		.lightUniqueIdIgnoreFirstPersonViewerShadows = NULL,
 	};
 
-	RgDrawFrameTonemappingParams tm_params = {
-		.minLogLuminance = CVAR_TO_FLOAT (rt_tnmp_minlog),
-		.maxLogLuminance = CVAR_TO_FLOAT (rt_tnmp_maxlog),
-		.luminanceWhitePoint = CVAR_TO_FLOAT (rt_tnmp_white),
-	};
-
 	RgDrawFrameBloomParams bloom_params = {
 		.bloomIntensity = CVAR_TO_BOOL (rt_classic_render) ? 0 : CVAR_TO_FLOAT (rt_bloom_intensity),
-		.inputThreshold = CVAR_TO_FLOAT (rt_bloom_threshold),
+		.inputThreshold = 0.0f,
 		.inputThresholdLength = 0.5f,
 		.upsampleRadius = 1.0f,
 		.bloomEmissionMultiplier = CVAR_TO_FLOAT (rt_bloom_emis_mult),
@@ -1139,7 +1129,6 @@ static void GL_EndRenderingTask (end_rendering_parms_t *parms)
 		.forceAntiFirefly = CVAR_TO_BOOL (rt_antifirefly),
 		.pRenderResolutionParams = &resolution_params,
 		.pIlluminationParams = &illum_params,
-		.pTonemappingParams = &tm_params,
 		.pBloomParams = &bloom_params,
 		.pReflectRefractParams = &refl_refr_params,
 		.pSkyParams = &sky_params,
