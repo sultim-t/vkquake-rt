@@ -102,6 +102,7 @@ task_handle_t prev_end_rendering_task = INVALID_TASK_HANDLE;
 	CVAR_DEF_T (rt_enable_pvs, "0") \
 	CVAR_DEF_T (rt_shadowrays, "2") \
 	CVAR_DEF_T (rt_antifirefly, "0") \
+	CVAR_DEF_T (rt_roughmin, "0.02") \
     \
 	CVAR_DEF_T (rt_dlight_intensity, "3.0") \
 	CVAR_DEF_T (rt_dlight_radius, "0.02") \
@@ -177,6 +178,7 @@ task_handle_t prev_end_rendering_task = INVALID_TASK_HANDLE;
 	CVAR_DEF_T (rt_tnmp_minlog, "-6") \
 	CVAR_DEF_T (rt_tnmp_maxlog, "0") \
 	CVAR_DEF_T (rt_tnmp_white, "10") \
+	CVAR_DEF_T (rt_globallightmult, "1") \
 	\
 	CVAR_DEF_T (rt_bloom_intensity, "1") \
 	CVAR_DEF_T (rt_bloom_threshold, "30") \
@@ -621,12 +623,10 @@ static void GL_InitInstance (void)
 		.rayCullBackFacingTriangles = 1,
 		.allowGeometryWithSkyFlag = 1,
 
-		.rasterizedMaxVertexCount = 1 << 16,
-		.rasterizedMaxIndexCount = 1 << 17,
+		.rasterizedMaxVertexCount = 1 << 18,
+		.rasterizedMaxIndexCount = 1 << 19,
 
 		.rasterizedVertexColorGamma = true,
-		.rasterizedSkyMaxVertexCount = 1 << 16,
-		.rasterizedSkyMaxIndexCount = 1 << 17,
 
 		.rasterizedSkyCubemapSize = 256,
 
@@ -678,7 +678,6 @@ void GL_BeginRenderingTask (void *unused)
 	RgStartFrameInfo info = {
 		.requestVSync = CVAR_TO_BOOL (vid_vsync),
 		.requestShaderReload = request_shaders_reload,
-		.requestRasterizedSkyGeometryReuse = false,
 	};
 
 	RgResult r = rgStartFrame (vulkan_globals.instance, &info);
@@ -1039,7 +1038,7 @@ static void GL_EndRenderingTask (end_rendering_parms_t *parms)
 		.normalMapStrength = CVAR_TO_FLOAT (rt_normalmap_stren),
 		.emissionMapBoost = CVAR_TO_FLOAT (rt_emis_mapboost),
 		.emissionMaxScreenColor = CVAR_TO_FLOAT (rt_emis_maxscrcolor),
-		.minRoughness = 0.02f,
+		.minRoughness = CVAR_TO_FLOAT (rt_roughmin),
 	};
 
 	RgDrawFrameLensFlareParams lens_flare_params = {

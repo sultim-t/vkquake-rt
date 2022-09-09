@@ -782,7 +782,7 @@ static void RT_FlushBatch (cb_context_t *cbx, const rt_uploadsurf_state_t *s, ui
 			
 			vec3_t color = RT_VEC3 (diffuse_tex->rtlightcolor);
 			VectorScale (color, CVAR_TO_FLOAT (rt_dlight_intensity), color);
-			VectorScale (color, RT_QUAKE_LIGHT_AREA_INTENSITY_FIX, color);
+			RT_FIXUP_LIGHT_INTENSITY (color, true);
 			
 			RgPolygonalLightUploadInfo light_info = {
 				.uniqueID = RT_GetBrushSurfUniqueId (s->entuniqueid, s->model, s->surf, tri),

@@ -441,6 +441,13 @@ static inline uint32_t RT_PackColorToUint32_FromFloat01(float r, float g, float 
 
 // because of units are not in meters
 #define RT_QUAKE_LIGHT_AREA_INTENSITY_FIX (1.0f / (QUAKEUNIT_IN_METERS * QUAKEUNIT_IN_METERS))
+#define RT_FIXUP_LIGHT_INTENSITY(color, witharea)                                   \
+	{                                                                               \
+		extern cvar_t rt_globallightmult;                                           \
+		float         area = (witharea) ? RT_QUAKE_LIGHT_AREA_INTENSITY_FIX : 1.0f; \
+		VectorScale ((color), CVAR_TO_FLOAT (rt_globallightmult) * area, (color));  \
+	}
+
 
 #define ENT_UNIQUEID_WORLD     (UINT16_MAX)
 #define ENT_UNIQUEID_VIEWMODEL (UINT16_MAX + 32) 

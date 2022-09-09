@@ -832,7 +832,7 @@ void RT_UploadAllElights ()
 
 			vec3_t color = {1.0f, 1.0f, 1.0f};
 			VectorScale (color, intens, color);
-			VectorScale (color, RT_QUAKE_LIGHT_AREA_INTENSITY_FIX, color);
+			RT_FIXUP_LIGHT_INTENSITY (color, true);
 
 			RgSphericalLightUploadInfo info = {
 				.uniqueID = (uint64_t)UINT16_MAX + i,

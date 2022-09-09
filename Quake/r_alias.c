@@ -210,7 +210,7 @@ static void GL_DrawAliasFrame (
 
 		vec3_t color = {tx->rtlightcolor[0], tx->rtlightcolor[1], tx->rtlightcolor[2]};
 		VectorScale (color, CVAR_TO_FLOAT (rt_dlight_intensity), color);
-		VectorScale (color, RT_QUAKE_LIGHT_AREA_INTENSITY_FIX, color);
+		RT_FIXUP_LIGHT_INTENSITY (color, true);
 
 		RgSphericalLightUploadInfo light_info = {
 			.uniqueID = RT_GetAliasModelUniqueId (entuniqueid),

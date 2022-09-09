@@ -367,8 +367,8 @@ static void RT_UploadAllDlights ()
 
 		vec3_t color = {l->color[0], l->color[1], l->color[2]};
 		VectorScale (color, CVAR_TO_FLOAT (rt_dlight_intensity), color);
-		VectorScale (color, RT_QUAKE_LIGHT_AREA_INTENSITY_FIX, color);
 		VectorScale (color, falloff_mult, color);
+		RT_FIXUP_LIGHT_INTENSITY (color, true);
 
 		RgSphericalLightUploadInfo info = {
 			.uniqueID = i,
@@ -390,7 +390,7 @@ static void RT_UploadAllDlights ()
 
 		vec3_t color = {1.0f, 0.92f, 0.82f};
 		VectorScale (color, CVAR_TO_FLOAT (rt_flashlight), color);
-		VectorScale (color, RT_QUAKE_LIGHT_AREA_INTENSITY_FIX, color);
+		RT_FIXUP_LIGHT_INTENSITY (color, true);
 
 		RgSpotLightUploadInfo info = {
 			.uniqueID = (uint64_t)UINT32_MAX + 0,
@@ -415,6 +415,7 @@ static void RT_UploadAllDlights ()
 
 		vec3_t color = {1.0f, 1.0f, 1.0f};
 		VectorScale (color, CVAR_TO_FLOAT (rt_sun), color);
+		RT_FIXUP_LIGHT_INTENSITY (color, false);
 
 		RgDirectionalLightUploadInfo info = {
 			.uniqueID = (uint64_t)UINT32_MAX + 1,
