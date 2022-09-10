@@ -1357,13 +1357,17 @@ static void RT_ParseTextureCustomInfos (void)
 		{
 			curstate = RT_CUSTOMTEXTUREINFO_TYPE_MIRROR;
 		}
+		else if (strcmp (curline, "@EXACT_NORMALS") == 0)
+		{
+			curstate = RT_CUSTOMTEXTUREINFO_TYPE_EXACT_NORMALS;
+		}
 		else
 		{
 			char texname[64];
 			char str_hexcolor[8];
 			float mult;
 
-			if (curstate == RT_CUSTOMTEXTUREINFO_TYPE_MIRROR)
+			if (curstate == RT_CUSTOMTEXTUREINFO_TYPE_MIRROR || curstate == RT_CUSTOMTEXTUREINFO_TYPE_EXACT_NORMALS)
 			{
 				int c = sscanf (curline, "%s", texname);
 				if (c >= 1)

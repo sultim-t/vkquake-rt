@@ -260,12 +260,13 @@ static void GL_DrawAliasFrame (
 	else
 	{
 		qboolean is_glass = (isfirstperson || isviewer) && (cl.items & IT_INVISIBILITY);
+		qboolean exact_normals = tx ? tx->rtcustomtextype == RT_CUSTOMTEXTUREINFO_TYPE_EXACT_NORMALS : 0;
 
 		RgGeometryUploadInfo info = {
 			.uniqueID = RT_GetAliasModelUniqueId (entuniqueid),
 			.flags = 
 			    (is_glass ? RG_GEOMETRY_UPLOAD_IGNORE_REFL_REFR_AFTER_ONE_REFL_REFR_BIT : 0) |
-			    RG_GEOMETRY_UPLOAD_GENERATE_NORMALS_BIT, 
+			    (exact_normals ? RG_GEOMETRY_UPLOAD_EXACT_NORMALS_BIT : RG_GEOMETRY_UPLOAD_GENERATE_NORMALS_BIT ), 
 			.geomType = RG_GEOMETRY_TYPE_DYNAMIC,
 			.passThroughType = 
 			    is_glass ? RG_GEOMETRY_PASS_THROUGH_TYPE_GLASS_REFLECT_REFRACT :
