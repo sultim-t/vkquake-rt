@@ -172,7 +172,7 @@ task_handle_t prev_end_rendering_task = INVALID_TASK_HANDLE;
 	CVAR_DEF_T (rt_upscale_dlss, "0") \
 	\
 	CVAR_DEF_T (rt_sensit_dir, "0.4") \
-	CVAR_DEF_T (rt_sensit_indir, "0.4") \
+	CVAR_DEF_T (rt_sensit_indir, "0.1") \
 	CVAR_DEF_T (rt_sensit_spec, "0.4") \
 	\
 	CVAR_DEF_T (rt_globallightmult, "1") \
