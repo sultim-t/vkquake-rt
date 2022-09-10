@@ -63,6 +63,7 @@ entity_t **cl_visedicts;
 extern cvar_t r_lerpmodels, r_lerpmove; // johnfitz
 extern float  host_netinterval;         // Spike
 extern cvar_t rt_muzzleoffs_x, rt_muzzleoffs_y, rt_muzzleoffs_z;
+extern cvar_t rt_classic_render;
 
 qboolean needs_relink;
 
@@ -888,10 +889,14 @@ void CL_RelinkEntities (void)
 		{
 			if (PScript_EntParticleTrail (oldorg, ent, "TR_ROCKET"))
 				CL_RocketTrail (ent, 0);
-			dl = CL_AllocDlight (i);
-			VectorCopy (ent->origin, dl->origin);
-			dl->radius = 200;
-			dl->die = cl.time + 0.01;
+
+			if (CVAR_TO_BOOL (rt_classic_render))
+			{
+				dl = CL_AllocDlight (i);
+				VectorCopy (ent->origin, dl->origin);
+				dl->radius = 200;
+				dl->die = cl.time + 0.01;
+			}
 		}
 		else if (ent->model->flags & EF_GRENADE)
 		{
