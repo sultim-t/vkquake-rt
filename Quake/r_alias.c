@@ -215,7 +215,7 @@ static void GL_DrawAliasFrame (
 		RgSphericalLightUploadInfo light_info = {
 			.uniqueID = RT_GetAliasModelUniqueId (entuniqueid),
 			.color = {color[0], color[1], color[2]},
-			.position = {lerpdata.origin[0], lerpdata.origin[1], lerpdata.origin[2]},
+			.position = {lerpdata.origin[0], lerpdata.origin[1], lerpdata.origin[2] + tx->rtupoffset },
 			.radius = METRIC_TO_QUAKEUNIT (CVAR_TO_FLOAT (rt_dlight_radius)),
 		};
 

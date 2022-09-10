@@ -88,6 +88,7 @@ typedef struct gltexture_s
 	RgMaterial           rtmaterial;
 	vec3_t	             rtlightcolor;
 	int                  rtcustomtextype;        // RT_CUSTOMTEXTUREINFO_*
+	float                rtupoffset;
 } gltexture_t;
 
 extern gltexture_t *notexture;

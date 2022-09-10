@@ -77,6 +77,7 @@ struct rt_texturecustominfo_s
 {
 	char   rtname[64];
 	vec3_t color;
+	float  upoffset;
 	int    type;
 };
 static struct rt_texturecustominfo_s *rt_texturecustominfos = NULL;
@@ -1366,6 +1367,7 @@ static void RT_ParseTextureCustomInfos (void)
 			char texname[64];
 			char str_hexcolor[8];
 			float mult;
+			float upoffset;
 
 			if (curstate == RT_CUSTOMTEXTUREINFO_TYPE_MIRROR || curstate == RT_CUSTOMTEXTUREINFO_TYPE_EXACT_NORMALS)
 			{
@@ -1377,7 +1379,7 @@ static void RT_ParseTextureCustomInfos (void)
 			}
 			else
 			{
-			    int c = sscanf (curline, "%s %6s %f", texname, str_hexcolor, &mult);
+				int c = sscanf (curline, "%s %6s %f %f", texname, str_hexcolor, &mult, &upoffset);
 			    if (c >= 2)
 			    {
 				    const char red[] = {str_hexcolor[0], str_hexcolor[1], '\0'};
@@ -1400,6 +1402,7 @@ static void RT_ParseTextureCustomInfos (void)
 					    dst->color[1] = (float)ig / 255.0f * mult;
 					    dst->color[2] = (float)ib / 255.0f * mult;
 				    }
+					dst->upoffset = c >= 4 ? upoffset : 0.0f;
 			    }
 			}
 		}
@@ -1421,6 +1424,7 @@ static void RT_FillWithTextureCustomInfo (gltexture_t *dst)
 		{
 			memcpy (dst->rtlightcolor, rt_texturecustominfos[i].color, sizeof (vec3_t));
 			dst->rtcustomtextype = rt_texturecustominfos[i].type;
+			dst->rtupoffset = rt_texturecustominfos[i].upoffset;
 
 		    return;
 		}
