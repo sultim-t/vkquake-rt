@@ -945,14 +945,14 @@ void Sky_GetTexCoord (const vec3_t v, float speed, float *s, float *t)
 	dir[2] *= 3; // flatten the sphere
 
 	length = dir[0] * dir[0] + dir[1] * dir[1] + dir[2] * dir[2];
-	length = sqrt (length);
+	length = sqrtf (length);
 	length = 6 * 63 / length;
 
-	scroll = cl.time * speed;
+	scroll = (float)cl.time * speed;
 	scroll -= (int)scroll & ~127;
 
-	*s = (scroll + dir[0] * length) * (1.0 / 128);
-	*t = (scroll + dir[1] * length) * (1.0 / 128);
+	*s = (scroll + dir[0] * length) * (1.0f / 128);
+	*t = (scroll + dir[1] * length) * (1.0f / 128);
 }
 
 /*
