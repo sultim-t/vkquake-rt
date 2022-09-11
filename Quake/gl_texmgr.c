@@ -181,6 +181,111 @@ static byte Luminance (byte r, byte g, byte b)
 	return q_min (i, 255);
 }
 
+// https://gist.github.com/marukrap/7c361f2c367eaf40537a8715e3fd952a
+void RGBtoHSV (const vec3_t rgb, vec3_t out_hsv)
+{
+	float R = CLAMP (0.0f, rgb[0], 1.0f);
+	float G = CLAMP (0.0f, rgb[1], 1.0f);
+	float B = CLAMP (0.0f, rgb[2], 1.0f);
+
+	float M = max (R, max (G, B));
+	float m = min (R, min (G, B));
+	float C = M - m; // Chroma
+
+	float H = 0.f; // Hue
+	float S = 0.f; // Saturation
+	float V = 0.f; // Value
+
+	if (C != 0.f)
+	{
+		if (M == R)
+			H = fmodf (((G - B) / C), 6.f);
+		else if (M == G)
+			H = ((B - R) / C) + 2;
+		else if (M == B)
+			H = ((R - G) / C) + 4;
+
+		H *= 60;
+	}
+
+	if (H < 0.f)
+		H += 360;
+
+	V = M;
+
+	if (V != 0.f)
+		S = C / V;
+
+	out_hsv[0] = CLAMP (0.0f, H, 360.0f);
+	out_hsv[1] = CLAMP (0.0f, S, 1.0f);
+	out_hsv[2] = CLAMP (0.0f, V, 1.0f);
+}
+
+void HSVtoRGB (const vec3_t hsv, vec3_t out_rgb)
+{
+	float H = CLAMP (0.0f, hsv[0], 360.0f);
+	float S = CLAMP (0.0f, hsv[1], 1.0f);
+	// Note: don't clamp, as we modify it
+	float V = max (0.0f, hsv[2]);
+
+	float C = S * V;                        // Chroma
+	float HPrime = fmodf (H / 60, 6.f); // H'
+	float X = C * (1 - fabsf (fmodf (HPrime, 2.f) - 1));
+	float M = V - C;
+
+	float R = 0.f;
+	float G = 0.f;
+	float B = 0.f;
+
+	switch ((int)HPrime)
+	{
+	case 0:
+		R = C;
+		G = X;
+		break; // [0, 1)
+	case 1:
+		R = X;
+		G = C;
+		break; // [1, 2)
+	case 2:
+		G = C;
+		B = X;
+		break; // [2, 3)
+	case 3:
+		G = X;
+		B = C;
+		break; // [3, 4)
+	case 4:
+		R = X;
+		B = C;
+		break; // [4, 5)
+	case 5:
+		R = C;
+		B = X;
+		break; // [5, 6)
+	default:
+		break;
+	}
+
+	R += M;
+	G += M;
+	B += M;
+
+	// Note: don't clamp, as we modify luminance
+	out_rgb[0] = max (0.0f, R);
+	out_rgb[1] = max (0.0f, G);
+	out_rgb[2] = max (0.0f, B);
+}
+static void ModifyColorValue (vec3_t inout_color, float target_value)
+{
+	vec3_t hsv;
+	RGBtoHSV (inout_color, hsv);
+
+	hsv[2] *= target_value;
+
+	HSVtoRGB (hsv, inout_color);
+}
+
 static void FullbrightToRME (unsigned width, unsigned height, byte *fullbright)
 {
 	size_t pixels = (size_t)width * (size_t)height;
@@ -1393,16 +1498,18 @@ static void RT_ParseTextureCustomInfos (void)
 
 			        texname[sizeof texname - 1] = '\0';
 
-				    mult = c >= 3 ? mult : 1.0f;
-
 				    
 				    struct rt_texturecustominfo_s *dst = RT_PushTexCustom (texname, curstate);
 				    {
-					    dst->color[0] = (float)ir / 255.0f * mult;
-					    dst->color[1] = (float)ig / 255.0f * mult;
-					    dst->color[2] = (float)ib / 255.0f * mult;
+					    dst->color[0] = (float)ir / 255.0f;
+					    dst->color[1] = (float)ig / 255.0f;
+					    dst->color[2] = (float)ib / 255.0f;
+					    if (c >= 3)
+						{
+							ModifyColorValue (dst->color, mult);
+					    }
+					    dst->upoffset = c >= 4 ? upoffset : 0.0f;
 				    }
-					dst->upoffset = c >= 4 ? upoffset : 0.0f;
 			    }
 			}
 		}
