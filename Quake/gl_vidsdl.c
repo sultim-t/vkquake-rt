@@ -101,7 +101,7 @@ task_handle_t prev_end_rendering_task = INVALID_TASK_HANDLE;
 	CVAR_DEF_T (rt_classic_render, "0") \
 	CVAR_DEF_T (rt_enable_pvs, "0") \
 	CVAR_DEF_T (rt_shadowrays, "2") \
-	CVAR_DEF_T (rt_antifirefly, "0") \
+	CVAR_DEF_T (rt_antifirefly, "1") \
 	CVAR_DEF_T (rt_roughmin, "0.02") \
     \
 	CVAR_DEF_T (rt_dlight_intensity, "3.0") \
@@ -133,7 +133,7 @@ task_handle_t prev_end_rendering_task = INVALID_TASK_HANDLE;
 	CVAR_DEF_T (rt_muzzleoffs_y, "-30") \
 	CVAR_DEF_T (rt_muzzleoffs_z, "100") \
 	\
-	CVAR_DEF_T (rt_sky_intensity, "50") \
+	CVAR_DEF_T (rt_sky, "50") \
 	CVAR_DEF_T (rt_sky_saturation, "1") \
 	\
 	CVAR_DEF_T (rt_brush_metal, "0.0") \
@@ -175,7 +175,10 @@ task_handle_t prev_end_rendering_task = INVALID_TASK_HANDLE;
 	CVAR_DEF_T (rt_sensit_indir, "0.1") \
 	CVAR_DEF_T (rt_sensit_spec, "0.4") \
 	\
-	CVAR_DEF_T (rt_globallightmult, "1") \
+	CVAR_DEF_T (rt_globallightmult, "10") \
+	CVAR_DEF_T (rt_globallight_r, "255") \
+	CVAR_DEF_T (rt_globallight_g, "214") \
+	CVAR_DEF_T (rt_globallight_b, "163") \
 	\
 	CVAR_DEF_T (rt_bloom_intensity, "1") \
 	CVAR_DEF_T (rt_bloom_emis_mult, "50") \
@@ -1018,7 +1021,7 @@ static void GL_EndRenderingTask (end_rendering_parms_t *parms)
 	RgDrawFrameSkyParams sky_params = {
 		.skyType = CVAR_TO_BOOL (r_fastsky) ? RG_SKY_TYPE_COLOR : RG_SKY_TYPE_RASTERIZED_GEOMETRY,
 		.skyColorDefault = {skyflatcolor[0], skyflatcolor[1], skyflatcolor[2]},
-		.skyColorMultiplier = CVAR_TO_FLOAT (rt_sky_intensity),
+		.skyColorMultiplier = CVAR_TO_FLOAT (rt_sky),
 		.skyColorSaturation = CVAR_TO_FLOAT (rt_sky_saturation),
 		.skyViewerPosition = {r_origin[0], r_origin[1], r_origin[2]},
 	};

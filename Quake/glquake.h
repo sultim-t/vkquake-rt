@@ -442,11 +442,20 @@ static inline uint32_t RT_PackColorToUint32_FromFloat01(float r, float g, float 
 // because of units are not in meters
 #define RT_QUAKE_LIGHT_AREA_INTENSITY_FIX (1.0f / (QUAKEUNIT_IN_METERS * QUAKEUNIT_IN_METERS))
 #define RT_FIXUP_LIGHT_INTENSITY(color, witharea)                                   \
+	do                                                                              \
 	{                                                                               \
 		extern cvar_t rt_globallightmult;                                           \
 		float         area = (witharea) ? RT_QUAKE_LIGHT_AREA_INTENSITY_FIX : 1.0f; \
 		VectorScale ((color), CVAR_TO_FLOAT (rt_globallightmult) * area, (color));  \
-	}
+	} while (0)
+#define RT_INIT_DEFAULT_LIGHT_COLOR(color)                                      \
+	do                                                                          \
+	{                                                                           \
+		extern cvar_t rt_globallight_r, rt_globallight_g, rt_globallight_b;     \
+		(color)[0] = CLAMP (0, CVAR_TO_INT32 (rt_globallight_r), 255) / 255.0f; \
+		(color)[1] = CLAMP (0, CVAR_TO_INT32 (rt_globallight_g), 255) / 255.0f; \
+		(color)[2] = CLAMP (0, CVAR_TO_INT32 (rt_globallight_b), 255) / 255.0f; \
+	} while (0)
 
 
 #define ENT_UNIQUEID_WORLD     (UINT16_MAX)

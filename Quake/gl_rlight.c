@@ -830,7 +830,8 @@ void RT_UploadAllElights ()
 				intens *= CLAMP (0.0f, ls, 1.0f);
 			}
 
-			vec3_t color = {1.0f, 1.0f, 1.0f};
+			vec3_t color;
+			RT_INIT_DEFAULT_LIGHT_COLOR (color);
 			VectorScale (color, intens, color);
 			RT_FIXUP_LIGHT_INTENSITY (color, true);
 

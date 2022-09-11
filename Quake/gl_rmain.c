@@ -388,7 +388,8 @@ static void RT_UploadAllDlights ()
 		VectorMA (pos, METRIC_TO_QUAKEUNIT (-0.3f), vup, pos);
 		VectorMA (pos, METRIC_TO_QUAKEUNIT (-0.4f), vright, pos);
 
-		vec3_t color = {1.0f, 0.92f, 0.82f};
+		vec3_t color;
+		RT_INIT_DEFAULT_LIGHT_COLOR (color);
 		VectorScale (color, CVAR_TO_FLOAT (rt_flashlight), color);
 		RT_FIXUP_LIGHT_INTENSITY (color, true);
 
@@ -413,7 +414,8 @@ static void RT_UploadAllDlights ()
 		vec3_t forward, right, up;
 		AngleVectors (angles, forward, right, up);
 
-		vec3_t color = {1.0f, 1.0f, 1.0f};
+		vec3_t color;
+		RT_INIT_DEFAULT_LIGHT_COLOR (color);
 		VectorScale (color, CVAR_TO_FLOAT (rt_sun), color);
 		RT_FIXUP_LIGHT_INTENSITY (color, false);
 

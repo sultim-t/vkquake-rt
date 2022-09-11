@@ -364,7 +364,7 @@ dlight_t *CL_AllocDlight (int key)
 			{
 				memset (dl, 0, sizeof (*dl));
 				dl->key = key;
-				dl->color[0] = dl->color[1] = dl->color[2] = 1; // johnfitz -- lit support via lordhavoc
+				RT_INIT_DEFAULT_LIGHT_COLOR (dl->color);
 				return dl;
 			}
 		}
@@ -378,7 +378,7 @@ dlight_t *CL_AllocDlight (int key)
 		{
 			memset (dl, 0, sizeof (*dl));
 			dl->key = key;
-			dl->color[0] = dl->color[1] = dl->color[2] = 1; // johnfitz -- lit support via lordhavoc
+			RT_INIT_DEFAULT_LIGHT_COLOR (dl->color);
 			return dl;
 		}
 	}
@@ -386,7 +386,7 @@ dlight_t *CL_AllocDlight (int key)
 	dl = &cl_dlights[0];
 	memset (dl, 0, sizeof (*dl));
 	dl->key = key;
-	dl->color[0] = dl->color[1] = dl->color[2] = 1; // johnfitz -- lit support via lordhavoc
+	RT_INIT_DEFAULT_LIGHT_COLOR (dl->color);
 	return dl;
 }
 
@@ -827,8 +827,8 @@ void CL_RelinkEntities (void)
 			VectorCopy (ent->origin, dl->origin);
 			dl->radius = 200 + (rand () & 31);
 			dl->die = cl.time + 0.001;
-			dl->color[0] = 0.25f;
-			dl->color[1] = 0.25f;
+			dl->color[0] = 0.7f;
+			dl->color[1] = 0.7f;
 			dl->color[2] = 1.0f;
 
 			RT_OFFSET_LIGHT (dl)
@@ -840,8 +840,8 @@ void CL_RelinkEntities (void)
 			dl->radius = 200 + (rand () & 31);
 			dl->die = cl.time + 0.001;
 			dl->color[0] = 1.0f;
-			dl->color[1] = 0.25f;
-			dl->color[2] = 0.25f;
+			dl->color[1] = 0.7f;
+			dl->color[2] = 0.7f;
 
 			RT_OFFSET_LIGHT (dl)
 		}
