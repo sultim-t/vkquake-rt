@@ -101,6 +101,7 @@ task_handle_t prev_end_rendering_task = INVALID_TASK_HANDLE;
 	CVAR_DEF_T (rt_classic_render, "0") \
 	CVAR_DEF_T (rt_enable_pvs, "0") \
 	CVAR_DEF_T (rt_shadowrays, "2") \
+	CVAR_DEF_T (rt_indir2bounces, "0") \
 	CVAR_DEF_T (rt_antifirefly, "1") \
 	CVAR_DEF_T (rt_roughmin, "0.02") \
     \
@@ -147,8 +148,6 @@ task_handle_t prev_end_rendering_task = INVALID_TASK_HANDLE;
 	CVAR_DEF_T (rt_emis_fullbright_dflt, "32") \
     \
 	CVAR_DEF_T (rt_reflrefr_depth, "2") \
-	CVAR_DEF_T (rt_reflrefr_castshadows, "0") \
-	CVAR_DEF_T (rt_reflrefr_toindir, "0") \
 	CVAR_DEF_T (rt_refr_glass, "1.52") \
 	CVAR_DEF_T (rt_refr_water, "1.33") \
 	\
@@ -182,9 +181,6 @@ task_handle_t prev_end_rendering_task = INVALID_TASK_HANDLE;
 	\
 	CVAR_DEF_T (rt_bloom_intensity, "1") \
 	CVAR_DEF_T (rt_bloom_emis_mult, "50") \
-	CVAR_DEF_T (rt_bloom_satur_bias, "0") \
-	CVAR_DEF_T (rt_bloom_sky_mult, "0.05") \
-	CVAR_DEF_T (rt_bloom_raster_mult, "10") \
 	\
 	CVAR_DEF_T (rt_ef_crt, "0") \
 	CVAR_DEF_T (rt_ef_chraber, "0.3") \
@@ -982,31 +978,24 @@ static void GL_EndRenderingTask (end_rendering_parms_t *parms)
 
 	RgDrawFrameIlluminationParams illum_params = {
 	    .maxBounceShadows = CVAR_TO_UINT32 (rt_shadowrays),
+		.enableSecondBounceForIndirect = CVAR_TO_BOOL (rt_indir2bounces),
 		.cellWorldSize = METRIC_TO_QUAKEUNIT(2.0f),
 		.directDiffuseSensitivityToChange = CVAR_TO_FLOAT (rt_sensit_dir),
 		.indirectDiffuseSensitivityToChange = CVAR_TO_FLOAT (rt_sensit_indir),
 		.specularSensitivityToChange = CVAR_TO_FLOAT (rt_sensit_spec),
 		.polygonalLightSpotlightFactor = 2.0f,
-		.sphericalPolygonalLightsFirefliesClamp = 3.0f,
 		.lightUniqueIdIgnoreFirstPersonViewerShadows = NULL,
 	};
 
 	RgDrawFrameBloomParams bloom_params = {
 		.bloomIntensity = CVAR_TO_BOOL (rt_classic_render) ? 0 : CVAR_TO_FLOAT (rt_bloom_intensity),
 		.inputThreshold = 0.0f,
-		.inputThresholdLength = 0.5f,
-		.upsampleRadius = 1.0f,
 		.bloomEmissionMultiplier = CVAR_TO_FLOAT (rt_bloom_emis_mult),
-		.bloomEmissionSaturationBias = CVAR_TO_FLOAT (rt_bloom_satur_bias),
-		.bloomSkyMultiplier = CVAR_TO_FLOAT (rt_bloom_sky_mult),
-		.bloomRasterMultiplier = CVAR_TO_FLOAT (rt_bloom_raster_mult),
 	};
 
 	RgDrawFrameReflectRefractParams refl_refr_params = {
 		.maxReflectRefractDepth = CVAR_TO_UINT32 (rt_reflrefr_depth),
 		.typeOfMediaAroundCamera = rt_cameraunderwater ? RG_MEDIA_TYPE_WATER : RG_MEDIA_TYPE_VACUUM,
-		.reflectRefractCastShadows = CVAR_TO_BOOL (rt_reflrefr_castshadows),
-		.reflectRefractToIndirect = CVAR_TO_BOOL (rt_reflrefr_toindir),
 		.indexOfRefractionGlass = CVAR_TO_FLOAT (rt_refr_glass),
 		.indexOfRefractionWater = CVAR_TO_FLOAT (rt_refr_water),
 		.waterWaveSpeed = METRIC_TO_QUAKEUNIT (CVAR_TO_FLOAT (rt_water_speed)),
