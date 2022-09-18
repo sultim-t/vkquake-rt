@@ -497,6 +497,10 @@ RgFloat3D RT_AnglesToDir (vec3_t angles)
 	return dir;
 }
 
+float RT_Luminance(const vec3_t color)
+{
+	return 0.2126f * color[0] + 0.7152f * color[1] + 0.0722f * color[2];
+}
 
 
 #define MODEL_MAT(i, j) (model_matrix[(i)*4 + (j)])

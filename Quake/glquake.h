@@ -477,7 +477,8 @@ uint64_t RT_GetSpriteModelUniqueId (int entuniqueid);
 RgTransform RT_GetModelTransform (const float model_matrix[16]);
 RgTransform RT_GetBrushModelMatrix (entity_t *e);
 
-RgFloat3D RT_AnglesToDir (vec3_t angles);
+RgFloat3D RT_AnglesToDir (/* const */ vec3_t angles);
+float     RT_Luminance (const vec3_t color);
 
 
 #endif /* GLQUAKE_H */

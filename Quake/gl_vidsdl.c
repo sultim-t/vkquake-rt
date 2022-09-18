@@ -134,7 +134,7 @@ task_handle_t prev_end_rendering_task = INVALID_TASK_HANDLE;
 	CVAR_DEF_T (rt_muzzleoffs_y, "-30") \
 	CVAR_DEF_T (rt_muzzleoffs_z, "100") \
 	\
-	CVAR_DEF_T (rt_sky, "50") \
+	CVAR_DEF_T (rt_sky, "7") \
 	CVAR_DEF_T (rt_sky_saturation, "1") \
 	\
 	CVAR_DEF_T (rt_brush_metal, "0.0") \
@@ -1013,10 +1013,13 @@ static void GL_EndRenderingTask (end_rendering_parms_t *parms)
 	};
 	VectorScale (refl_refr_params.waterExtinction.data, CVAR_TO_FLOAT (rt_water_density), refl_refr_params.waterExtinction.data);
 
+	float skyMult = 1.0f / CLAMP (0.02f, RT_Luminance (skyflatcolor), 1.0f);
+	skyMult *= CVAR_TO_FLOAT (rt_sky);
+
 	RgDrawFrameSkyParams sky_params = {
 		.skyType = CVAR_TO_BOOL (r_fastsky) ? RG_SKY_TYPE_COLOR : RG_SKY_TYPE_RASTERIZED_GEOMETRY,
 		.skyColorDefault = RT_VEC3 (skyflatcolor),
-		.skyColorMultiplier = CVAR_TO_FLOAT (rt_sky),
+		.skyColorMultiplier = skyMult,
 		.skyColorSaturation = CVAR_TO_FLOAT (rt_sky_saturation),
 		.skyViewerPosition = RT_VEC3 (r_origin),
 	};
