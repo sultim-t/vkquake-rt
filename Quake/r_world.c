@@ -49,6 +49,9 @@ static int world_texend[NUM_WORLD_CBX];
 
 extern RgVertex *rtallbrushvertices;
 
+static RgPolygonalLightUploadInfo rt_worldmodellights[2048];
+static int                        rt_worldmodellights_count = 0;
+
 // RT: remove SIMD here, as the culling is not requires
 #undef USE_SIMD
 #undef USE_SSE2
@@ -749,6 +752,9 @@ static void RT_FlushBatch (cb_context_t *cbx, const rt_uploadsurf_state_t *s, ui
 	const int       num_surf_verts = cbx->batch_verts_count;
 	const int       num_surf_indices = cbx->batch_indices_count;
 
+	// i.e. uploaded once at the level load
+    const qboolean is_static_geom = (s->model == cl.worldmodel) && !s->is_warp;
+
 #if 0
 	float constant_factor = 0.0f, slope_factor = 0.0f;
 	if (use_zbias)
@@ -795,8 +801,17 @@ static void RT_FlushBatch (cb_context_t *cbx, const rt_uploadsurf_state_t *s, ui
 					},
 			};
 
-			RgResult r = rgUploadPolygonalLight (vulkan_globals.instance, &light_info);
-			RG_CHECK (r);
+			if (!is_static_geom)
+			{
+				RgResult r = rgUploadPolygonalLight (vulkan_globals.instance, &light_info);
+				RG_CHECK (r);
+			}
+			else
+			{
+				// if it's a static geometry, then save light data
+				// to upload it each frame
+				rt_worldmodellights[rt_worldmodellights_count++] = light_info;
+			}
 		}
 	}
 
@@ -808,7 +823,6 @@ static void RT_FlushBatch (cb_context_t *cbx, const rt_uploadsurf_state_t *s, ui
 	float alpha = CLAMP (0.0f, s->alpha, 1.0f);
 	uint8_t portalindex = 0;
 
-	qboolean is_static_geom = (s->model == cl.worldmodel) && !s->is_warp;
 	qboolean is_mirror = diffuse_tex && diffuse_tex->rtcustomtextype == RT_CUSTOMTEXTUREINFO_TYPE_MIRROR;
 	qboolean rasterize = (alpha < 1.0f) && !s->is_warp;
 
@@ -1132,6 +1146,8 @@ R_DrawWorld -- ericw -- moved from R_DrawTextureChains, which is no longer speci
 */
 void R_DrawWorld (cb_context_t *cbx, int index)
 {
+	rt_worldmodellights_count = 0;
+
 	if (!r_drawworld_cheatsafe)
 		return;
 
@@ -1168,6 +1184,17 @@ void R_DrawWorld_ShowTris (cb_context_t *cbx)
 		return;
 
 	R_DrawTextureChains_ShowTris (cbx, cl.worldmodel, chain_world);
+}
+
+
+
+void RT_UploadAllWorldModelLights (void)
+{
+	for (int i = 0; i < rt_worldmodellights_count; i++)
+	{
+		RgResult r = rgUploadPolygonalLight (vulkan_globals.instance, &rt_worldmodellights[i]);
+		RG_CHECK (r);
+	}
 }
 
 

@@ -376,6 +376,8 @@ void R_DrawAliasModel_ShowTris (cb_context_t *cbx, entity_t *e);
 void R_DrawParticles_ShowTris (cb_context_t *cbx);
 void R_DrawSpriteModel_ShowTris (cb_context_t *cbx, entity_t *e);
 
+void RT_UploadAllWorldModelLights (void);
+
 void RT_ParseTeleports (void);
 void RT_UploadAllTeleports (void);
 
