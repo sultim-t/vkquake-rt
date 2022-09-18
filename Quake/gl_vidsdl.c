@@ -134,7 +134,7 @@ task_handle_t prev_end_rendering_task = INVALID_TASK_HANDLE;
 	CVAR_DEF_T (rt_muzzleoffs_y, "-30") \
 	CVAR_DEF_T (rt_muzzleoffs_z, "100") \
 	\
-	CVAR_DEF_T (rt_sky, "7") \
+	CVAR_DEF_T (rt_sky, "9") \
 	CVAR_DEF_T (rt_sky_saturation, "1") \
 	\
 	CVAR_DEF_T (rt_brush_metal, "0.0") \
@@ -151,6 +151,7 @@ task_handle_t prev_end_rendering_task = INVALID_TASK_HANDLE;
 	CVAR_DEF_T (rt_refr_glass, "1.52") \
 	CVAR_DEF_T (rt_refr_water, "1.33") \
 	\
+	CVAR_DEF_T (rt_volume_enable, "1") \
 	CVAR_DEF_T (rt_volume_far, "1000") \
 	CVAR_DEF_T (rt_volume_scatter, "0.3") \
 	CVAR_DEF_T (rt_volume_ambient, "2.0") \
@@ -1038,7 +1039,7 @@ static void GL_EndRenderingTask (end_rendering_parms_t *parms)
 	}
 
 	RgDrawFrameVolumetricParams volumetric_params = {
-		.volumetricFar = CVAR_TO_FLOAT (rt_volume_far),
+		.volumetricFar = CVAR_TO_BOOL (rt_volume_enable) ? CVAR_TO_FLOAT (rt_volume_far) : -1,
 		.ambientColor = RT_VEC3_MULT (skyflatcolor, CVAR_TO_FLOAT(rt_volume_ambient)),
 		.scaterring = CVAR_TO_FLOAT (rt_volume_scatter),
 		.sourceColor = RT_VEC3_MULT (volume_light_color, CVAR_TO_FLOAT (rt_volume_lintensity)),
