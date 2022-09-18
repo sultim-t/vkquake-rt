@@ -488,6 +488,17 @@ uint64_t RT_GetSpriteModelUniqueId (int entuniqueid)
 
 
 
+RgFloat3D RT_AnglesToDir (vec3_t angles)
+{
+	vec3_t f, r, u;
+	AngleVectors (angles, f, r, u);
+
+	RgFloat3D dir = RT_VEC3 (f);
+	return dir;
+}
+
+
+
 #define MODEL_MAT(i, j) (model_matrix[(i)*4 + (j)])
 
 RgTransform RT_GetModelTransform(const float model_matrix[16])

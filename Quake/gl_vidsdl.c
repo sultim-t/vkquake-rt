@@ -138,9 +138,9 @@ task_handle_t prev_end_rendering_task = INVALID_TASK_HANDLE;
 	CVAR_DEF_T (rt_sky_saturation, "1") \
 	\
 	CVAR_DEF_T (rt_brush_metal, "0.0") \
-	CVAR_DEF_T (rt_brush_rough, "0.9") \
+	CVAR_DEF_T (rt_brush_rough, "1.0") \
 	CVAR_DEF_T (rt_model_metal, "0.0") \
-	CVAR_DEF_T (rt_model_rough, "0.9") \
+	CVAR_DEF_T (rt_model_rough, "1.0") \
     \
 	CVAR_DEF_T (rt_normalmap_stren, "1") \
 	CVAR_DEF_T (rt_emis_mapboost, "30") \
@@ -151,7 +151,13 @@ task_handle_t prev_end_rendering_task = INVALID_TASK_HANDLE;
 	CVAR_DEF_T (rt_refr_glass, "1.52") \
 	CVAR_DEF_T (rt_refr_water, "1.33") \
 	\
-	CVAR_DEF_T (rt_volumetric_far, "1000") \
+	CVAR_DEF_T (rt_volume_far, "1000") \
+	CVAR_DEF_T (rt_volume_scatter, "0.3") \
+	CVAR_DEF_T (rt_volume_ambient, "2.0") \
+	CVAR_DEF_T (rt_volume_lintensity, "250") \
+	CVAR_DEF_T (rt_volume_lassymetry, "0.0") \
+	CVAR_DEF_T (rt_volume_lpitch, "40") \
+	CVAR_DEF_T (rt_volume_lyaw, "-40") \
     \
 	CVAR_DEF_T (rt_water_density, "0.1") \
 	CVAR_DEF_T (rt_water_colr, "0.025") \
@@ -172,7 +178,7 @@ task_handle_t prev_end_rendering_task = INVALID_TASK_HANDLE;
 	\
 	CVAR_DEF_T (rt_sensit_dir, "0.4") \
 	CVAR_DEF_T (rt_sensit_indir, "0.1") \
-	CVAR_DEF_T (rt_sensit_spec, "0.4") \
+	CVAR_DEF_T (rt_sensit_spec, "0.05") \
 	\
 	CVAR_DEF_T (rt_globallightmult, "10") \
 	CVAR_DEF_T (rt_globallight_r, "255") \
@@ -1009,10 +1015,32 @@ static void GL_EndRenderingTask (end_rendering_parms_t *parms)
 
 	RgDrawFrameSkyParams sky_params = {
 		.skyType = CVAR_TO_BOOL (r_fastsky) ? RG_SKY_TYPE_COLOR : RG_SKY_TYPE_RASTERIZED_GEOMETRY,
-		.skyColorDefault = {skyflatcolor[0], skyflatcolor[1], skyflatcolor[2]},
+		.skyColorDefault = RT_VEC3 (skyflatcolor),
 		.skyColorMultiplier = CVAR_TO_FLOAT (rt_sky),
 		.skyColorSaturation = CVAR_TO_FLOAT (rt_sky_saturation),
-		.skyViewerPosition = {r_origin[0], r_origin[1], r_origin[2]},
+		.skyViewerPosition = RT_VEC3 (r_origin),
+	};
+
+	vec3_t volume_light_angles;
+	vec3_t volume_light_color;
+	if (CVAR_TO_BOOL (rt_sun))
+	{
+		RT_VEC3_SET (volume_light_angles, CVAR_TO_FLOAT (rt_sun_pitch), CVAR_TO_FLOAT (rt_sun_yaw), 0);
+		RT_INIT_DEFAULT_LIGHT_COLOR (volume_light_color);
+	}
+	else
+	{
+		RT_VEC3_SET (volume_light_angles, CVAR_TO_FLOAT (rt_volume_lpitch), CVAR_TO_FLOAT (rt_volume_lyaw), 0);
+		VectorCopy (skyflatcolor, volume_light_color);
+	}
+
+	RgDrawFrameVolumetricParams volumetric_params = {
+		.volumetricFar = CVAR_TO_FLOAT (rt_volume_far),
+		.ambientColor = RT_VEC3_MULT (skyflatcolor, CVAR_TO_FLOAT(rt_volume_ambient)),
+		.scaterring = CVAR_TO_FLOAT (rt_volume_scatter),
+		.sourceColor = RT_VEC3_MULT (volume_light_color, CVAR_TO_FLOAT (rt_volume_lintensity)),
+		.sourceDirection = RT_AnglesToDir (volume_light_angles),
+		.sourceAssymetry = CVAR_TO_FLOAT (rt_volume_lassymetry),
 	};
 
 	RgDrawFrameTexturesParams texture_params = {
@@ -1112,7 +1140,6 @@ static void GL_EndRenderingTask (end_rendering_parms_t *parms)
 		.cameraNear = cameranear,
 		.cameraFar = camerafar,
 		.rayLength = 10000.0f,
-		.volumetricFar = CVAR_TO_FLOAT (rt_volumetric_far),
 		.rayCullMaskWorld = RG_DRAW_FRAME_RAY_CULL_WORLD_0_BIT | RG_DRAW_FRAME_RAY_CULL_WORLD_1_BIT | RG_DRAW_FRAME_RAY_CULL_SKY_BIT,
 		.disableRayTracedGeometry = false,
 		.disableRasterization = false,
@@ -1121,6 +1148,7 @@ static void GL_EndRenderingTask (end_rendering_parms_t *parms)
 		.forceAntiFirefly = CVAR_TO_BOOL (rt_antifirefly),
 		.pRenderResolutionParams = &resolution_params,
 		.pIlluminationParams = &illum_params,
+		.pVolumetricParams = &volumetric_params,
 		.pBloomParams = &bloom_params,
 		.pReflectRefractParams = &refl_refr_params,
 		.pSkyParams = &sky_params,

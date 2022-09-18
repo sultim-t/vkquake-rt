@@ -433,7 +433,16 @@ static inline uint32_t RT_PackColorToUint32_FromFloat01(float r, float g, float 
 #define RT_COLOR_WHITE { 1, 1, 1, 1 }
 #define RT_PACKED_COLOR_WHITE 0xFFFFFFFF
 
-#define RT_VEC3(x){(x)[0], (x)[1], (x)[2] }
+#define RT_VEC3(x)         { (x)[0], (x)[1], (x)[2], }
+#define RT_VEC3_MULT(x, a) { (x)[0] * (a), (x)[1] * (a), (x)[2] * (a), }
+
+#define RT_VEC3_SET(dst, x, y, z) \
+	do                            \
+	{                             \
+		(dst)[0] = (x);           \
+		(dst)[1] = (y);           \
+		(dst)[2] = (z);           \
+	} while (0)
 
 #define QUAKEUNIT_IN_METERS    0.025f
 #define QUAKEUNIT_TO_METRIC(x) ((x)*QUAKEUNIT_IN_METERS)
@@ -467,6 +476,8 @@ uint64_t RT_GetSpriteModelUniqueId (int entuniqueid);
 
 RgTransform RT_GetModelTransform (const float model_matrix[16]);
 RgTransform RT_GetBrushModelMatrix (entity_t *e);
+
+RgFloat3D RT_AnglesToDir (vec3_t angles);
 
 
 #endif /* GLQUAKE_H */
