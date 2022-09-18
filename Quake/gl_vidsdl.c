@@ -157,7 +157,7 @@ task_handle_t prev_end_rendering_task = INVALID_TASK_HANDLE;
 	CVAR_DEF_T (rt_volume_ambient, "2.0") \
 	CVAR_DEF_T (rt_volume_lintensity, "250") \
 	CVAR_DEF_T (rt_volume_lassymetry, "0.0") \
-	CVAR_DEF_T (rt_volume_lpitch, "40") \
+	CVAR_DEF_T (rt_volume_lpitch, "60") \
 	CVAR_DEF_T (rt_volume_lyaw, "-40") \
     \
 	CVAR_DEF_T (rt_water_density, "0.1") \
@@ -1674,6 +1674,7 @@ enum
 
 	VID_OPT_FILTER,
 	VID_OPT_PARTICLES,
+	VID_OPT_VOLUMETRICS,
 
 	VID_OPT_BACK,
 
@@ -2018,6 +2019,10 @@ static void VID_MenuKey (int key)
 			VID_Menu_ChooseNextParticles (-1);
 			Cvar_SetValueQuick (&r_particles, menu_settings.r_particles);
 			break;
+		case VID_OPT_VOLUMETRICS:
+			int newval = !CVAR_TO_BOOL (rt_volume_enable);
+			Cvar_SetValueQuick (&rt_volume_enable, newval);
+			break;
 		default:
 			break;
 		}
@@ -2058,6 +2063,10 @@ static void VID_MenuKey (int key)
 		case VID_OPT_PARTICLES:
 			VID_Menu_ChooseNextParticles (1);
 			Cvar_SetValueQuick (&r_particles, menu_settings.r_particles);
+			break;
+		case VID_OPT_VOLUMETRICS:
+			int newval = !CVAR_TO_BOOL (rt_volume_enable);
+			Cvar_SetValueQuick (&rt_volume_enable, newval);
 			break;
 		default:
 			break;
@@ -2187,6 +2196,10 @@ static void VID_MenuDraw (cb_context_t *cbx)
 		case VID_OPT_PARTICLES:
 			M_Print (cbx, 16, y, "         Particles");
 			M_Print (cbx, 184, y, (menu_settings.r_particles == 0) ? "none" : ((menu_settings.r_particles == 2) ? "classic" : "circle"));
+			break;
+		case VID_OPT_VOLUMETRICS:
+			M_Print (cbx, 16, y, "       Volumetrics");
+			M_Print (cbx, 184, y, CVAR_TO_BOOL (rt_volume_enable) ? "sky" : "off");
 			break;
 
 
