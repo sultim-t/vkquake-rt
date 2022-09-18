@@ -39,6 +39,7 @@ extern cvar_t rt_brush_rough;
 extern cvar_t rt_enable_pvs;
 extern cvar_t rt_reflrefr_depth;
 extern cvar_t rt_dlight_intensity;
+extern cvar_t rt_elight_radius;
 
 cvar_t r_parallelmark = {"r_parallelmark", "1", CVAR_NONE};
 
@@ -49,8 +50,10 @@ static int world_texend[NUM_WORLD_CBX];
 
 extern RgVertex *rtallbrushvertices;
 
-static RgPolygonalLightUploadInfo rt_worldmodellights[2048];
-static int                        rt_worldmodellights_count = 0;
+#define MAX_WORLDLIGHTS_COUNT 1024
+static RgPolygonalLightUploadInfo rt_wldlights_tri[MAX_WORLDLIGHTS_COUNT];
+static RgSphericalLightUploadInfo rt_wldlights_sph[MAX_WORLDLIGHTS_COUNT];
+static int                        rt_wldlights_count = 0;
 
 // RT: remove SIMD here, as the culling is not requires
 #undef USE_SIMD
@@ -721,6 +724,40 @@ RgTransform RT_GetBrushModelMatrix (entity_t *e)
 	return RT_GetModelTransform (model_matrix);
 }
 
+static RgSphericalLightUploadInfo MakeSphericalLightFromPoly (const RgPolygonalLightUploadInfo *src, const msurface_t *surf)
+{
+	RgSphericalLightUploadInfo info = {
+		.uniqueID = src->uniqueID,
+		.color = src->color,
+		.position = {0},
+		.radius = METRIC_TO_QUAKEUNIT (CVAR_TO_FLOAT (rt_elight_radius)),
+	};
+
+	float *dst = info.position.data;
+
+	const float *a = src->positions[0].data;
+	const float *b = src->positions[1].data;
+	const float *c = src->positions[2].data;
+
+	VectorAdd (dst, a, dst);
+	VectorAdd (dst, b, dst);
+	VectorAdd (dst, c, dst);
+	VectorScale (dst, 1.0f / 3.0f, dst);
+
+	vec3_t e1, e2;
+	VectorSubtract (b, a, e1);
+	VectorSubtract (c, a, e2);
+	VectorNormalize (e1);
+	VectorNormalize (e2);
+
+	vec3_t normal;
+	CrossProduct (e1, e2, normal);
+	
+	VectorMA (dst, METRIC_TO_QUAKEUNIT (0.05f), normal, dst);
+
+	return info;
+}
+
 static qboolean RT_FindNearestTeleport (const RgGeometryUploadInfo *info, uint8_t *result, qboolean *potentially_mirror);
 static RgFloat3D ApplyTransform (const RgTransform *transform, const vec3_t v);
 
@@ -810,7 +847,17 @@ static void RT_FlushBatch (cb_context_t *cbx, const rt_uploadsurf_state_t *s, ui
 			{
 				// if it's a static geometry, then save light data
 				// to upload it each frame
-				rt_worldmodellights[rt_worldmodellights_count++] = light_info;
+				if (rt_wldlights_count < MAX_WORLDLIGHTS_COUNT)
+				{
+					rt_wldlights_tri[rt_wldlights_count] = light_info;
+					rt_wldlights_sph[rt_wldlights_count] = MakeSphericalLightFromPoly (&light_info, s->surf);
+
+					rt_wldlights_count++;
+				}
+				else
+				{
+					assert (false);
+				}
 			}
 		}
 	}
@@ -1146,7 +1193,7 @@ R_DrawWorld -- ericw -- moved from R_DrawTextureChains, which is no longer speci
 */
 void R_DrawWorld (cb_context_t *cbx, int index)
 {
-	rt_worldmodellights_count = 0;
+	rt_wldlights_count = 0;
 
 	if (!r_drawworld_cheatsafe)
 		return;
@@ -1190,9 +1237,13 @@ void R_DrawWorld_ShowTris (cb_context_t *cbx)
 
 void RT_UploadAllWorldModelLights (void)
 {
-	for (int i = 0; i < rt_worldmodellights_count; i++)
+	for (int i = 0; i < rt_wldlights_count; i++)
 	{
-		RgResult r = rgUploadPolygonalLight (vulkan_globals.instance, &rt_worldmodellights[i]);
+#if 0
+		RgResult r = rgUploadPolygonalLight (vulkan_globals.instance, &rt_wldlights_tri[i]);
+#else
+		RgResult r = rgUploadSphericalLight(vulkan_globals.instance, &rt_wldlights_sph[i]);
+#endif
 		RG_CHECK (r);
 	}
 }
