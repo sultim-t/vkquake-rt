@@ -157,7 +157,7 @@ task_handle_t prev_end_rendering_task = INVALID_TASK_HANDLE;
 	CVAR_DEF_T (rt_volume_ambient, "2.0") \
 	CVAR_DEF_T (rt_volume_lintensity, "250") \
 	CVAR_DEF_T (rt_volume_lassymetry, "0.0") \
-	CVAR_DEF_T (rt_volume_lpitch, "60") \
+	CVAR_DEF_T (rt_volume_lpitch, "70") \
 	CVAR_DEF_T (rt_volume_lyaw, "-40") \
     \
 	CVAR_DEF_T (rt_water_density, "0.1") \
