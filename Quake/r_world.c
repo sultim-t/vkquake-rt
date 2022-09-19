@@ -1461,7 +1461,12 @@ void RT_CustomLights_RemoveCmd (void)
 	for (int i = 0; i < rt_customlights_curr_count; i++)
 	{
 		rt_worldcustomlight_t *lt = &rt_customlights_all[rt_customlights_curr[i]];
-		
+
+		if (lt->deleted)
+		{
+			continue;
+		}
+
 		if (VectorLengthSquared (lt->position.data, around) < radius * radius)
 		{
 			lt->deleted = true;
