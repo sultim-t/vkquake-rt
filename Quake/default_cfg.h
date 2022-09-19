@@ -16,7 +16,7 @@ static char default_cfg[] =
 
 	"bind TAB +showscores\n"
 
-    "bind ALT rt_pfnswitch\n"
+    "bind f rt_pfnswitch\n"
 
 	"bind 1 \"impulse 1\"\n"
 	"bind 2 \"impulse 2\"\n"
