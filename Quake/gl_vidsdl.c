@@ -108,8 +108,8 @@ task_handle_t prev_end_rendering_task = INVALID_TASK_HANDLE;
 	CVAR_DEF_T (rt_dlight_intensity, "3.0") \
 	CVAR_DEF_T (rt_dlight_radius, "0.02") \
 	\
-	CVAR_DEF_T (rt_clight_intensity, "3.0") \
-	CVAR_DEF_T (rt_clight_radius, "0.01") \
+	CVAR_DEF_T (rt_wlight_intensity, "3.0") \
+	CVAR_DEF_T (rt_wlight_radius, "0.01") \
 	\
 	CVAR_DEF_T (rt_elight_normaliz, "100") \
 	CVAR_DEF_T (rt_elight_default, "200") \
@@ -658,7 +658,9 @@ static void GL_InitInstance (void)
 
 	Cmd_AddCommand ("rt_pfnreloadshaders", RT_ReloadShaders);
 	Cmd_AddCommand ("rt_pfnswitch", RT_SwitchRenderer);
-	Cmd_AddCommand ("rt_pfnsavelights", RT_SaveWorldCustomLights);
+	Cmd_AddCommand ("rt_pfnwlight_save", RT_CustomLights_SaveCmd);
+	Cmd_AddCommand ("rt_pfnwlight_add", RT_CustomLights_AddCmd);
+	Cmd_AddCommand ("rt_pfnwlight_remove", RT_CustomLights_RemoveCmd);
 
 
     vulkan_globals.primary_cb_context.batch_indices = Mem_Alloc (sizeof (uint32_t) * MAX_BATCH_INDICES);

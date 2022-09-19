@@ -376,8 +376,10 @@ void R_DrawAliasModel_ShowTris (cb_context_t *cbx, entity_t *e);
 void R_DrawParticles_ShowTris (cb_context_t *cbx);
 void R_DrawSpriteModel_ShowTris (cb_context_t *cbx, entity_t *e);
 
-void RT_ParseWorldCustomLights (void);
-void RT_SaveWorldCustomLights (void);
+void RT_CustomLights_Parse (void);
+void RT_CustomLights_SaveCmd (void);
+void RT_CustomLights_AddCmd (void);
+void RT_CustomLights_RemoveCmd (void);
 void RT_UploadAllWorldModelLights (void);
 
 void RT_ParseTeleports (void);
@@ -486,6 +488,7 @@ RgFloat3D RT_AnglesToDir (/* const */ vec3_t angles);
 float     RT_Luminance (const vec3_t color);
 RgFloat3D RT_HexStringToColor (const char hex[6]);
 void      RT_ColorToHexString (const vec3_t color, char out_hex[7]);
+float     VectorLengthSquared (const vec3_t a, const vec3_t b);
 
 
 #endif /* GLQUAKE_H */

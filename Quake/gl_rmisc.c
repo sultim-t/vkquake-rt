@@ -416,7 +416,7 @@ void R_NewMap (void)
 	R_ParseWorldspawn (); // ericw -- wateralpha, lavaalpha, telealpha, slimealpha in worldspawn
 	RT_ParseElights ();
 	RT_ParseTeleports();
-	RT_ParseWorldCustomLights ();
+	RT_CustomLights_Parse ();
 }
 
 /*
@@ -553,6 +553,14 @@ void RT_ColorToHexString(const vec3_t color, char out_hex[7])
 	}
 	
 	out_hex[6] = '\0';
+}
+
+float VectorLengthSquared(const vec3_t a, const vec3_t b)
+{
+	vec3_t e;
+	VectorSubtract (a, b, e);
+
+	return DotProduct (e, e);
 }
 
 
