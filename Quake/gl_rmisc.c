@@ -502,6 +502,26 @@ float RT_Luminance(const vec3_t color)
 	return 0.2126f * color[0] + 0.7152f * color[1] + 0.0722f * color[2];
 }
 
+RgFloat3D RT_HexStringToColor(const char hex[6])
+{
+	const char red[] = {hex[0], hex[1], '\0'};
+	uint32_t   ir = strtoul (red, NULL, 16);
+
+	const char green[] = {hex[2], hex[3], '\0'};
+	uint32_t   ig = strtoul (green, NULL, 16);
+
+	const char blue[] = {hex[4], hex[5], '\0'};
+	uint32_t   ib = strtoul (blue, NULL, 16);
+
+	RgFloat3D c = {
+		(float)CLAMP (0, ir, 255) / 255.0f,
+		(float)CLAMP (0, ig, 255) / 255.0f,
+		(float)CLAMP (0, ib, 255) / 255.0f,
+	};
+	return c;
+}
+
+
 
 #define MODEL_MAT(i, j) (model_matrix[(i)*4 + (j)])
 

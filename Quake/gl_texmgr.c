@@ -1487,23 +1487,13 @@ static void RT_ParseTextureCustomInfos (void)
 				int c = sscanf (curline, "%s %6s %f %f", texname, str_hexcolor, &mult, &upoffset);
 			    if (c >= 2)
 			    {
-				    const char red[] = {str_hexcolor[0], str_hexcolor[1], '\0'};
-				    uint32_t   ir = strtoul (red, NULL, 16);
-
-				    const char green[] = {str_hexcolor[2], str_hexcolor[3], '\0'};
-				    uint32_t   ig = strtoul (green, NULL, 16);
-
-				    const char blue[] = {str_hexcolor[4], str_hexcolor[5], '\0'};
-				    uint32_t   ib = strtoul (blue, NULL, 16);
-
+					const RgFloat3D color = RT_HexStringToColor (str_hexcolor);
 			        texname[sizeof texname - 1] = '\0';
 
 				    
 				    struct rt_texturecustominfo_s *dst = RT_PushTexCustom (texname, curstate);
 				    {
-					    dst->color[0] = (float)ir / 255.0f;
-					    dst->color[1] = (float)ig / 255.0f;
-					    dst->color[2] = (float)ib / 255.0f;
+						VectorCopy (color.data, dst->color);
 					    if (c >= 3)
 						{
 							ModifyColorValue (dst->color, mult);

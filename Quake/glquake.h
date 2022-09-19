@@ -481,6 +481,7 @@ RgTransform RT_GetBrushModelMatrix (entity_t *e);
 
 RgFloat3D RT_AnglesToDir (/* const */ vec3_t angles);
 float     RT_Luminance (const vec3_t color);
+RgFloat3D RT_HexStringToColor (const char hex[6]);
 
 
 #endif /* GLQUAKE_H */
