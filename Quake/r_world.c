@@ -40,6 +40,7 @@ extern cvar_t rt_enable_pvs;
 extern cvar_t rt_reflrefr_depth;
 extern cvar_t rt_dlight_intensity;
 extern cvar_t rt_elight_radius;
+extern cvar_t rt_clight_intensity, rt_clight_radius;
 
 cvar_t r_parallelmark = {"r_parallelmark", "1", CVAR_NONE};
 
@@ -54,6 +55,20 @@ extern RgVertex *rtallbrushvertices;
 static RgPolygonalLightUploadInfo rt_wldlights_tri[MAX_WORLDLIGHTS_COUNT];
 static RgSphericalLightUploadInfo rt_wldlights_sph[MAX_WORLDLIGHTS_COUNT];
 static int                        rt_wldlights_count = 0;
+
+#define RT_CUSTOMLIGHTS_PATH        RT_OVERRIDEN_FOLDER "world_custom_lights.txt"
+#define RT_CUSTOMLIGHTS_PATH_BACKUP RT_OVERRIDEN_FOLDER "world_custom_lights - Backup.txt"
+typedef struct rt_worldcustomlight_t
+{
+	char      mapname[64];
+	// color is in [0,1]
+	RgFloat3D color01;
+	RgFloat3D position;
+} rt_worldcustomlight_t;
+static rt_worldcustomlight_t *rt_customlights_all = NULL;
+static int                    rt_customlights_all_count = 0;
+static rt_worldcustomlight_t *rt_customlights_curr = NULL;
+static int                    rt_customlights_curr_count = 0;
 
 // RT: remove SIMD here, as the culling is not requires
 #undef USE_SIMD
@@ -1235,6 +1250,144 @@ void R_DrawWorld_ShowTris (cb_context_t *cbx)
 
 
 
+void RT_ParseWorldCustomLights (void)
+{
+	rt_customlights_all_count = 0;
+	rt_customlights_curr_count = 0;
+
+	FILE *f = fopen (RT_CUSTOMLIGHTS_PATH, "r");
+	if (f == NULL)
+	{
+		Con_Printf ("Couldn't open %s\n", RT_CUSTOMLIGHTS_PATH);
+		return;
+	}
+
+	int alloccount = 1;
+	{
+		int ch = 0;
+		do
+		{
+			ch = fgetc (f);
+			if (ch == '\n')
+			{
+				alloccount++;
+			}
+		} while (ch != EOF);
+	}
+	rt_customlights_all = Mem_Realloc (rt_customlights_all, sizeof (rt_customlights_all[0]) * alloccount);
+	rt_customlights_curr = Mem_Realloc (rt_customlights_curr, sizeof (rt_customlights_curr[0]) * alloccount);
+	rewind (f);
+
+	qboolean foundend = false;
+	char     curline[256] = "";
+
+	while (!foundend)
+	{
+		{
+			int i = 0;
+
+			while (true)
+			{
+				int ch = fgetc (f);
+
+				if (ch == '\n' || ch == '\r' || ch == '\0' || ch == EOF)
+				{
+					foundend = (ch == '\0' || ch == EOF);
+					break;
+				}
+
+				if (i >= (int)sizeof (curline))
+				{
+					Sys_Error (RT_CUSTOMLIGHTS_PATH ": line must be < 256 characters");
+				}
+
+				curline[i] = (char)ch;
+				i++;
+			}
+
+			curline[i] = '\0';
+		}
+
+		if (curline[0] == '\0')
+		{
+			continue;
+		}
+
+		char      mapname[countof (rt_customlights_all[0].mapname)];
+		RgFloat3D position;
+		char      str_hexcolor[8];
+
+		int c = sscanf (curline, "%s %f %f %f %6s", mapname, &position.data[0], &position.data[1], &position.data[2], str_hexcolor);
+		if (c >= 5)
+		{
+			const RgFloat3D color01 = RT_HexStringToColor (str_hexcolor);
+
+			mapname[countof (mapname) - 1] = '\0';
+			
+			rt_worldcustomlight_t *dst = &rt_customlights_all[rt_customlights_all_count++];
+			{
+				strncpy (dst->mapname, mapname, sizeof (dst->mapname));
+				dst->color01 = color01;
+				dst->position = position;
+			}
+		}
+	}
+
+	fclose (f);
+
+
+	// make list for current map
+	const char *cur_mapname = cl.worldmodel->name;
+
+	for (int i = 0; i < rt_customlights_all_count; i++)
+	{
+		const rt_worldcustomlight_t *src = &rt_customlights_all[i];
+
+		if (strncmp (src->mapname, cur_mapname, countof (src->mapname)) == 0)
+		{
+			rt_worldcustomlight_t *dst = &rt_customlights_curr[rt_customlights_curr_count++];
+
+			memcpy (dst, src, sizeof (rt_worldcustomlight_t));
+		}
+	}
+}
+
+void RT_SaveWorldCustomLights (void)
+{
+#ifdef _WIN32
+	// backup file
+	CopyFile (RT_CUSTOMLIGHTS_PATH, RT_CUSTOMLIGHTS_PATH_BACKUP, FALSE);
+#endif
+
+	FILE *f = fopen (RT_CUSTOMLIGHTS_PATH, "w+");
+	if (f == NULL)
+	{
+		Con_Printf ("Couldn't open %s\n", RT_CUSTOMLIGHTS_PATH);
+		return;
+	}
+
+    for (int i = 0; i < rt_customlights_all_count; i++)
+	{
+		const rt_worldcustomlight_t *lt = &rt_customlights_all[i];
+
+		const float *rawcolor = lt->color01.data;
+		const float *position = lt->position.data;
+
+		char hexstr[7];
+		assert (rawcolor[0] >= 0.0f && rawcolor[0] < 1.01f);
+		assert (rawcolor[1] >= 0.0f && rawcolor[1] < 1.01f);
+		assert (rawcolor[2] >= 0.0f && rawcolor[2] < 1.01f);
+		RT_ColorToHexString (rawcolor, hexstr);
+
+	    fprintf (f, "%s %f %f %f %6s\n", lt->mapname, position[0], position[1], position[2], hexstr);
+	}
+
+	fprintf (f, "\n");
+	fclose (f);
+}
+
+
+
 void RT_UploadAllWorldModelLights (void)
 {
 	for (int i = 0; i < rt_wldlights_count; i++)
@@ -1244,6 +1397,25 @@ void RT_UploadAllWorldModelLights (void)
 #else
 		RgResult r = rgUploadSphericalLight(vulkan_globals.instance, &rt_wldlights_sph[i]);
 #endif
+		RG_CHECK (r);
+	}
+
+	for (int i = 0; i < rt_customlights_curr_count; i++)
+	{
+		const rt_worldcustomlight_t *src = &rt_customlights_curr[i];
+
+		RgFloat3D color = src->color01;
+		VectorScale (color.data, CVAR_TO_FLOAT (rt_clight_intensity), color.data);
+		RT_FIXUP_LIGHT_INTENSITY (color.data, true);
+
+		RgSphericalLightUploadInfo lt = {
+			.uniqueID = RT_GetCustomObjectUniqueId (i),
+			.color = color,
+		    .position = src->position,
+			.radius = METRIC_TO_QUAKEUNIT (CVAR_TO_FLOAT (rt_clight_radius) ),
+		};
+
+		RgResult r = rgUploadSphericalLight (vulkan_globals.instance, &lt);
 		RG_CHECK (r);
 	}
 }

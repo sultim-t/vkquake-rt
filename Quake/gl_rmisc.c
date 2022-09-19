@@ -416,6 +416,7 @@ void R_NewMap (void)
 	R_ParseWorldspawn (); // ericw -- wateralpha, lavaalpha, telealpha, slimealpha in worldspawn
 	RT_ParseElights ();
 	RT_ParseTeleports();
+	RT_ParseWorldCustomLights ();
 }
 
 /*
@@ -457,6 +458,8 @@ void R_TimeRefresh_f (void)
 
 uint64_t RT_GetBrushSurfUniqueId (int entuniqueid, const qmodel_t *model, const msurface_t *surf, uint64_t triangle /* = 0 */)
 {
+	assert (entuniqueid >= 0);
+
 	uint64_t surfindex = surf - model->surfaces;
 
 	// look gl_model.c line 1327
@@ -474,6 +477,8 @@ uint64_t RT_GetBrushSurfUniqueId (int entuniqueid, const qmodel_t *model, const 
 
 uint64_t RT_GetAliasModelUniqueId(int entuniqueid)
 {
+	assert (entuniqueid >= 0);
+
 	return
         2ull << 60 |		// model type
 		entuniqueid;		// entity
@@ -481,9 +486,20 @@ uint64_t RT_GetAliasModelUniqueId(int entuniqueid)
 
 uint64_t RT_GetSpriteModelUniqueId (int entuniqueid)
 {
+	assert (entuniqueid >= 0);
+
 	return
         3ull << 60 | // model type
 		entuniqueid; // entity
+}
+
+uint64_t RT_GetCustomObjectUniqueId (int index)
+{
+	assert (index >= 0);
+
+	return
+        4ull << 60 | // custom object type
+		index;       // index
 }
 
 
@@ -521,6 +537,23 @@ RgFloat3D RT_HexStringToColor(const char hex[6])
 	return c;
 }
 
+void RT_ColorToHexString(const vec3_t color, char out_hex[7])
+{
+	static const char inttohex[] = "0123456789abcdef";
+
+	for (int i = 0; i < 3; i++)
+	{
+		int c = CLAMP (0, (int)(color[i] * 255.0f), 255);
+
+		int l = (c >> 0) & 0xF;
+		int h = (c >> 4) & 0xF;
+
+		out_hex[i * 2 + 0] = inttohex[h];
+		out_hex[i * 2 + 1] = inttohex[l];
+	}
+	
+	out_hex[6] = '\0';
+}
 
 
 #define MODEL_MAT(i, j) (model_matrix[(i)*4 + (j)])
