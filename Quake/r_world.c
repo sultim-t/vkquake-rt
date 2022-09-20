@@ -53,8 +53,9 @@ extern RgVertex *rtallbrushvertices;
 
 #define MAX_WORLDLIGHTS_COUNT 1024
 static RgPolygonalLightUploadInfo rt_wldlights_tri[MAX_WORLDLIGHTS_COUNT];
+static int                        rt_wldlights_tri_count = 0;
 static RgSphericalLightUploadInfo rt_wldlights_sph[MAX_WORLDLIGHTS_COUNT];
-static int                        rt_wldlights_count = 0;
+static int                        rt_wldlights_sph_count = 0;
 
 #define RT_CUSTOMLIGHTS_PATH        RT_OVERRIDEN_FOLDER "world_custom_lights.txt"
 #define RT_CUSTOMLIGHTS_PATH_BACKUP RT_OVERRIDEN_FOLDER "world_custom_lights - Backup.txt"
@@ -740,25 +741,18 @@ RgTransform RT_GetBrushModelMatrix (entity_t *e)
 	return RT_GetModelTransform (model_matrix);
 }
 
-static RgSphericalLightUploadInfo MakeSphericalLightFromPoly (const RgPolygonalLightUploadInfo *src, const msurface_t *surf)
+static void AccumulateCenterAndNormal(const RgPolygonalLightUploadInfo *src, vec3_t inout_center, vec3_t inout_normal)
 {
-	RgSphericalLightUploadInfo info = {
-		.uniqueID = src->uniqueID,
-		.color = src->color,
-		.position = {0},
-		.radius = METRIC_TO_QUAKEUNIT (CVAR_TO_FLOAT (rt_elight_radius)),
-	};
-
-	float *dst = info.position.data;
+	vec3_t local_center = {0, 0, 0};
 
 	const float *a = src->positions[0].data;
 	const float *b = src->positions[1].data;
 	const float *c = src->positions[2].data;
 
-	VectorAdd (dst, a, dst);
-	VectorAdd (dst, b, dst);
-	VectorAdd (dst, c, dst);
-	VectorScale (dst, 1.0f / 3.0f, dst);
+	VectorAdd (local_center, a, local_center);
+	VectorAdd (local_center, b, local_center);
+	VectorAdd (local_center, c, local_center);
+	VectorScale (local_center, 1.0f / 3.0f, local_center);
 
 	vec3_t e1, e2;
 	VectorSubtract (b, a, e1);
@@ -766,12 +760,45 @@ static RgSphericalLightUploadInfo MakeSphericalLightFromPoly (const RgPolygonalL
 	VectorNormalize (e1);
 	VectorNormalize (e2);
 
-	vec3_t normal;
-	CrossProduct (e1, e2, normal);
-	
-	VectorMA (dst, METRIC_TO_QUAKEUNIT (0.05f), normal, dst);
+	vec3_t local_normal;
+	CrossProduct (e1, e2, local_normal);
 
-	return info;
+	VectorAdd (inout_center, local_center, inout_center);
+	VectorAdd (inout_normal, local_normal, inout_normal);
+}
+
+static qboolean HaveSharedEdge (const RgPolygonalLightUploadInfo *poly_a, const RgPolygonalLightUploadInfo *poly_b)
+{
+	for (int e = 0; e < 3; e++)
+	{
+		const RgFloat3D *edge_cur[2] = {
+			&poly_a->positions[(e + 0) % 3],
+			&poly_a->positions[(e + 1) % 3],
+		};
+
+		for (int ek = 0; ek < 3; ek++)
+		{
+			const RgFloat3D *edge_prev[2] = {
+				&poly_b->positions[(ek + 0) % 3],
+				&poly_b->positions[(ek + 1) % 3],
+			};
+
+			const float threshold = 0.1f;
+
+			float l0 = VectorLengthSquared (edge_cur[0]->data, edge_prev[0]->data);
+			float l1 = VectorLengthSquared (edge_cur[1]->data, edge_prev[1]->data);
+
+			float r0 = VectorLengthSquared (edge_cur[0]->data, edge_prev[1]->data);
+			float r1 = VectorLengthSquared (edge_cur[1]->data, edge_prev[0]->data);
+
+			if ((l0 < threshold && l1 < threshold) || (r0 < threshold && r1 < threshold))
+			{
+				return true;
+			}
+		}
+	}
+
+	return false;
 }
 
 static qboolean RT_FindNearestTeleport (const RgGeometryUploadInfo *info, uint8_t *result, qboolean *potentially_mirror);
@@ -831,17 +858,17 @@ static void RT_FlushBatch (cb_context_t *cbx, const rt_uploadsurf_state_t *s, ui
 
 	if (diffuse_tex && diffuse_tex->rtcustomtextype == RT_CUSTOMTEXTUREINFO_TYPE_POLY_LIGHT)
 	{
-		RgTransform transf = RT_GetBrushModelMatrix (s->ent);
+		const RgTransform transf = RT_GetBrushModelMatrix (s->ent);
+
+		vec3_t color = RT_VEC3 (diffuse_tex->rtlightcolor);
+		VectorScale (color, CVAR_TO_FLOAT (rt_dlight_intensity), color);
+		RT_FIXUP_LIGHT_INTENSITY (color, true);
 
 		for (int tri = 0; tri < num_surf_indices / 3; tri++)
 		{
 			const vec_t *a0 = vertices[indices[tri * 3 + 0]].position;
 			const vec_t *a1 = vertices[indices[tri * 3 + 1]].position;
 			const vec_t *a2 = vertices[indices[tri * 3 + 2]].position;
-			
-			vec3_t color = RT_VEC3 (diffuse_tex->rtlightcolor);
-			VectorScale (color, CVAR_TO_FLOAT (rt_dlight_intensity), color);
-			RT_FIXUP_LIGHT_INTENSITY (color, true);
 			
 			RgPolygonalLightUploadInfo light_info = {
 				.uniqueID = RT_GetBrushSurfUniqueId (s->entuniqueid, s->model, s->surf, tri),
@@ -863,12 +890,9 @@ static void RT_FlushBatch (cb_context_t *cbx, const rt_uploadsurf_state_t *s, ui
 			{
 				// if it's a static geometry, then save light data
 				// to upload it each frame
-				if (rt_wldlights_count < MAX_WORLDLIGHTS_COUNT)
+				if (rt_wldlights_tri_count < MAX_WORLDLIGHTS_COUNT)
 				{
-					rt_wldlights_tri[rt_wldlights_count] = light_info;
-					rt_wldlights_sph[rt_wldlights_count] = MakeSphericalLightFromPoly (&light_info, s->surf);
-
-					rt_wldlights_count++;
+					rt_wldlights_tri[rt_wldlights_tri_count++] = light_info;
 				}
 				else
 				{
@@ -1202,6 +1226,23 @@ void R_DrawTextureChains (cb_context_t *cbx, qmodel_t *model, entity_t *ent, tex
 	R_DrawTextureChains_Multitexture (cbx, model, ent, chain, entalpha, 0, model->numtextures, entuniqueid);
 }
 
+static void AddSphericalLight (const RgPolygonalLightUploadInfo *src, vec3_t accum_center, vec3_t accum_normal, int sharing)
+{
+	VectorScale (accum_center, 1.0f / (float)sharing, accum_center);
+
+	VectorNormalize (accum_normal);
+	VectorMA (accum_center, METRIC_TO_QUAKEUNIT (0.05f), accum_normal, accum_center);
+
+	RgSphericalLightUploadInfo light_info = {
+		.uniqueID = src->uniqueID,
+		.color = src->color,
+		.position = RT_VEC3 (accum_center),
+		.radius = METRIC_TO_QUAKEUNIT (CVAR_TO_FLOAT (rt_elight_radius)),
+	};
+
+	rt_wldlights_sph[rt_wldlights_sph_count++] = light_info;
+}
+
 /*
 =============
 R_DrawWorld -- ericw -- moved from R_DrawTextureChains, which is no longer specific to the world.
@@ -1209,7 +1250,8 @@ R_DrawWorld -- ericw -- moved from R_DrawTextureChains, which is no longer speci
 */
 void R_DrawWorld (cb_context_t *cbx, int index)
 {
-	rt_wldlights_count = 0;
+	rt_wldlights_sph_count = 0;
+	rt_wldlights_tri_count = 0;
 
 	if (!r_drawworld_cheatsafe)
 		return;
@@ -1218,6 +1260,49 @@ void R_DrawWorld (cb_context_t *cbx, int index)
 	if (!r_gpulightmapupdate.value)
 		R_UploadLightmaps ();
 	R_DrawTextureChains_Multitexture (cbx, cl.worldmodel, NULL, chain_world, 1, world_texstart[index], world_texend[index], ENT_UNIQUEID_WORLD);
+
+
+	{
+		vec3_t accum_center = {0, 0, 0};
+		vec3_t accum_normal = {0, 0, 0};
+		int sharing = 0;
+
+		for (int i = 1; i < rt_wldlights_tri_count; i++)
+		{
+			const RgPolygonalLightUploadInfo *poly_prev = &rt_wldlights_tri[i - 1];
+			const RgPolygonalLightUploadInfo *poly_cur = &rt_wldlights_tri[i];
+
+			if (HaveSharedEdge (poly_prev, poly_cur))
+			{
+				if (sharing == 0)
+				{
+					AccumulateCenterAndNormal (poly_prev, accum_center, accum_normal);
+					sharing++;
+				}
+
+				AccumulateCenterAndNormal (poly_cur, accum_center, accum_normal);
+				sharing++;
+			}
+			else
+			{
+				if (sharing > 0)
+				{
+					AddSphericalLight (poly_cur, accum_center, accum_normal, sharing);
+
+					RT_VEC3_SET (accum_center, 0, 0, 0);
+					RT_VEC3_SET (accum_normal, 0, 0, 0);
+				}
+
+				sharing = 0;
+			}
+		}
+
+		if (sharing > 0)
+		{
+			AddSphericalLight (&rt_wldlights_tri[rt_wldlights_tri_count - 1], accum_center, accum_normal, sharing);
+		}
+	}
+
 	R_EndDebugUtilsLabel (cbx);
 }
 
@@ -1481,15 +1566,19 @@ void RT_CustomLights_RemoveCmd (void)
 
 void RT_UploadAllWorldModelLights (void)
 {
-	for (int i = 0; i < rt_wldlights_count; i++)
-	{
 #if 0
+	for (int i = 0; i < rt_wldlights_tri_count; i++)
+	{
 		RgResult r = rgUploadPolygonalLight (vulkan_globals.instance, &rt_wldlights_tri[i]);
-#else
-		RgResult r = rgUploadSphericalLight(vulkan_globals.instance, &rt_wldlights_sph[i]);
-#endif
 		RG_CHECK (r);
 	}
+#else
+	for (int i = 0; i < rt_wldlights_sph_count; i++)
+	{
+		RgResult r = rgUploadSphericalLight(vulkan_globals.instance, &rt_wldlights_sph[i]);
+		RG_CHECK (r);
+    }
+#endif
 
 	for (int i = 0; i < rt_customlights_curr_count; i++)
 	{
