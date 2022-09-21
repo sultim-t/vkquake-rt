@@ -58,7 +58,6 @@ static RgSphericalLightUploadInfo rt_wldlights_sph[MAX_WORLDLIGHTS_COUNT];
 static int                        rt_wldlights_sph_count = 0;
 
 #define RT_CUSTOMLIGHTS_PATH        RT_OVERRIDEN_FOLDER "world_custom_lights.txt"
-#define RT_CUSTOMLIGHTS_PATH_BACKUP RT_OVERRIDEN_FOLDER "world_custom_lights - Backup.txt"
 typedef struct rt_worldcustomlight_t
 {
 	char      mapname[64];
@@ -1441,7 +1440,15 @@ void RT_CustomLights_SaveCmd (void)
 {
 #ifdef _WIN32
 	// backup file
-	CopyFile (RT_CUSTOMLIGHTS_PATH, RT_CUSTOMLIGHTS_PATH_BACKUP, FALSE);
+	{
+		static int backupId = 0;
+		backupId = (backupId + 1) % 15;
+        #define BACKUP_FOLDER RT_OVERRIDEN_FOLDER "backup"
+		char name[128];
+		sprintf (name, BACKUP_FOLDER "/world_custom_lights - %d.txt", backupId);
+		CreateDirectory (BACKUP_FOLDER, 0);
+	    CopyFile (RT_CUSTOMLIGHTS_PATH, name, FALSE);
+	}
 #endif
 
 	FILE *f = fopen (RT_CUSTOMLIGHTS_PATH, "w+");
@@ -1491,6 +1498,10 @@ void RT_CustomLights_AddCmd (void)
 		return;
 	}
 
+	{
+		RT_CustomLights_SaveCmd ();
+	}
+
 	const RgFloat3D position = RT_VEC3 (r_refdef.vieworg);
 	RgFloat3D color01 = {
 		strtof (Cmd_Argv (1), NULL),
@@ -1534,6 +1545,10 @@ void RT_CustomLights_RemoveCmd (void)
 		Con_Printf ("usage: <radius (meters)>\n");
 
 		return;
+	}
+
+	{
+		RT_CustomLights_SaveCmd ();
 	}
 
 	const vec3_t around = RT_VEC3 (r_refdef.vieworg);

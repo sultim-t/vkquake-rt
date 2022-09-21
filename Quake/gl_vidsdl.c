@@ -658,7 +658,6 @@ static void GL_InitInstance (void)
 
 	Cmd_AddCommand ("rt_pfnreloadshaders", RT_ReloadShaders);
 	Cmd_AddCommand ("rt_pfnswitch", RT_SwitchRenderer);
-	Cmd_AddCommand ("rt_pfnwlight_save", RT_CustomLights_SaveCmd);
 	Cmd_AddCommand ("rt_pfnwlight_add", RT_CustomLights_AddCmd);
 	Cmd_AddCommand ("rt_pfnwlight_remove", RT_CustomLights_RemoveCmd);
 
