@@ -1498,10 +1498,6 @@ void RT_CustomLights_AddCmd (void)
 		return;
 	}
 
-	{
-		RT_CustomLights_SaveCmd ();
-	}
-
 	const RgFloat3D position = RT_VEC3 (r_refdef.vieworg);
 	RgFloat3D color01 = {
 		strtof (Cmd_Argv (1), NULL),
@@ -1535,6 +1531,10 @@ void RT_CustomLights_AddCmd (void)
 
 		rt_customlights_curr[curwld_index] = gindex;
 	}
+
+	{
+		RT_CustomLights_SaveCmd ();
+	}
 }
 
 void RT_CustomLights_RemoveCmd (void)
@@ -1545,10 +1545,6 @@ void RT_CustomLights_RemoveCmd (void)
 		Con_Printf ("usage: <radius (meters)>\n");
 
 		return;
-	}
-
-	{
-		RT_CustomLights_SaveCmd ();
 	}
 
 	const vec3_t around = RT_VEC3 (r_refdef.vieworg);
@@ -1575,6 +1571,10 @@ void RT_CustomLights_RemoveCmd (void)
 	}
 
 	Con_Printf ("removed %d lights\n", count);
+
+	{
+		RT_CustomLights_SaveCmd ();
+	}
 }
 
 
