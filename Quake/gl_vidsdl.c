@@ -154,7 +154,7 @@ task_handle_t prev_end_rendering_task = INVALID_TASK_HANDLE;
 	CVAR_DEF_T (rt_refr_glass, "1.52") \
 	CVAR_DEF_T (rt_refr_water, "1.33") \
 	\
-	CVAR_DEF_T (rt_volume_enable, "1") \
+	CVAR_DEF_T (rt_volume_type, "2") \
 	CVAR_DEF_T (rt_volume_far, "1000") \
 	CVAR_DEF_T (rt_volume_scatter, "0.3") \
 	CVAR_DEF_T (rt_volume_ambient, "2.0") \
@@ -1044,7 +1044,9 @@ static void GL_EndRenderingTask (end_rendering_parms_t *parms)
 	}
 
 	RgDrawFrameVolumetricParams volumetric_params = {
-		.volumetricFar = CVAR_TO_BOOL (rt_volume_enable) ? CVAR_TO_FLOAT (rt_volume_far) : -1,
+		.enable = CVAR_TO_UINT32 (rt_volume_type) != 0,
+		.useSimpleDepthBased = CVAR_TO_UINT32 (rt_volume_type) == 1 || CVAR_TO_BOOL (rt_classic_render),
+		.volumetricFar = CVAR_TO_FLOAT (rt_volume_far),
 		.ambientColor = RT_VEC3_MULT (skyflatcolor, CVAR_TO_FLOAT(rt_volume_ambient)),
 		.scaterring = CVAR_TO_FLOAT (rt_volume_scatter),
 		.sourceColor = RT_VEC3_MULT (volume_light_color, CVAR_TO_FLOAT (rt_volume_lintensity)),
@@ -2025,8 +2027,8 @@ static void VID_MenuKey (int key)
 			Cvar_SetValueQuick (&r_particles, menu_settings.r_particles);
 			break;
 		case VID_OPT_VOLUMETRICS:
-			int newval = !CVAR_TO_BOOL (rt_volume_enable);
-			Cvar_SetValueQuick (&rt_volume_enable, newval);
+			int newval = CVAR_TO_UINT32 (rt_volume_type) == 2 ? 1 : 2;
+			Cvar_SetValueQuick (&rt_volume_type, newval);
 			break;
 		default:
 			break;
@@ -2070,8 +2072,8 @@ static void VID_MenuKey (int key)
 			Cvar_SetValueQuick (&r_particles, menu_settings.r_particles);
 			break;
 		case VID_OPT_VOLUMETRICS:
-			int newval = !CVAR_TO_BOOL (rt_volume_enable);
-			Cvar_SetValueQuick (&rt_volume_enable, newval);
+			int newval = CVAR_TO_UINT32 (rt_volume_type) == 2 ? 1 : 2;
+			Cvar_SetValueQuick (&rt_volume_type, newval);
 			break;
 		default:
 			break;
@@ -2204,7 +2206,7 @@ static void VID_MenuDraw (cb_context_t *cbx)
 			break;
 		case VID_OPT_VOLUMETRICS:
 			M_Print (cbx, 16, y, "       Volumetrics");
-			M_Print (cbx, 184, y, CVAR_TO_BOOL (rt_volume_enable) ? "sky" : "off");
+			M_Print (cbx, 184, y, CVAR_TO_UINT32 (rt_volume_type) == 2 ? "sky" : "simple");
 			break;
 
 
