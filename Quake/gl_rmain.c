@@ -63,7 +63,7 @@ cvar_t r_pos = {"r_pos", "0", CVAR_NONE};
 cvar_t r_fullbright = {"r_fullbright", "0", CVAR_NONE};
 cvar_t r_lightmap = {"r_lightmap", "0", CVAR_NONE};
 cvar_t r_wateralpha = {"r_wateralpha", "1", CVAR_ARCHIVE};
-cvar_t r_dynamic = {"r_dynamic", "1", CVAR_ARCHIVE};
+cvar_t r_dynamic = {"r_dynamic", "0", CVAR_ARCHIVE}; // RT: was 1, but there are significant performance drops e.g. on E1M6 when lavaballs fly and touch a lot of surfaces
 #if defined(USE_SIMD)
 cvar_t r_simd = {"r_simd", "1", CVAR_ARCHIVE};
 #endif
