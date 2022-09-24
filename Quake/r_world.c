@@ -1643,7 +1643,6 @@ struct rt_infoteleportdestination_t
 {
 	char   targetname[128];
 	float  angle;
-	qboolean angle_exists;
 	vec3_t origin;
 };
 struct rt_parsetriggers_result_t
@@ -1768,7 +1767,6 @@ static struct rt_parsetriggers_result_t ParseTeleportTriggers (void)
 			if (components ==1)
 			{
 				structvalues.dst.angle = tmp;
-				structvalues.dst.angle_exists = true;
 				structstate |= STRUCT_STATE_ANGLE;
 			}
 		}
@@ -1835,18 +1833,7 @@ void RT_ParseTeleports (void)
 					entry->b_angle = out->angle;
 
 
-					// if angle wasn't specified and entrance/exit are close
-					// example: 2 such portals exist in Haunted Halls
-					if (!out->angle_exists)
-					{
-						vec3_t delta;
-						VectorSubtract (entry->a, entry->b, delta);
-
-						if (VectorLength (delta) < METRIC_TO_QUAKEUNIT(8.0f))
-						{
-							entry->potentially_mirror = true;
-						}
-					}
+					entry->potentially_mirror = false;
 				}
 
 				break;
