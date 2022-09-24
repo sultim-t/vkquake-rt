@@ -637,6 +637,7 @@ static void GL_InitInstance (void)
 
 		.maxTextureCount = 4096,
 		.textureSamplerForceMinificationFilterLinear = true,
+		.textureSamplerForceNormalMapFilterLinear = true,
 
 		.pOverridenTexturesFolderPath = RT_OVERRIDEN_FOLDER "mat",
 		.pOverridenTexturesFolderPathDeveloper = RT_OVERRIDEN_FOLDER "matdev",

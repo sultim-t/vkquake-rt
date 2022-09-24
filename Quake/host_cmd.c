@@ -242,6 +242,12 @@ void Modlist_Init (void)
 	{
 		if (!strcmp (fdat.cFileName, ".") || !strcmp (fdat.cFileName, ".."))
 			continue;
+#if RT_RENDERER
+		// ignore overriden folder
+		assert (!strcmp ("ovrd/", RT_OVERRIDEN_FOLDER));
+		if (!strcmp (fdat.cFileName, "ovrd"))
+			continue;
+#endif
 		q_snprintf (mod_string, sizeof (mod_string), "%s/%s", com_basedir, fdat.cFileName);
 		attribs = GetFileAttributes (mod_string);
 		if (attribs != INVALID_FILE_ATTRIBUTES && (attribs & FILE_ATTRIBUTE_DIRECTORY))
@@ -271,6 +277,12 @@ void Modlist_Init (void)
 			continue;
 		if (!q_strcasecmp (COM_FileGetExtension (dir_t->d_name), "app")) // skip .app bundles on macOS
 			continue;
+#if RT_RENDERER
+		// ignore overriden folder
+		assert (!strcmp ("ovrd/", RT_OVERRIDEN_FOLDER));
+		if (!strcmp (dir_t->d_name, "ovrd"))
+			continue;
+#endif
 		q_snprintf (mod_string, sizeof (mod_string), "%s%s/", dir_string, dir_t->d_name);
 		mod_dir_p = opendir (mod_string);
 		if (mod_dir_p == NULL)

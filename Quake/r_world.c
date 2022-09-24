@@ -1126,7 +1126,7 @@ void R_DrawTextureChains_Water (cb_context_t *cbx, qmodel_t *model, entity_t *en
 				.alpha = GL_WaterAlphaForEntitySurface (ent, s),
 				.use_zbias = false,
 				.is_warp = true,
-				.is_water = (s->flags & SURF_DRAWWATER),
+				.is_water = (s->flags & SURF_DRAWWATER) || (s->flags & SURF_DRAWSLIME),
 				.is_teleport = (s->flags & SURF_DRAWTELE),
 			};
 
