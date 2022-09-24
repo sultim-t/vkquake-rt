@@ -108,6 +108,9 @@ task_handle_t prev_end_rendering_task = INVALID_TASK_HANDLE;
 	CVAR_DEF_T (rt_dlight_intensity, "3.0") \
 	CVAR_DEF_T (rt_dlight_radius, "0.02") \
 	\
+	CVAR_DEF_T (rt_plight_intensity, "3.0") \
+	CVAR_DEF_T (rt_plight_radius, "0.02") \
+	\
 	CVAR_DEF_T (rt_wlight_intensity, "3.0") \
 	CVAR_DEF_T (rt_wlight_radius, "0.01") \
 	\

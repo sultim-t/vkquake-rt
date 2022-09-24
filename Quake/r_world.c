@@ -38,8 +38,7 @@ extern cvar_t rt_brush_metal;
 extern cvar_t rt_brush_rough;
 extern cvar_t rt_enable_pvs;
 extern cvar_t rt_reflrefr_depth;
-extern cvar_t rt_dlight_intensity;
-extern cvar_t rt_elight_radius;
+extern cvar_t rt_plight_intensity, rt_plight_radius;
 extern cvar_t rt_wlight_intensity, rt_wlight_radius;
 
 cvar_t r_parallelmark = {"r_parallelmark", "1", CVAR_NONE};
@@ -51,11 +50,17 @@ static int world_texend[NUM_WORLD_CBX];
 
 extern RgVertex *rtallbrushvertices;
 
+#define RT_USE_SPHERE_INSTEAD_OF_POLY 1
+
 #define MAX_WORLDLIGHTS_COUNT 1024
 static RgPolygonalLightUploadInfo rt_wldlights_tri[MAX_WORLDLIGHTS_COUNT];
 static int                        rt_wldlights_tri_count = 0;
 static RgSphericalLightUploadInfo rt_wldlights_sph[MAX_WORLDLIGHTS_COUNT];
 static int                        rt_wldlights_sph_count = 0;
+
+#if RT_USE_SPHERE_INSTEAD_OF_POLY
+static RgPolygonalLightUploadInfo rt_tempbuffer[512]; 
+#endif
 
 #define RT_CUSTOMLIGHTS_PATH        RT_OVERRIDEN_FOLDER "world_custom_lights.txt"
 typedef struct rt_worldcustomlight_t
@@ -800,8 +805,9 @@ static qboolean HaveSharedEdge (const RgPolygonalLightUploadInfo *poly_a, const 
 	return false;
 }
 
-static qboolean RT_FindNearestTeleport (const RgGeometryUploadInfo *info, uint8_t *result, qboolean *potentially_mirror);
+static qboolean  RT_FindNearestTeleport (const RgGeometryUploadInfo *info, uint8_t *result, qboolean *potentially_mirror);
 static RgFloat3D ApplyTransform (const RgTransform *transform, const vec3_t v);
+static void      PolyToSphericalLights (const RgPolygonalLightUploadInfo *polys, int count, qboolean upload);
 
 typedef struct rt_uploadsurf_state_t
 {
@@ -860,7 +866,7 @@ static void RT_FlushBatch (cb_context_t *cbx, const rt_uploadsurf_state_t *s, ui
 		const RgTransform transf = RT_GetBrushModelMatrix (s->ent);
 
 		vec3_t color = RT_VEC3 (diffuse_tex->rtlightcolor);
-		VectorScale (color, CVAR_TO_FLOAT (rt_dlight_intensity), color);
+		VectorScale (color, CVAR_TO_FLOAT (rt_plight_intensity), color);
 		RT_FIXUP_LIGHT_INTENSITY (color, true);
 
 		for (int tri = 0; tri < num_surf_indices / 3; tri++)
@@ -882,8 +888,19 @@ static void RT_FlushBatch (cb_context_t *cbx, const rt_uploadsurf_state_t *s, ui
 
 			if (!is_static_geom)
 			{
+#if RT_USE_SPHERE_INSTEAD_OF_POLY
+				if (tri < (int) countof (rt_tempbuffer))
+				{
+					rt_tempbuffer[tri] = light_info;
+				}
+				else
+				{
+					assert (false);
+				}
+#else
 				RgResult r = rgUploadPolygonalLight (vulkan_globals.instance, &light_info);
 				RG_CHECK (r);
+#endif
 			}
 			else
 			{
@@ -899,6 +916,13 @@ static void RT_FlushBatch (cb_context_t *cbx, const rt_uploadsurf_state_t *s, ui
 				}
 			}
 		}
+
+#if RT_USE_SPHERE_INSTEAD_OF_POLY
+		if (!is_static_geom)
+		{
+			PolyToSphericalLights (rt_tempbuffer, num_surf_indices / 3, true);
+		}
+#endif
 	}
 
 	if (s->is_teleport && CVAR_TO_INT32 (rt_reflrefr_depth) > 0)
@@ -1225,22 +1249,76 @@ void R_DrawTextureChains (cb_context_t *cbx, qmodel_t *model, entity_t *ent, tex
 	R_DrawTextureChains_Multitexture (cbx, model, ent, chain, entalpha, 0, model->numtextures, entuniqueid);
 }
 
-static void AddSphericalLight (const RgPolygonalLightUploadInfo *src, vec3_t accum_center, vec3_t accum_normal, int sharing)
+#if RT_USE_SPHERE_INSTEAD_OF_POLY
+static void AddSphericalLight (qboolean upload, const RgPolygonalLightUploadInfo *src, vec3_t accum_center, vec3_t accum_normal, int sharing)
 {
 	VectorScale (accum_center, 1.0f / (float)sharing, accum_center);
 
+	float radius = METRIC_TO_QUAKEUNIT (CVAR_TO_FLOAT (rt_plight_radius));
+
 	VectorNormalize (accum_normal);
-	VectorMA (accum_center, METRIC_TO_QUAKEUNIT (0.05f), accum_normal, accum_center);
+	VectorMA (accum_center, radius, accum_normal, accum_center);
 
 	RgSphericalLightUploadInfo light_info = {
 		.uniqueID = src->uniqueID,
 		.color = src->color,
 		.position = RT_VEC3 (accum_center),
-		.radius = METRIC_TO_QUAKEUNIT (CVAR_TO_FLOAT (rt_elight_radius)),
+		.radius = radius,
 	};
 
-	rt_wldlights_sph[rt_wldlights_sph_count++] = light_info;
+	if (upload)
+	{
+		RgResult r = rgUploadSphericalLight (vulkan_globals.instance, &light_info);
+		RG_CHECK (r);
+	}
+	else
+	{
+	    rt_wldlights_sph[rt_wldlights_sph_count++] = light_info;
+	}
 }
+
+static void PolyToSphericalLights (const RgPolygonalLightUploadInfo *polys, int count, qboolean upload)
+{
+	vec3_t accum_center = {0, 0, 0};
+	vec3_t accum_normal = {0, 0, 0};
+	int    sharing = 0;
+
+	for (int i = 1; i < count; i++)
+	{
+		const RgPolygonalLightUploadInfo *poly_prev = &polys[i - 1];
+		const RgPolygonalLightUploadInfo *poly_cur = &polys[i];
+
+		if (HaveSharedEdge (poly_prev, poly_cur))
+		{
+			if (sharing == 0)
+			{
+				AccumulateCenterAndNormal (poly_prev, accum_center, accum_normal);
+				sharing++;
+			}
+
+			AccumulateCenterAndNormal (poly_cur, accum_center, accum_normal);
+			sharing++;
+		}
+		else
+		{
+			if (sharing > 0)
+			{
+				AddSphericalLight (upload, poly_cur, accum_center, accum_normal, sharing);
+
+				RT_VEC3_SET (accum_center, 0, 0, 0);
+				RT_VEC3_SET (accum_normal, 0, 0, 0);
+			}
+
+			sharing = 0;
+		}
+	}
+
+	if (sharing > 0)
+	{
+		AddSphericalLight (upload, &polys[count - 1], accum_center, accum_normal, sharing);
+	}
+}
+#endif
 
 /*
 =============
@@ -1260,49 +1338,11 @@ void R_DrawWorld (cb_context_t *cbx, int index)
 		R_UploadLightmaps ();
 	R_DrawTextureChains_Multitexture (cbx, cl.worldmodel, NULL, chain_world, 1, world_texstart[index], world_texend[index], ENT_UNIQUEID_WORLD);
 
+#if RT_USE_SPHERE_INSTEAD_OF_POLY
+	PolyToSphericalLights (rt_wldlights_tri, rt_wldlights_tri_count, false);
+#endif
 
-	{
-		vec3_t accum_center = {0, 0, 0};
-		vec3_t accum_normal = {0, 0, 0};
-		int sharing = 0;
-
-		for (int i = 1; i < rt_wldlights_tri_count; i++)
-		{
-			const RgPolygonalLightUploadInfo *poly_prev = &rt_wldlights_tri[i - 1];
-			const RgPolygonalLightUploadInfo *poly_cur = &rt_wldlights_tri[i];
-
-			if (HaveSharedEdge (poly_prev, poly_cur))
-			{
-				if (sharing == 0)
-				{
-					AccumulateCenterAndNormal (poly_prev, accum_center, accum_normal);
-					sharing++;
-				}
-
-				AccumulateCenterAndNormal (poly_cur, accum_center, accum_normal);
-				sharing++;
-			}
-			else
-			{
-				if (sharing > 0)
-				{
-					AddSphericalLight (poly_cur, accum_center, accum_normal, sharing);
-
-					RT_VEC3_SET (accum_center, 0, 0, 0);
-					RT_VEC3_SET (accum_normal, 0, 0, 0);
-				}
-
-				sharing = 0;
-			}
-		}
-
-		if (sharing > 0)
-		{
-			AddSphericalLight (&rt_wldlights_tri[rt_wldlights_tri_count - 1], accum_center, accum_normal, sharing);
-		}
-	}
-
-	R_EndDebugUtilsLabel (cbx);
+    R_EndDebugUtilsLabel (cbx);
 }
 
 /*
@@ -1581,18 +1621,18 @@ void RT_CustomLights_RemoveCmd (void)
 
 void RT_UploadAllWorldModelLights (void)
 {
-#if 0
-	for (int i = 0; i < rt_wldlights_tri_count; i++)
-	{
-		RgResult r = rgUploadPolygonalLight (vulkan_globals.instance, &rt_wldlights_tri[i]);
-		RG_CHECK (r);
-	}
-#else
+#if RT_USE_SPHERE_INSTEAD_OF_POLY
 	for (int i = 0; i < rt_wldlights_sph_count; i++)
 	{
 		RgResult r = rgUploadSphericalLight(vulkan_globals.instance, &rt_wldlights_sph[i]);
 		RG_CHECK (r);
     }
+#else
+	for (int i = 0; i < rt_wldlights_tri_count; i++)
+	{
+		RgResult r = rgUploadPolygonalLight (vulkan_globals.instance, &rt_wldlights_tri[i]);
+		RG_CHECK (r);
+	}
 #endif
 
 	for (int i = 0; i < rt_customlights_curr_count; i++)
