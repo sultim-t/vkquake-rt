@@ -822,6 +822,7 @@ typedef struct rt_uploadsurf_state_t
 	qboolean     use_zbias;
 	qboolean     is_warp;
 	qboolean     is_water;
+	qboolean     is_acid;
 	qboolean     is_teleport;
 } rt_uploadsurf_state_t;
 
@@ -987,6 +988,7 @@ static void RT_FlushBatch (cb_context_t *cbx, const rt_uploadsurf_state_t *s, ui
 			.passThroughType = 
 			    is_mirror ? RG_GEOMETRY_PASS_THROUGH_TYPE_MIRROR :
 			    s->is_water ? RG_GEOMETRY_PASS_THROUGH_TYPE_WATER_REFLECT_REFRACT :
+			    s->is_acid ? RG_GEOMETRY_PASS_THROUGH_TYPE_ACID_REFLECT_REFRACT :
 			    s->is_teleport ? RG_GEOMETRY_PASS_THROUGH_TYPE_PORTAL :
 		        RG_GEOMETRY_PASS_THROUGH_TYPE_OPAQUE,
 			.visibilityType = RG_GEOMETRY_VISIBILITY_TYPE_WORLD_0,
@@ -1150,7 +1152,8 @@ void R_DrawTextureChains_Water (cb_context_t *cbx, qmodel_t *model, entity_t *en
 				.alpha = GL_WaterAlphaForEntitySurface (ent, s),
 				.use_zbias = false,
 				.is_warp = true,
-				.is_water = (s->flags & SURF_DRAWWATER) || (s->flags & SURF_DRAWSLIME),
+				.is_water = s->flags & SURF_DRAWWATER,
+				.is_acid = s->flags & SURF_DRAWSLIME,
 				.is_teleport = (s->flags & SURF_DRAWTELE),
 			};
 
@@ -1212,6 +1215,7 @@ void R_DrawTextureChains_Multitexture (
 				.use_zbias = use_zbias,
 				.is_warp = false,
 				.is_water = false,
+				.is_acid = false,
 				.is_teleport = false,
 			};
 

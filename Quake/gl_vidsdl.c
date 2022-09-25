@@ -909,7 +909,7 @@ extern cvar_t r_fastsky;
 extern float  skyflatcolor[3];
 extern float    rt_dmg_value;
 extern qboolean rt_dmg_inthisframe;
-extern qboolean rt_cameraunderwater;
+extern RgMediaType rt_cameramedia;
 
 static void ResolutionToRtgl (RgDrawFrameRenderResolutionParams *dst, const RgExtent2D winsize, RgExtent2D *storage)
 {
@@ -1011,7 +1011,7 @@ static void GL_EndRenderingTask (end_rendering_parms_t *parms)
 
 	RgDrawFrameReflectRefractParams refl_refr_params = {
 		.maxReflectRefractDepth = CVAR_TO_UINT32 (rt_reflrefr_depth),
-		.typeOfMediaAroundCamera = rt_cameraunderwater ? RG_MEDIA_TYPE_WATER : RG_MEDIA_TYPE_VACUUM,
+		.typeOfMediaAroundCamera = rt_cameramedia,
 		.indexOfRefractionGlass = CVAR_TO_FLOAT (rt_refr_glass),
 		.indexOfRefractionWater = CVAR_TO_FLOAT (rt_refr_water),
 		.waterWaveSpeed = METRIC_TO_QUAKEUNIT (CVAR_TO_FLOAT (rt_water_speed)),
@@ -1142,7 +1142,7 @@ static void GL_EndRenderingTask (end_rendering_parms_t *parms)
 	};
 
 	RgPostEffectWaves waves_effect = {
-		.isActive = rt_cameraunderwater,
+		.isActive = rt_cameramedia != RG_MEDIA_TYPE_VACUUM,
 		.transitionDurationIn = 0.1f,
 		.transitionDurationOut = 0.75f,
 		.amplitude = CVAR_TO_FLOAT (rt_ef_waves_stren) * 0.01f,

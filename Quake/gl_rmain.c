@@ -31,7 +31,7 @@ atomic_uint32_t rt_require_static_submit;
 
 mplane_t frustum[4];
 
-qboolean rt_cameraunderwater;
+RgMediaType rt_cameramedia = RG_MEDIA_TYPE_VACUUM;
 
 // johnfitz -- rendering statistics
 atomic_uint32_t rs_brushpolys, rs_aliaspolys, rs_skypolys, rs_particles, rs_fogpolys;
@@ -461,12 +461,20 @@ void R_SetupViewBeforeMark (void *unused)
 	{
 		int contents = Mod_PointInLeaf (r_origin, cl.worldmodel)->contents;
 
-		rt_cameraunderwater = 
-			contents == CONTENTS_WATER || 
-			contents == CONTENTS_SLIME || 
-			contents == CONTENTS_LAVA;
+		if (contents == CONTENTS_WATER)
+		{
+			rt_cameramedia = RG_MEDIA_TYPE_WATER;
+		}
+		else if (contents == CONTENTS_SLIME || contents == CONTENTS_LAVA)
+		{
+			rt_cameramedia = RG_MEDIA_TYPE_ACID;
+		}
+		else
+		{
+			rt_cameramedia = RG_MEDIA_TYPE_VACUUM;
+		}
 
-		if (rt_cameraunderwater && CVAR_TO_INT32 (r_waterwarp) == 2)
+		if (rt_cameramedia != RG_MEDIA_TYPE_VACUUM && CVAR_TO_INT32 (r_waterwarp) == 2)
 		{
 			// variance is a percentage of width, where width = 2 * tan(fov / 2) otherwise the effect is too dramatic at high FOV and too subtle at low FOV.
 			// what a mess!
