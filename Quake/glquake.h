@@ -193,13 +193,13 @@ typedef struct
 
 extern vulkanglobals_t vulkan_globals;
 
-#define RG_CHECK(rgresult)                                   \
-	do                                                       \
-	{                                                        \
-		if ((rgresult) != RG_SUCCESS)                        \
-		{                                                    \
-			Sys_Error (rgGetResultDescription ((rgresult))); \
-		}                                                    \
+#define RG_CHECK(rgresult)                                                                      \
+	do                                                                                          \
+	{                                                                                           \
+		if ((rgresult) != RG_SUCCESS)                                                           \
+		{                                                                                       \
+			Sys_Error ("%s. Use -condebug to write logs", rgGetResultDescription ((rgresult))); \
+		}                                                                                       \
 	} while (0)
 
 //====================================================

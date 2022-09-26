@@ -573,7 +573,7 @@ void VID_Lock (void)
 
 static void RT_PrintMessage (const char *pMessage, void *pUserData)
 {
-	Con_Printf (pMessage);
+	Con_Warning (pMessage);
 }
 
 static void RT_ReloadShaders (void)
