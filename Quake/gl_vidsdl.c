@@ -166,10 +166,7 @@ task_handle_t prev_end_rendering_task = INVALID_TASK_HANDLE;
 	CVAR_DEF_T (rt_volume_lpitch, "70") \
 	CVAR_DEF_T (rt_volume_lyaw, "-40") \
     \
-	CVAR_DEF_T (rt_water_density, "0.1") \
-	CVAR_DEF_T (rt_water_colr, "0.025") \
-	CVAR_DEF_T (rt_water_colg, "0.016") \
-	CVAR_DEF_T (rt_water_colb, "0.011") \
+	CVAR_DEF_T (rt_water_aciddensity, "20") \
 	CVAR_DEF_T (rt_water_speed, "0.4") \
 	CVAR_DEF_T (rt_water_normstren, "1") \
 	CVAR_DEF_T (rt_water_normsharp, "5") \
@@ -590,6 +587,40 @@ static void RT_SwitchRenderer (void)
 	Cvar_SetValueQuick (&rt_classic_render, newval);
 }
 
+static vec3_t rt_water_color = {105 / 255.0f, 128 / 255.0f, 141 / 255.0f};
+static void RT_WaterColor(void)
+{
+	if (Cmd_Argc () != 4)
+	{
+		Con_Printf ("current: %d %d %d\n", (int)(rt_water_color[0] * 255), (int)(rt_water_color[1] * 255), (int)(rt_water_color[2] * 255));
+		Con_Printf ("usage: <r 0..255> <g 0..255> <b 0..255>\n");
+		return;
+	}
+
+	RT_VEC3_SET (
+		rt_water_color, 
+		strtof (Cmd_Argv (1), NULL) / 255.0f, 
+		strtof (Cmd_Argv (2), NULL) / 255.0f, 
+		strtof (Cmd_Argv (3), NULL) / 255.0f );
+}
+
+static vec3_t rt_acid_color = {0 / 255.0f, 169 / 255.0f, 145 / 255.0f};
+static void RT_AcidColor(void)
+{
+	if (Cmd_Argc () != 4)
+	{
+		Con_Printf ("current: %d %d %d\n", (int)(rt_acid_color[0] * 255), (int)(rt_acid_color[1] * 255), (int)(rt_acid_color[2] * 255));
+		Con_Printf ("usage: <r 0..255> <g 0..255> <b 0..255>\n");
+		return;
+	}
+	
+	RT_VEC3_SET (
+		rt_acid_color, 
+		strtof (Cmd_Argv (1), NULL) / 255.0f, 
+		strtof (Cmd_Argv (2), NULL) / 255.0f, 
+		strtof (Cmd_Argv (3), NULL) / 255.0f );
+}
+
 /*
 ===============
 GL_InitInstance
@@ -664,6 +695,8 @@ static void GL_InitInstance (void)
 	Cmd_AddCommand ("rt_pfnswitch", RT_SwitchRenderer);
 	Cmd_AddCommand ("rt_pfnwlight_add", RT_CustomLights_AddCmd);
 	Cmd_AddCommand ("rt_pfnwlight_remove", RT_CustomLights_RemoveCmd);
+	Cmd_AddCommand ("rt_water_color", RT_WaterColor);
+	Cmd_AddCommand ("rt_water_acidcolor", RT_AcidColor);
 
 
     vulkan_globals.primary_cb_context.batch_indices = Mem_Alloc (sizeof (uint32_t) * MAX_BATCH_INDICES);
@@ -1016,12 +1049,21 @@ static void GL_EndRenderingTask (end_rendering_parms_t *parms)
 		.indexOfRefractionWater = CVAR_TO_FLOAT (rt_refr_water),
 		.waterWaveSpeed = METRIC_TO_QUAKEUNIT (CVAR_TO_FLOAT (rt_water_speed)),
 		.waterWaveNormalStrength = CVAR_TO_FLOAT (rt_water_normstren),
-		.waterExtinction = {CVAR_TO_FLOAT (rt_water_colr), CVAR_TO_FLOAT (rt_water_colg), CVAR_TO_FLOAT (rt_water_colb)},
+		.waterColor = RT_VEC3 (rt_water_color),
+		.acidColor = RT_VEC3 (rt_acid_color),
+		.acidDensity = CVAR_TO_FLOAT(rt_water_aciddensity),
 		.waterWaveTextureDerivativesMultiplier = CVAR_TO_FLOAT (rt_water_normsharp),
 		.waterTextureAreaScale = METRIC_TO_QUAKEUNIT (CVAR_TO_FLOAT (rt_water_scale)),
 		.portalNormalTwirl = CVAR_TO_BOOL (rt_portal_twirl),
 	};
-	VectorScale (refl_refr_params.waterExtinction.data, CVAR_TO_FLOAT (rt_water_density), refl_refr_params.waterExtinction.data);
+	// because 1 quake unit is not 1 meter
+	refl_refr_params.waterColor.data[0] = powf (refl_refr_params.waterColor.data[0], 1.0f / METRIC_TO_QUAKEUNIT (1.0f));
+	refl_refr_params.waterColor.data[1] = powf (refl_refr_params.waterColor.data[1], 1.0f / METRIC_TO_QUAKEUNIT (1.0f));
+	refl_refr_params.waterColor.data[2] = powf (refl_refr_params.waterColor.data[2], 1.0f / METRIC_TO_QUAKEUNIT (1.0f));
+	refl_refr_params.acidColor.data[0] = powf (refl_refr_params.acidColor.data[0], 1.0f / METRIC_TO_QUAKEUNIT (1.0f));
+	refl_refr_params.acidColor.data[1] = powf (refl_refr_params.acidColor.data[1], 1.0f / METRIC_TO_QUAKEUNIT (1.0f));
+	refl_refr_params.acidColor.data[2] = powf (refl_refr_params.acidColor.data[2], 1.0f / METRIC_TO_QUAKEUNIT (1.0f));
+
 
 	float skyMult = 1.0f / CLAMP (0.02f, RT_Luminance (skyflatcolor), 1.0f);
 	skyMult *= CVAR_TO_FLOAT (rt_sky);
