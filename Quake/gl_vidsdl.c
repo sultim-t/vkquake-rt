@@ -787,6 +787,7 @@ qboolean GL_BeginRendering (qboolean use_tasks, task_handle_t *begin_rendering_t
 
 static RgRenderSharpenTechnique GetSharpenTechniqueFromCvar ()
 {
+	int vintage = CVAR_TO_INT32 (rt_vintage);
 	int t = CVAR_TO_INT32 (rt_sharpen);
 
 	switch (t)
@@ -796,6 +797,11 @@ static RgRenderSharpenTechnique GetSharpenTechniqueFromCvar ()
 	case 1:
 		return RG_RENDER_SHARPEN_TECHNIQUE_NAIVE;
 	default:
+		// to accentuate a chunky look, because of the linear (not nearest) downscale mode
+		if (vintage == RT_VINTAGE_200 || vintage == RT_VINTAGE_480)
+		{
+			return RG_RENDER_SHARPEN_TECHNIQUE_AMD_CAS;
+		}
 		return RG_RENDER_SHARPEN_TECHNIQUE_NONE;
 	}
 }
