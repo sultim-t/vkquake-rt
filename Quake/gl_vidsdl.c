@@ -166,7 +166,7 @@ task_handle_t prev_end_rendering_task = INVALID_TASK_HANDLE;
 	CVAR_DEF_T (rt_volume_lpitch, "70") \
 	CVAR_DEF_T (rt_volume_lyaw, "-40") \
     \
-	CVAR_DEF_T (rt_water_aciddensity, "20") \
+	CVAR_DEF_T (rt_water_aciddensity, "25") \
 	CVAR_DEF_T (rt_water_speed, "0.4") \
 	CVAR_DEF_T (rt_water_normstren, "1") \
 	CVAR_DEF_T (rt_water_normsharp, "5") \
