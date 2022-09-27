@@ -587,7 +587,7 @@ static void RT_SwitchRenderer (void)
 	Cvar_SetValueQuick (&rt_classic_render, newval);
 }
 
-static vec3_t rt_water_color = {105 / 255.0f, 128 / 255.0f, 141 / 255.0f};
+static vec3_t rt_water_color = {171 / 255.0f, 193 / 255.0f, 210 / 255.0f};
 static void RT_WaterColor(void)
 {
 	if (Cmd_Argc () != 4)
