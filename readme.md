@@ -1,4 +1,4 @@
-# Quake: Ray Traced [![Windows CI](https://github.com/sultim-t/vkquake-rt/actions/workflows/build-windows.yml/badge.svg)](https://github.com/sultim-t/vkquake-rt/actions/workflows/build-windows.yml)
+# Quake: Ray Traced
 
 Quake: Ray Traced adds a path tracing renderer to id Software's [Quake](https://en.wikipedia.org/wiki/Quake_(video_game)) using the [RayTracedGL1](https://github.com/sultim-t/RayTracedGL1) library.
 
