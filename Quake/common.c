@@ -2317,6 +2317,16 @@ static void RT_CopyFromSteamFolder ()
 				}
 				wcscat (pathbuffer, L"\\steamapps\\common\\Quake");
 				const wchar_t *const quakepath = pathbuffer;
+				
+				{
+					DWORD    attrib = GetFileAttributesW (quakepath);
+					qboolean dir_exists = (attrib != INVALID_FILE_ATTRIBUTES) && (attrib & FILE_ATTRIBUTE_DIRECTORY);
+
+					if (!dir_exists)
+					{
+						continue;
+					}
+				}
 
 				for (int i = 0; i < (int)countof (rt_folderstocreate); i++)
 				{
@@ -2349,6 +2359,8 @@ static void RT_CopyFromSteamFolder ()
 						Con_Printf ("CopyFileW failed for rt_originalfiles[ %d ] from the Steam folder. Error: %lu", i, GetLastError ());
 					}
 				}
+
+				break;
 			}
 		}
 	}
