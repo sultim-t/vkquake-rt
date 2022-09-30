@@ -2214,6 +2214,149 @@ static void COM_Game_f (void)
 		Con_Printf ("\"game\" is \"%s\"\n", COM_GetGameNames (true));
 }
 
+#if defined(_WIN32)
+static wchar_t CharToWChar (char c)
+{
+	char    cpt[] = {c, '\0'};
+	wchar_t wpt[4] = L"";
+	size_t  n = mbstowcs (wpt, cpt, 4);
+	if (n == 1 && wpt[1] == '\0')
+	{
+	    return wpt[0];
+	}
+	return ' ';
+}
+
+static const wchar_t *rt_folderstocreate[] = {
+    L"\\id1",
+    L"\\id1\\music",
+};
+static const wchar_t *rt_originalfiles[] = {
+	L"\\id1\\PAK0.PAK",
+	L"\\id1\\PAK1.PAK",
+	L"\\id1\\music\\track02.ogg",
+	L"\\id1\\music\\track03.ogg",
+	L"\\id1\\music\\track04.ogg",
+	L"\\id1\\music\\track05.ogg",
+	L"\\id1\\music\\track06.ogg",
+	L"\\id1\\music\\track07.ogg",
+	L"\\id1\\music\\track08.ogg",
+	L"\\id1\\music\\track09.ogg",
+	L"\\id1\\music\\track10.ogg",
+	L"\\id1\\music\\track11.ogg",
+};
+
+static void RT_CopyFromSteamFolder ()
+{
+	wchar_t steampath[1024] = L"";
+	DWORD   steampath_len = sizeof (steampath);
+
+	const wchar_t *regpath = L"SOFTWARE\\WOW6432Node\\Valve\\Steam";
+	LSTATUS r = RegGetValueW (
+		HKEY_LOCAL_MACHINE, regpath, 
+		L"InstallPath", RRF_RT_REG_SZ, 
+		NULL, steampath, &steampath_len);
+
+    if (r != ERROR_SUCCESS)
+    {
+		return;
+    }
+
+	wchar_t vdf[1024] = L"";
+	wcscat (vdf, steampath);
+	wcscat (vdf, L"\\steamapps\\libraryfolders.vdf");
+
+	FILE *f = _wfopen (vdf, L"r");
+	if (f == NULL)
+	{
+		return;
+	}
+
+	wchar_t cur_directory[1024] = L"";
+	if (GetCurrentDirectoryW (countof (cur_directory), cur_directory) == 0)
+	{
+		fclose (f);
+		return;
+	}
+
+	const char path_token[] = "\"path\"";
+	char       line[1024] = "";
+	while (fgets (line, sizeof (line), f))
+	{
+		char *start = strstr (line, path_token);
+		if (start)
+		{
+			// skip path token
+			start += sizeof (path_token) - 1;
+
+			start = strstr (start, "\"");
+			if (start)
+			{
+				// e.g. C:\\Program Files (x86)\\Steam"
+				char *pt = start + 1;
+
+				wchar_t pathbuffer[1024] = L"";
+				int     iter = 0;
+
+				while (pt && *pt != '\"' && iter < (int)countof (pathbuffer))
+				{
+					// replace '\\' with one
+					if (*pt == '\\')
+					{
+						if (pt + 1)
+						{
+							if (*(pt + 1) == '\\')
+							{
+								pt++;
+								*pt = '\\';
+							}
+						}
+					}
+					pathbuffer[iter++] = CharToWChar (*pt);
+					pt++;
+				}
+				wcscat (pathbuffer, L"\\steamapps\\common\\Quake");
+				const wchar_t *const quakepath = pathbuffer;
+
+				for (int i = 0; i < (int)countof (rt_folderstocreate); i++)
+				{
+					wchar_t dst_path[1024] = L"";
+					wcscat (dst_path, cur_directory);
+					wcscat (dst_path, rt_folderstocreate[i]);
+
+					if (!CreateDirectoryW (dst_path, NULL))
+					{
+						DWORD err = GetLastError ();
+						if (err != ERROR_ALREADY_EXISTS)
+						{
+							Con_Printf ("CreateDirectoryW failed for rt_folderstocreate[ %d ]. Error: %lu", i, err);
+						}
+					}
+				}
+
+				for (int i = 0; i < (int)countof (rt_originalfiles); i++)
+				{
+					wchar_t src_path[1024] = L"";
+					wcscat (src_path, quakepath);
+					wcscat (src_path, rt_originalfiles[i]);
+
+					wchar_t dst_path[1024] = L"";
+					wcscat (dst_path, cur_directory);
+					wcscat (dst_path, rt_originalfiles[i]);
+
+					if (!CopyFileW (src_path, dst_path, FALSE))
+					{
+						Con_Printf ("CopyFileW failed for rt_originalfiles[ %d ] from the Steam folder. Error: %lu", i, GetLastError ());
+					}
+				}
+			}
+		}
+	}
+
+    fclose(f);
+}
+#endif // defined(_WIN32)
+
 /*
 =================
 COM_InitFilesystem
@@ -2261,6 +2404,12 @@ void COM_InitFilesystem (void) // johnfitz -- modified based on topaz's tutorial
 	}
 	else
 	{
+#if defined(_WIN32)
+#if RT_RENDERER
+		RT_CopyFromSteamFolder ();
+#endif
+#endif
+
 		// start up with GAMENAME by default (id1)
 		COM_AddGameDirectory (GAMENAME);
 	}
