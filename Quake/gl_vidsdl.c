@@ -202,7 +202,10 @@ task_handle_t prev_end_rendering_task = INVALID_TASK_HANDLE;
 	CVAR_DEF_T (rt_hud_minimal, "1") \
 	CVAR_DEF_T (rt_hud_padding, "8") \
 	\
-	CVAR_DEF_T (rt_debugflags, "0") 
+	CVAR_DEF_T (rt_debugflags, "0") \
+	\
+	CVAR_DEF_T (_rt_firsttime, "1")
+
 
 
 #define CVAR_DEF_T(name, default_value) cvar_t name = {#name, default_value, CVAR_ARCHIVE};
@@ -697,6 +700,7 @@ static void GL_InitInstance (void)
 	Cmd_AddCommand ("rt_pfnwlight_remove", RT_CustomLights_RemoveCmd);
 	Cmd_AddCommand ("rt_water_color", RT_WaterColor);
 	Cmd_AddCommand ("rt_water_acidcolor", RT_AcidColor);
+	Cvar_SetValueQuick (&_rt_firsttime, 0);
 
 
     vulkan_globals.primary_cb_context.batch_indices = Mem_Alloc (sizeof (uint32_t) * MAX_BATCH_INDICES);
@@ -1536,6 +1540,37 @@ void VID_Init (void)
 		refreshrate = display_refreshrate;
 		fullscreen = false;
 	}
+
+#if RT_RENDERER
+#if defined(_WIN32)
+	if (CVAR_TO_BOOL (_rt_firsttime))
+	{
+		if (!fullscreen)
+		{
+			const int maxheight = 1440;
+
+			if (display_height > maxheight)
+			{
+				int msgbox_id = MessageBoxA (
+					NULL, 
+					"Resolution of your display is quite high,\nwhich may cause low frame rates.\nRun at 1440p?", 
+					"High-resolution",
+					MB_ICONEXCLAMATION | MB_YESNO);
+
+				if (msgbox_id == IDYES)
+				{
+					float aspect = (float)display_width / (float)display_height;
+
+					width = (int)(aspect * (float)maxheight);
+					height = maxheight;
+					refreshrate = display_refreshrate;
+					fullscreen = true;
+				}
+			}
+		}
+	}
+#endif // defined(_WIN32)
+#endif // RT_RENDERER
 
 	vid_initialized = true;
 
