@@ -2246,6 +2246,54 @@ static const wchar_t *rt_originalfiles[] = {
 	L"\\id1\\music\\track11.ogg",
 };
 
+static qboolean RT_NeedToCopyFromSteam (const char *gamename)
+{
+	// only "id1" folder
+	if (strcmp (gamename, "id1") != 0)
+	{
+		return false;
+	}
+
+	wchar_t cur_directory[1024] = L"";
+	if (GetCurrentDirectoryW (countof (cur_directory), cur_directory) == 0)
+	{
+		return false;
+	}
+
+	qboolean filesmissing = false;
+	for (int i = 0; i < (int)countof (rt_originalfiles); i++)
+	{
+		wchar_t dst_path[1024] = L"";
+		wcscat (dst_path, cur_directory);
+		wcscat (dst_path, rt_originalfiles[i]);
+		
+		qboolean exists = GetFileAttributesW (dst_path) != INVALID_FILE_ATTRIBUTES;
+		if (!exists)
+		{
+			filesmissing = true;
+			break;
+		}
+	}
+
+	if (!filesmissing)
+	{
+		return false;
+	}
+
+	int msgbox_id = MessageBoxA (
+		NULL, 
+		"Some files in a local \"id1\" folder are missing.\nCopy them from a Steam folder?", 
+		"Missing files", 
+		MB_ICONQUESTION | MB_YESNO);
+
+	if (msgbox_id != IDYES)
+	{
+		return false;
+	}
+
+	return true;
+}
+
 static void RT_CopyFromSteamFolder ()
 {
 	wchar_t steampath[1024] = L"";
@@ -2281,6 +2329,8 @@ static void RT_CopyFromSteamFolder ()
 
 	const char path_token[] = "\"path\"";
 	char       line[1024] = "";
+	qboolean   found_steam_folder = false;
+
 	while (fgets (line, sizeof (line), f))
 	{
 		char *start = strstr (line, path_token);
@@ -2360,9 +2410,19 @@ static void RT_CopyFromSteamFolder ()
 					}
 				}
 
+				found_steam_folder = true;
 				break;
 			}
 		}
+	}
+
+	if (!found_steam_folder)
+	{
+		MessageBoxA (
+			NULL,
+			"Couldn't find Quake in the Steam folder", 
+			"Copy fail", 
+			MB_OK);
 	}
 
     fclose(f);
@@ -2418,7 +2478,10 @@ void COM_InitFilesystem (void) // johnfitz -- modified based on topaz's tutorial
 	{
 #if defined(_WIN32)
 #if RT_RENDERER
-		RT_CopyFromSteamFolder ();
+		if (RT_NeedToCopyFromSteam (GAMENAME))
+		{
+		    RT_CopyFromSteamFolder ();
+		}
 #endif
 #endif
 
