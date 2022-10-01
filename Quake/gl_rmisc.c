@@ -48,6 +48,8 @@ extern cvar_t r_tasks;
 extern cvar_t r_parallelmark;
 extern cvar_t r_usesops;
 
+extern cvar_t rt_elight_normaliz;
+
 #if defined(USE_SIMD)
 extern cvar_t r_simd;
 #endif
@@ -417,6 +419,16 @@ void R_NewMap (void)
 	RT_ParseElights ();
 	RT_ParseTeleports();
 	RT_CustomLights_Parse ();
+
+// !!!SHIPPING HACK!!!
+	if (strcmp (cl.worldmodel->name, "maps/e4m6.bsp") == 0)
+	{
+		Cvar_SetValueQuick (&rt_elight_normaliz, 800);
+	}
+	else
+	{
+		Cvar_SetValueQuick (&rt_elight_normaliz, 100);
+	}
 }
 
 /*
