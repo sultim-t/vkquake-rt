@@ -698,6 +698,7 @@ static void GL_InitInstance (void)
 	Cmd_AddCommand ("rt_pfnswitch", RT_SwitchRenderer);
 	Cmd_AddCommand ("rt_pfnwlight_add", RT_CustomLights_AddCmd);
 	Cmd_AddCommand ("rt_pfnwlight_remove", RT_CustomLights_RemoveCmd);
+	Cmd_AddCommand ("rt_pfnportal", RT_PrintNearestPortal);
 	Cmd_AddCommand ("rt_water_color", RT_WaterColor);
 	Cmd_AddCommand ("rt_water_acidcolor", RT_AcidColor);
 	Cvar_SetValueQuick (&_rt_firsttime, 0);
