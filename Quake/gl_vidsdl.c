@@ -954,6 +954,7 @@ extern float  skyflatcolor[3];
 extern float    rt_dmg_value;
 extern qboolean rt_dmg_inthisframe;
 extern RgMediaType rt_cameramedia;
+extern qboolean rt_lavaeffects;
 
 static void ResolutionToRtgl (RgDrawFrameRenderResolutionParams *dst, const RgExtent2D winsize, RgExtent2D *storage)
 {
@@ -1154,6 +1155,13 @@ static void GL_EndRenderingTask (end_rendering_parms_t *parms)
 		.intensity = 4.0f,
 		.color = {1.0f, 0.0f, 0.0f},
 	};
+	RgPostEffectColorTint tint_lava = {
+		.isActive = true,
+		.transitionDurationIn = 0.05f,
+		.transitionDurationOut = 0.5f,
+		.intensity = 10.0f,
+		.color = {1.0f, 0.1f, 0.0f},
+	};
 	RgPostEffectColorTint tint_radsuit = {
 		.isActive = true,
 		.transitionDurationIn = 1.0f,
@@ -1182,6 +1190,7 @@ static void GL_EndRenderingTask (end_rendering_parms_t *parms)
 	{
 	    if (cl.items & IT_QUAD) tint_effect = tint_quad;
 	    else if (cl.items & IT_INVULNERABILITY) tint_effect = tint_invuln;
+	    else if (rt_lavaeffects) tint_effect = tint_lava;
 	    else if (cl.items & IT_SUIT) tint_effect = tint_radsuit;
 	    else if (rt_dmg_inthisframe) tint_effect = tint_damage;
 	    else if (cl.cshifts[CSHIFT_BONUS].percent > 0) tint_effect = tint_bonus;

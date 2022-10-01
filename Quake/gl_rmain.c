@@ -32,6 +32,7 @@ atomic_uint32_t rt_require_static_submit;
 mplane_t frustum[4];
 
 RgMediaType rt_cameramedia = RG_MEDIA_TYPE_VACUUM;
+qboolean    rt_lavaeffects = false;
 
 // johnfitz -- rendering statistics
 atomic_uint32_t rs_brushpolys, rs_aliaspolys, rs_skypolys, rs_particles, rs_fogpolys;
@@ -461,11 +462,18 @@ void R_SetupViewBeforeMark (void *unused)
 	{
 		int contents = Mod_PointInLeaf (r_origin, cl.worldmodel)->contents;
 
+		rt_lavaeffects = false;
+
 		if (contents == CONTENTS_WATER)
 		{
 			rt_cameramedia = RG_MEDIA_TYPE_WATER;
 		}
-		else if (contents == CONTENTS_SLIME || contents == CONTENTS_LAVA)
+		else if (contents == CONTENTS_LAVA)
+		{
+			rt_cameramedia = RG_MEDIA_TYPE_WATER;
+			rt_lavaeffects = true;
+		}
+		else if (contents == CONTENTS_SLIME)
 		{
 			rt_cameramedia = RG_MEDIA_TYPE_ACID;
 		}
