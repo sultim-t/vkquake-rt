@@ -2234,6 +2234,20 @@ static const wchar_t *rt_folderstocreate[] = {
 static const wchar_t *rt_originalfiles[] = {
 	L"\\id1\\PAK0.PAK",
 	L"\\id1\\PAK1.PAK",
+	L"\\rerelease\\id1\\music\\track02.ogg",
+	L"\\rerelease\\id1\\music\\track03.ogg",
+	L"\\rerelease\\id1\\music\\track04.ogg",
+	L"\\rerelease\\id1\\music\\track05.ogg",
+	L"\\rerelease\\id1\\music\\track06.ogg",
+	L"\\rerelease\\id1\\music\\track07.ogg",
+	L"\\rerelease\\id1\\music\\track08.ogg",
+	L"\\rerelease\\id1\\music\\track09.ogg",
+	L"\\rerelease\\id1\\music\\track10.ogg",
+	L"\\rerelease\\id1\\music\\track11.ogg",
+};
+static const wchar_t *rt_dstfiles[] = {
+	L"\\id1\\PAK0.PAK",
+	L"\\id1\\PAK1.PAK",
 	L"\\id1\\music\\track02.ogg",
 	L"\\id1\\music\\track03.ogg",
 	L"\\id1\\music\\track04.ogg",
@@ -2254,6 +2268,8 @@ static qboolean RT_NeedToCopyFromSteam (const char *gamename)
 		return false;
 	}
 
+	assert (countof (rt_dstfiles) == countof (rt_originalfiles));
+
 	wchar_t cur_directory[1024] = L"";
 	if (GetCurrentDirectoryW (countof (cur_directory), cur_directory) == 0)
 	{
@@ -2261,11 +2277,11 @@ static qboolean RT_NeedToCopyFromSteam (const char *gamename)
 	}
 
 	qboolean filesmissing = false;
-	for (int i = 0; i < (int)countof (rt_originalfiles); i++)
+	for (int i = 0; i < (int)countof (rt_dstfiles); i++)
 	{
 		wchar_t dst_path[1024] = L"";
 		wcscat (dst_path, cur_directory);
-		wcscat (dst_path, rt_originalfiles[i]);
+		wcscat (dst_path, rt_dstfiles[i]);
 		
 		qboolean exists = GetFileAttributesW (dst_path) != INVALID_FILE_ATTRIBUTES;
 		if (!exists)
@@ -2402,7 +2418,7 @@ static void RT_CopyFromSteamFolder ()
 
 					wchar_t dst_path[1024] = L"";
 					wcscat (dst_path, cur_directory);
-					wcscat (dst_path, rt_originalfiles[i]);
+					wcscat (dst_path, rt_dstfiles[i]);
 
 					if (!CopyFileW (src_path, dst_path, FALSE))
 					{
