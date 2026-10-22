@@ -294,6 +294,10 @@ static inline int FindFirstBitNonZero (const uint32_t mask)
 
 #ifdef _WIN32
     #define RG_USE_SURFACE_WIN32
+#elif defined(__APPLE__)
+    #ifndef RG_USE_SURFACE_METAL
+        #define RG_USE_SURFACE_METAL
+    #endif
 #else
     #define RG_USE_SURFACE_XLIB
 #endif

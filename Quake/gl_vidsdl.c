@@ -30,6 +30,9 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "palette.h"
 #include "SDL.h"
 #include "SDL_syswm.h"
+#ifdef __APPLE__
+#include "SDL_metal.h"
+#endif
 
 #define MAX_MODE_LIST  600 // johnfitz -- was 30
 #define MAX_BPPS_LIST  5
@@ -80,12 +83,18 @@ extern cvar_t   r_particles, host_maxfps, r_gpulightmapupdate;
 //====================================
 
 // johnfitz -- new cvars
-static cvar_t                   vid_fullscreen = {"vid_fullscreen", "0", CVAR_ARCHIVE}; // QuakeSpasm, was "1"
+#ifdef __APPLE__
+// macOS: start in (desktop) fullscreen by default; Alt+Enter or the video menu switches back
+#define QRT_FULLSCREEN_DEFAULT "1"
+#else
+#define QRT_FULLSCREEN_DEFAULT "0"
+#endif
+static cvar_t                   vid_fullscreen = {"vid_fullscreen", QRT_FULLSCREEN_DEFAULT, CVAR_ARCHIVE}; // QuakeSpasm, was "1"
 static cvar_t                   vid_width = {"vid_width", "-1", CVAR_ARCHIVE};         // RT: set to "-1", so we have 
 static cvar_t                   vid_height = {"vid_height", "-1", CVAR_ARCHIVE};       //     desktop resolution at the first time
 static cvar_t                   vid_refreshrate = {"vid_refreshrate", "60", CVAR_ARCHIVE};
 static cvar_t                   vid_vsync = {"vid_vsync", "0", CVAR_ARCHIVE};
-static cvar_t                   vid_desktopfullscreen = {"vid_desktopfullscreen", "0", CVAR_ARCHIVE}; // QuakeSpasm
+static cvar_t                   vid_desktopfullscreen = {"vid_desktopfullscreen", QRT_FULLSCREEN_DEFAULT, CVAR_ARCHIVE}; // QuakeSpasm
 static cvar_t                   vid_borderless = {"vid_borderless", "0", CVAR_ARCHIVE};               // QuakeSpasm
 static cvar_t                   vid_palettize = {"vid_palettize", "0", CVAR_ARCHIVE};
 cvar_t                          vid_filter = {"vid_filter", "1", CVAR_ARCHIVE};
@@ -425,7 +434,12 @@ static qboolean VID_SetMode (int width, int height, int refreshrate, qboolean fu
 	/* Create the window if needed, hidden */
 	if (!draw_context)
 	{
+#ifdef __APPLE__
+		/* RTGL1 talks to MoltenVK directly; SDL only needs a Metal-capable window */
+		flags = SDL_WINDOW_HIDDEN | SDL_WINDOW_METAL;
+#else
 		flags = SDL_WINDOW_HIDDEN | SDL_WINDOW_VULKAN;
+#endif
 
 		if (vid_borderless.value)
 			flags |= SDL_WINDOW_BORDERLESS;
@@ -637,6 +651,15 @@ static void GL_InitInstance (void)
 
 #ifdef RG_USE_SURFACE_WIN32
 	RgWin32SurfaceCreateInfo win32Info = {.hinstance = wmInfo.info.win.hinstance, .hwnd = wmInfo.info.win.window};
+#elif defined(RG_USE_SURFACE_METAL)
+	static SDL_MetalView metal_view = NULL;
+	if (!metal_view)
+	{
+		metal_view = SDL_Metal_CreateView (draw_context);
+		if (!metal_view)
+			Sys_Error ("Couldn't create Metal view: %s", SDL_GetError ());
+	}
+	RgMetalSurfaceCreateInfo metalInfo = {.pLayer = SDL_Metal_GetLayer (metal_view)};
 #elif RG_USE_SURFACE_XLIB
 	RgXlibSurfaceCreateInfo x11Info = {.dpy = wmInfo.info.x11.display, .window = wmInfo.info.x11.window};
 #endif
@@ -651,6 +674,8 @@ static void GL_InitInstance (void)
 
 #ifdef RG_USE_SURFACE_WIN32
 		.pWin32SurfaceInfo = &win32Info,
+#elif defined(RG_USE_SURFACE_METAL)
+		.pMetalSurfaceCreateInfo = &metalInfo,
 #elif RG_USE_SURFACE_XLIB
 		.pXlibSurfaceCreateInfo = &x11Info,
 #endif
@@ -876,6 +901,11 @@ static void UpscaleCvarsToRtgl (RgDrawFrameRenderResolutionParams *pDst)
 		amdFsr = 0;
 		break;
 	}
+
+	if (amdFsr && !rgIsRenderUpscaleTechniqueAvailable (vulkan_globals.instance, RG_RENDER_UPSCALE_TECHNIQUE_AMD_FSR2))
+		amdFsr = 0;
+	if (nvDlss && !rgIsRenderUpscaleTechniqueAvailable (vulkan_globals.instance, RG_RENDER_UPSCALE_TECHNIQUE_NVIDIA_DLSS))
+		nvDlss = 0;
 
 	// both disabled
 	if (nvDlss == 0 && amdFsr == 0)
@@ -1532,7 +1562,12 @@ void VID_Init (void)
 		width = display_width;
 		height = display_height;
 		refreshrate = display_refreshrate;
+#ifdef __APPLE__
+		// first launch (vid_width/vid_height are -1): keep the fullscreen default
+		fullscreen = (int)vid_fullscreen.value;
+#else
 		fullscreen = false;
+#endif
 	}
 
 	if (!VID_ValidMode (width, height, refreshrate, fullscreen))
@@ -2286,7 +2321,11 @@ static void VID_MenuDraw (cb_context_t *cbx)
 		case VID_OPT_FSR2:
 			y += 8; // separate
 
+#ifdef __APPLE__
+			M_Print (cbx, 16, y, "      Apple MetalFX");
+#else
 			M_Print (cbx, 16, y, "       AMD FSR 2.0");
+#endif
 			M_Print (cbx, 184, y, GetUpscalerOptionName (menu_settings.rt_upscale_fsr2, RG_RENDER_UPSCALE_TECHNIQUE_AMD_FSR2));
 			break;
 		case VID_OPT_DLSS:

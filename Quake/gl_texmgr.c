@@ -188,8 +188,8 @@ void RGBtoHSV (const vec3_t rgb, vec3_t out_hsv)
 	float G = CLAMP (0.0f, rgb[1], 1.0f);
 	float B = CLAMP (0.0f, rgb[2], 1.0f);
 
-	float M = max (R, max (G, B));
-	float m = min (R, min (G, B));
+	float M = q_max (R, q_max (G, B));
+	float m = q_min (R, q_min (G, B));
 	float C = M - m; // Chroma
 
 	float H = 0.f; // Hue
@@ -226,7 +226,7 @@ void HSVtoRGB (const vec3_t hsv, vec3_t out_rgb)
 	float H = CLAMP (0.0f, hsv[0], 360.0f);
 	float S = CLAMP (0.0f, hsv[1], 1.0f);
 	// Note: don't clamp, as we modify it
-	float V = max (0.0f, hsv[2]);
+	float V = q_max (0.0f, hsv[2]);
 
 	float C = S * V;                        // Chroma
 	float HPrime = fmodf (H / 60, 6.f); // H'
@@ -272,9 +272,9 @@ void HSVtoRGB (const vec3_t hsv, vec3_t out_rgb)
 	B += M;
 
 	// Note: don't clamp, as we modify luminance
-	out_rgb[0] = max (0.0f, R);
-	out_rgb[1] = max (0.0f, G);
-	out_rgb[2] = max (0.0f, B);
+	out_rgb[0] = q_max (0.0f, R);
+	out_rgb[1] = q_max (0.0f, G);
+	out_rgb[2] = q_max (0.0f, B);
 }
 static void ModifyColorValue (vec3_t inout_color, float target_value)
 {
